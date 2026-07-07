@@ -1,3 +1,4 @@
+// тестирование функционала загрузки CSV
 package handlers
 
 import (
