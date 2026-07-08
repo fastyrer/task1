@@ -14,6 +14,7 @@ func main() {
 	mux := http.NewServeMux()
 
 	handlers.RegisterUploadRoutes(mux, storage.DefaultStorage())
+	handlers.RegisterNotificationRoutes(mux, storage.DefaultStorage())
 	registerFrontend(mux)
 
 	port := os.Getenv("PORT")

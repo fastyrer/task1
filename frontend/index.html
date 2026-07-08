@@ -171,6 +171,56 @@
       .empty-state {
         color: var(--muted);
       }
+
+      select, textarea {
+        width: 100%;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 10px;
+        background: #fbfcfd;
+        color: var(--text);
+        font: inherit;
+        font-size: 14px;
+      }
+
+      textarea {
+        resize: vertical;
+        min-height: 80px;
+      }
+
+      .form-row {
+        display: grid;
+        gap: 6px;
+      }
+
+      .form-row label {
+        font-size: 14px;
+        font-weight: 600;
+      }
+
+      .placeholder-hint {
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      .action-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .result-summary {
+        font-size: 14px;
+        color: var(--muted);
+      }
+
+      .phone-empty {
+        opacity: 0.5;
+      }
+
+      #constructorSection {
+        display: none;
+      }
     </style>
   </head>
   <body>
@@ -203,6 +253,39 @@
           </table>
         </div>
       </section>
+
+      <section class="panel stack" id="constructorSection" aria-label="Конструктор уведомлений">
+        <h2>Конструктор уведомлений</h2>
+
+        <div class="form-row">
+          <label for="phoneColumn">Колонка с номером телефона:</label>
+          <select id="phoneColumn">
+            <option value="">-- выберите колонку --</option>
+          </select>
+        </div>
+
+        <div class="form-row">
+          <label for="templateInput">Шаблон сообщения:</label>
+          <div class="placeholder-hint">Вставьте плейсхолдеры вида <code>{{НазваниеКолонки}}</code>. Например: <code>Здравствуйте, {{Имя}}! Ваша скидка: {{Скидка}}%</code></div>
+          <div id="placeholderHint" class="placeholder-hint"></div>
+          <textarea id="templateInput" placeholder="Введите текст уведомления..." rows="4"></textarea>
+        </div>
+
+        <div class="action-row">
+          <button id="previewButton" type="button">Предпросмотр</button>
+          <button id="exportButton" type="button" style="display:none">Скачать CSV</button>
+        </div>
+
+        <div id="notificationError" class="error" role="alert"></div>
+
+        <div id="notificationResults" style="display:none">
+          <h3>Сформированные уведомления</h3>
+          <div id="resultSummary" class="result-summary"></div>
+          <div class="table-wrap">
+            <table id="notificationTable"></table>
+          </div>
+        </div>
+      </section>
     </main>
 
     <script>
@@ -212,7 +295,24 @@
       const headersBlock = document.getElementById("headersBlock");
       const previewTable = document.getElementById("previewTable");
       const fileInfo = document.getElementById("fileInfo");
-      const apiURL = window.location.protocol === "file:" ? "http://localhost:8080/api/upload" : "/api/upload";
+      const constructorSection = document.getElementById("constructorSection");
+      const phoneColumn = document.getElementById("phoneColumn");
+      const templateInput = document.getElementById("templateInput");
+      const placeholderHint = document.getElementById("placeholderHint");
+      const previewButton = document.getElementById("previewButton");
+      const exportButton = document.getElementById("exportButton");
+      const notificationError = document.getElementById("notificationError");
+      const notificationResults = document.getElementById("notificationResults");
+      const resultSummary = document.getElementById("resultSummary");
+      const notificationTable = document.getElementById("notificationTable");
+
+      const origin = window.location.protocol === "file:" ? "http://localhost:8080" : "";
+      const apiURL = origin + "/api/upload";
+      const previewURL = origin + "/api/preview";
+      const exportURL = origin + "/api/export";
+
+      let currentFileId = null;
+      let currentHeaders = [];
 
       uploadButton.addEventListener("click", async () => {
         clearError();
@@ -250,10 +350,16 @@
         }
       });
 
+      previewButton.addEventListener("click", handlePreview);
+      exportButton.addEventListener("click", handleExport);
+
       function renderResult(payload) {
-        fileInfo.textContent = `fileId: ${payload.fileId}`;
-        renderHeaders(payload.headers || []);
-        renderPreview(payload.headers || [], payload.previewRows || []);
+        currentFileId = payload.fileId;
+        currentHeaders = payload.headers || [];
+        fileInfo.textContent = "fileId: " + payload.fileId;
+        renderHeaders(currentHeaders);
+        renderPreview(currentHeaders, payload.previewRows || []);
+        initConstructor();
       }
 
       function renderHeaders(headers) {
@@ -311,6 +417,178 @@
 
       function clearError() {
         errorBlock.textContent = "";
+      }
+
+      function initConstructor() {
+        constructorSection.style.display = "";
+
+        phoneColumn.innerHTML = '<option value="">-- выберите колонку --</option>';
+        currentHeaders.forEach((h) => {
+          const opt = document.createElement("option");
+          opt.value = h;
+          opt.textContent = h;
+          phoneColumn.appendChild(opt);
+        });
+
+        placeholderHint.textContent = "Доступные плейсхолдеры: " + currentHeaders.map(h => "{{" + h + "}}").join(", ");
+
+        notificationResults.style.display = "none";
+        exportButton.style.display = "none";
+        notificationError.textContent = "";
+        templateInput.value = "";
+        phoneColumn.value = "";
+      }
+
+      async function handlePreview() {
+        clearNotificationError();
+
+        const fileId = currentFileId;
+        const col = phoneColumn.value;
+        const template = templateInput.value;
+
+        if (!col) {
+          showNotificationError("Выберите колонку с номером телефона.");
+          return;
+        }
+        if (!template.trim()) {
+          showNotificationError("Введите шаблон сообщения.");
+          return;
+        }
+
+        previewButton.disabled = true;
+        previewButton.textContent = "Загрузка...";
+
+        try {
+          const response = await fetch(previewURL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ fileId, phoneColumn: col, template }),
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            showNotificationError(data.error || "Ошибка при формировании уведомлений.");
+            return;
+          }
+
+          renderNotifications(data);
+        } catch (err) {
+          showNotificationError("Не удалось подключиться к серверу.");
+        } finally {
+          previewButton.disabled = false;
+          previewButton.textContent = "Предпросмотр";
+        }
+      }
+
+      function renderNotifications(data) {
+        const items = data.notifications || [];
+        const skipped = data.skipped || 0;
+
+        if (!items.length) {
+          showNotificationError("Нет строк с номерами телефонов.");
+          notificationResults.style.display = "none";
+          exportButton.style.display = "none";
+          return;
+        }
+
+        notificationResults.style.display = "";
+        exportButton.style.display = "";
+
+        let summary = "Сформировано уведомлений: " + items.length;
+        if (skipped > 0) {
+          summary += ". Пропущено строк с пустым телефоном: " + skipped;
+        }
+        resultSummary.textContent = summary;
+
+        const thead = document.createElement("thead");
+        const hr = document.createElement("tr");
+        ["№", "Телефон", "Сообщение"].forEach((h) => {
+          const c = document.createElement("th");
+          c.textContent = h;
+          hr.appendChild(c);
+        });
+        thead.appendChild(hr);
+
+        const tbody = document.createElement("tbody");
+        items.forEach((item) => {
+          const tr = document.createElement("tr");
+          if (!item.phone) {
+            tr.className = "phone-empty";
+          }
+          const numCell = document.createElement("td");
+          numCell.textContent = item.row;
+          tr.appendChild(numCell);
+
+          const phoneCell = document.createElement("td");
+          phoneCell.textContent = item.phone || "(пусто)";
+          tr.appendChild(phoneCell);
+
+          const textCell = document.createElement("td");
+          textCell.textContent = item.text;
+          tr.appendChild(textCell);
+
+          tbody.appendChild(tr);
+        });
+
+        notificationTable.replaceChildren(thead, tbody);
+      }
+
+      async function handleExport() {
+        clearNotificationError();
+
+        const fileId = currentFileId;
+        const col = phoneColumn.value;
+        const template = templateInput.value;
+
+        if (!col) {
+          showNotificationError("Выберите колонку с номером телефона.");
+          return;
+        }
+        if (!template.trim()) {
+          showNotificationError("Введите шаблон сообщения.");
+          return;
+        }
+
+        exportButton.disabled = true;
+        exportButton.textContent = "Скачивание...";
+
+        try {
+          const response = await fetch(exportURL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ fileId, phoneColumn: col, template }),
+          });
+
+          if (!response.ok) {
+            const data = await response.json();
+            showNotificationError(data.error || "Ошибка при экспорте.");
+            return;
+          }
+
+          const blob = await response.blob();
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "notifications.csv";
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        } catch (err) {
+          showNotificationError("Не удалось подключиться к серверу.");
+        } finally {
+          exportButton.disabled = false;
+          exportButton.textContent = "Скачать CSV";
+        }
+      }
+
+      function showNotificationError(message) {
+        notificationError.textContent = message;
+      }
+
+      function clearNotificationError() {
+        notificationError.textContent = "";
       }
     </script>
   </body>
