@@ -70,7 +70,9 @@
         gap: 12px;
       }
 
-      input[type="file"] {
+      input[type="file"],
+      input[type="text"] {
+      input[type="text"] {
         max-width: 100%;
         border: 1px solid var(--border);
         border-radius: 6px;
@@ -116,6 +118,31 @@
       .meta {
         color: var(--muted);
         font-size: 14px;
+      }
+
+      .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 10px;
+      }
+
+      .metric {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 12px;
+        background: #fbfcfd;
+      }
+
+      .metric-label {
+        margin: 0 0 4px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .metric-value {
+        margin: 0;
+        font-size: 20px;
+        font-weight: 700;
       }
 
       .headers-list {
@@ -172,54 +199,20 @@
         color: var(--muted);
       }
 
-      select, textarea {
-        width: 100%;
-        border: 1px solid var(--border);
-        border-radius: 6px;
-        padding: 10px;
-        background: #fbfcfd;
-        color: var(--text);
-        font: inherit;
-        font-size: 14px;
-      }
-
-      textarea {
-        resize: vertical;
-        min-height: 80px;
-      }
-
-      .form-row {
+      .warning-list {
         display: grid;
-        gap: 6px;
+        gap: 8px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
       }
 
-      .form-row label {
+      .warning-list li {
+        border-left: 3px solid #c78100;
+        padding: 8px 10px;
+        background: #fff8e8;
+        color: #613c00;
         font-size: 14px;
-        font-weight: 600;
-      }
-
-      .placeholder-hint {
-        font-size: 13px;
-        color: var(--muted);
-      }
-
-      .action-row {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-      }
-
-      .result-summary {
-        font-size: 14px;
-        color: var(--muted);
-      }
-
-      .phone-empty {
-        opacity: 0.5;
-      }
-
-      #constructorSection {
-        display: none;
       }
     </style>
   </head>
@@ -230,10 +223,16 @@
       <section class="panel stack" aria-label="Загрузка файла">
         <div class="upload-row">
           <input type="file" id="fileInput" accept=".csv,.xls,.xlsx">
+          <input type="text" id="sheetInput" placeholder="Лист Excel">
           <button id="uploadButton" type="button">Загрузить файл</button>
         </div>
         <div id="errorBlock" class="error" role="alert"></div>
         <div id="fileInfo" class="meta"></div>
+      </section>
+
+      <section class="panel stack" aria-label="Сводка обработки">
+        <h2>Сводка</h2>
+        <div id="statsBlock" class="empty-state">Сводка появится после загрузки файла.</div>
       </section>
 
       <section class="panel stack" aria-label="Заголовки колонок">
@@ -254,65 +253,37 @@
         </div>
       </section>
 
-      <section class="panel stack" id="constructorSection" aria-label="Конструктор уведомлений">
-        <h2>Конструктор уведомлений</h2>
+      <section class="panel stack" aria-label="Предупреждения">
+        <h2>Предупреждения</h2>
+        <div id="warningsBlock" class="empty-state">Предупреждений пока нет.</div>
+      </section>
 
-        <div class="form-row">
-          <label for="phoneColumn">Колонка с номером телефона:</label>
-          <select id="phoneColumn">
-            <option value="">-- выберите колонку --</option>
-          </select>
-        </div>
-
-        <div class="form-row">
-          <label for="templateInput">Шаблон сообщения:</label>
-          <div class="placeholder-hint">Вставьте плейсхолдеры вида <code>{{НазваниеКолонки}}</code>. Например: <code>Здравствуйте, {{Имя}}! Ваша скидка: {{Скидка}}%</code></div>
-          <div id="placeholderHint" class="placeholder-hint"></div>
-          <textarea id="templateInput" placeholder="Введите текст уведомления..." rows="4"></textarea>
-        </div>
-
-        <div class="action-row">
-          <button id="previewButton" type="button">Предпросмотр</button>
-          <button id="exportButton" type="button" style="display:none">Скачать CSV</button>
-        </div>
-
-        <div id="notificationError" class="error" role="alert"></div>
-
-        <div id="notificationResults" style="display:none">
-          <h3>Сформированные уведомления</h3>
-          <div id="resultSummary" class="result-summary"></div>
-          <div class="table-wrap">
-            <table id="notificationTable"></table>
-          </div>
+      <section class="panel stack" aria-label="Строки с ошибками">
+        <h2>Строки с ошибками</h2>
+        <div class="table-wrap">
+          <table id="invalidRowsTable">
+            <tbody>
+              <tr>
+                <td class="empty-state">Ошибочные строки появятся после проверки файла.</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </section>
     </main>
 
     <script>
       const fileInput = document.getElementById("fileInput");
+      const sheetInput = document.getElementById("sheetInput");
       const uploadButton = document.getElementById("uploadButton");
       const errorBlock = document.getElementById("errorBlock");
       const headersBlock = document.getElementById("headersBlock");
       const previewTable = document.getElementById("previewTable");
       const fileInfo = document.getElementById("fileInfo");
-      const constructorSection = document.getElementById("constructorSection");
-      const phoneColumn = document.getElementById("phoneColumn");
-      const templateInput = document.getElementById("templateInput");
-      const placeholderHint = document.getElementById("placeholderHint");
-      const previewButton = document.getElementById("previewButton");
-      const exportButton = document.getElementById("exportButton");
-      const notificationError = document.getElementById("notificationError");
-      const notificationResults = document.getElementById("notificationResults");
-      const resultSummary = document.getElementById("resultSummary");
-      const notificationTable = document.getElementById("notificationTable");
-
-      const origin = window.location.protocol === "file:" ? "http://localhost:8080" : "";
-      const apiURL = origin + "/api/upload";
-      const previewURL = origin + "/api/preview";
-      const exportURL = origin + "/api/export";
-
-      let currentFileId = null;
-      let currentHeaders = [];
+      const statsBlock = document.getElementById("statsBlock");
+      const warningsBlock = document.getElementById("warningsBlock");
+      const invalidRowsTable = document.getElementById("invalidRowsTable");
+      const apiURL = window.location.protocol === "file:" ? "http://localhost:8080/api/upload" : "/api/upload";
 
       uploadButton.addEventListener("click", async () => {
         clearError();
@@ -325,6 +296,9 @@
 
         const formData = new FormData();
         formData.append("file", file);
+        if (sheetInput.value.trim()) {
+          formData.append("sheet", sheetInput.value.trim());
+        }
 
         uploadButton.disabled = true;
         uploadButton.textContent = "Загрузка...";
@@ -350,16 +324,78 @@
         }
       });
 
-      previewButton.addEventListener("click", handlePreview);
-      exportButton.addEventListener("click", handleExport);
-
       function renderResult(payload) {
-        currentFileId = payload.fileId;
-        currentHeaders = payload.headers || [];
-        fileInfo.textContent = "fileId: " + payload.fileId;
-        renderHeaders(currentHeaders);
-        renderPreview(currentHeaders, payload.previewRows || []);
-        initConstructor();
+        renderFileInfo(payload);
+        renderStats(payload.stats);
+        renderHeaders(payload.headers || []);
+        renderPreview(payload.headers || [], payload.previewRows || []);
+        renderWarnings(payload.warnings || []);
+        renderInvalidRows(payload.invalidRows || []);
+      }
+
+      function renderFileInfo(payload) {
+        const parts = [`fileId: ${payload.fileId}`];
+        if (payload.originalFilename) {
+          parts.push(`файл: ${payload.originalFilename}`);
+        }
+        if (payload.size) {
+          parts.push(`размер: ${formatBytes(payload.size)}`);
+        }
+        if (payload.format) {
+          parts.push(`формат: ${payload.format.toUpperCase()}`);
+        }
+        if (payload.encoding) {
+          parts.push(`кодировка: ${payload.encoding}`);
+        }
+        if (payload.detectedMimeType) {
+          parts.push(`MIME: ${payload.detectedMimeType}`);
+        }
+        if (payload.sheetName) {
+          parts.push(`лист: ${payload.sheetName}`);
+        }
+        if (payload.headerRow) {
+          parts.push(`заголовки: строка ${payload.headerRow}`);
+        }
+
+        fileInfo.textContent = parts.join(" · ");
+      }
+
+      function renderStats(stats) {
+        if (!stats) {
+          statsBlock.className = "empty-state";
+          statsBlock.textContent = "Сводка появится после загрузки файла.";
+          return;
+        }
+
+        const metrics = [
+          ["Строк", stats.rowCount],
+          ["Колонок", stats.columnCount],
+          ["Валидных", stats.validRowCount],
+          ["С ошибками", stats.invalidRowCount],
+          ["Пустых", stats.emptyRowCount],
+          ["Предупреждений", stats.warningCount],
+        ];
+
+        const grid = document.createElement("div");
+        grid.className = "summary-grid";
+        metrics.forEach(([label, value]) => {
+          const item = document.createElement("div");
+          item.className = "metric";
+
+          const caption = document.createElement("p");
+          caption.className = "metric-label";
+          caption.textContent = label;
+
+          const number = document.createElement("p");
+          number.className = "metric-value";
+          number.textContent = Number.isFinite(value) ? value : 0;
+
+          item.append(caption, number);
+          grid.appendChild(item);
+        });
+
+        statsBlock.className = "";
+        statsBlock.replaceChildren(grid);
       }
 
       function renderHeaders(headers) {
@@ -411,184 +447,86 @@
         previewTable.replaceChildren(thead, tbody);
       }
 
+      function renderWarnings(warnings) {
+        if (!warnings.length) {
+          warningsBlock.className = "empty-state";
+          warningsBlock.textContent = "Предупреждений нет.";
+          return;
+        }
+
+        const list = document.createElement("ul");
+        list.className = "warning-list";
+        warnings.forEach((warning) => {
+          const item = document.createElement("li");
+          item.textContent = formatWarning(warning);
+          list.appendChild(item);
+        });
+
+        warningsBlock.className = "";
+        warningsBlock.replaceChildren(list);
+      }
+
+      function renderInvalidRows(rows) {
+        if (!rows.length) {
+          invalidRowsTable.innerHTML = '<tbody><tr><td class="empty-state">Ошибочных строк нет.</td></tr></tbody>';
+          return;
+        }
+
+        const thead = document.createElement("thead");
+        const headerRow = document.createElement("tr");
+        ["Строка", "Ошибки"].forEach((header) => {
+          const cell = document.createElement("th");
+          cell.textContent = header;
+          headerRow.appendChild(cell);
+        });
+        thead.appendChild(headerRow);
+
+        const tbody = document.createElement("tbody");
+        rows.forEach((row) => {
+          const tr = document.createElement("tr");
+
+          const rowCell = document.createElement("td");
+          rowCell.textContent = row.row || "";
+
+          const errorsCell = document.createElement("td");
+          errorsCell.textContent = (row.errors || []).map(formatWarning).join("; ");
+
+          tr.append(rowCell, errorsCell);
+          tbody.appendChild(tr);
+        });
+
+        invalidRowsTable.replaceChildren(thead, tbody);
+      }
+
+      function formatWarning(warning) {
+        const parts = [];
+        if (warning.row) {
+          parts.push(`строка ${warning.row}`);
+        }
+        if (warning.column) {
+          parts.push(`колонка "${warning.column}"`);
+        }
+        parts.push(warning.message || "Предупреждение");
+        return parts.join(": ");
+      }
+
+      function formatBytes(value) {
+        if (value < 1024) {
+          return `${value} Б`;
+        }
+        if (value < 1024 * 1024) {
+          return `${(value / 1024).toFixed(1)} КБ`;
+        }
+
+        return `${(value / 1024 / 1024).toFixed(1)} МБ`;
+      }
+
       function showError(message) {
         errorBlock.textContent = message;
       }
 
       function clearError() {
         errorBlock.textContent = "";
-      }
-
-      function initConstructor() {
-        constructorSection.style.display = "";
-
-        phoneColumn.innerHTML = '<option value="">-- выберите колонку --</option>';
-        currentHeaders.forEach((h) => {
-          const opt = document.createElement("option");
-          opt.value = h;
-          opt.textContent = h;
-          phoneColumn.appendChild(opt);
-        });
-
-        placeholderHint.textContent = "Доступные плейсхолдеры: " + currentHeaders.map(h => "{{" + h + "}}").join(", ");
-
-        notificationResults.style.display = "none";
-        exportButton.style.display = "none";
-        notificationError.textContent = "";
-        templateInput.value = "";
-        phoneColumn.value = "";
-      }
-
-      async function handlePreview() {
-        clearNotificationError();
-
-        const fileId = currentFileId;
-        const col = phoneColumn.value;
-        const template = templateInput.value;
-
-        if (!col) {
-          showNotificationError("Выберите колонку с номером телефона.");
-          return;
-        }
-        if (!template.trim()) {
-          showNotificationError("Введите шаблон сообщения.");
-          return;
-        }
-
-        previewButton.disabled = true;
-        previewButton.textContent = "Загрузка...";
-
-        try {
-          const response = await fetch(previewURL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ fileId, phoneColumn: col, template }),
-          });
-
-          const data = await response.json();
-
-          if (!response.ok) {
-            showNotificationError(data.error || "Ошибка при формировании уведомлений.");
-            return;
-          }
-
-          renderNotifications(data);
-        } catch (err) {
-          showNotificationError("Не удалось подключиться к серверу.");
-        } finally {
-          previewButton.disabled = false;
-          previewButton.textContent = "Предпросмотр";
-        }
-      }
-
-      function renderNotifications(data) {
-        const items = data.notifications || [];
-        const skipped = data.skipped || 0;
-
-        if (!items.length) {
-          showNotificationError("Нет строк с номерами телефонов.");
-          notificationResults.style.display = "none";
-          exportButton.style.display = "none";
-          return;
-        }
-
-        notificationResults.style.display = "";
-        exportButton.style.display = "";
-
-        let summary = "Сформировано уведомлений: " + items.length;
-        if (skipped > 0) {
-          summary += ". Пропущено строк с пустым телефоном: " + skipped;
-        }
-        resultSummary.textContent = summary;
-
-        const thead = document.createElement("thead");
-        const hr = document.createElement("tr");
-        ["№", "Телефон", "Сообщение"].forEach((h) => {
-          const c = document.createElement("th");
-          c.textContent = h;
-          hr.appendChild(c);
-        });
-        thead.appendChild(hr);
-
-        const tbody = document.createElement("tbody");
-        items.forEach((item) => {
-          const tr = document.createElement("tr");
-          if (!item.phone) {
-            tr.className = "phone-empty";
-          }
-          const numCell = document.createElement("td");
-          numCell.textContent = item.row;
-          tr.appendChild(numCell);
-
-          const phoneCell = document.createElement("td");
-          phoneCell.textContent = item.phone || "(пусто)";
-          tr.appendChild(phoneCell);
-
-          const textCell = document.createElement("td");
-          textCell.textContent = item.text;
-          tr.appendChild(textCell);
-
-          tbody.appendChild(tr);
-        });
-
-        notificationTable.replaceChildren(thead, tbody);
-      }
-
-      async function handleExport() {
-        clearNotificationError();
-
-        const fileId = currentFileId;
-        const col = phoneColumn.value;
-        const template = templateInput.value;
-
-        if (!col) {
-          showNotificationError("Выберите колонку с номером телефона.");
-          return;
-        }
-        if (!template.trim()) {
-          showNotificationError("Введите шаблон сообщения.");
-          return;
-        }
-
-        exportButton.disabled = true;
-        exportButton.textContent = "Скачивание...";
-
-        try {
-          const response = await fetch(exportURL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ fileId, phoneColumn: col, template }),
-          });
-
-          if (!response.ok) {
-            const data = await response.json();
-            showNotificationError(data.error || "Ошибка при экспорте.");
-            return;
-          }
-
-          const blob = await response.blob();
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = "notifications.csv";
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-        } catch (err) {
-          showNotificationError("Не удалось подключиться к серверу.");
-        } finally {
-          exportButton.disabled = false;
-          exportButton.textContent = "Скачать CSV";
-        }
-      }
-
-      function showNotificationError(message) {
-        notificationError.textContent = message;
-      }
-
-      function clearNotificationError() {
-        notificationError.textContent = "";
       }
     </script>
   </body>
