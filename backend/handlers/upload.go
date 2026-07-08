@@ -5,31 +5,47 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
+	"os"
+	"strconv"
+	"strings"
 
+	"task1/backend/models"
 	"task1/backend/services"
 	"task1/backend/storage"
 )
 
 // Ограничения по размеру
 const (
-	maxUploadSize = 20 << 20 // 20 мб
-	previewLimit  = 10 // показывать первые 10 строк
+	defaultMaxUploadSize = 20 << 20
+	previewLimit         = 10
 )
 
 // UploadHandler – структура обработчика
 type UploadHandler struct {
-	store *storage.MemoryStorage // Указатель на хранилище
+	store *storage.MemoryStorage
 }
 
 // uploadResponse – JSON теги
 type uploadResponse struct {
-	FileID      string              `json:"fileId"`
-	Headers     []string            `json:"headers"`
-	PreviewRows []map[string]string `json:"previewRows"`
+	FileID           string                     `json:"fileId"`
+	OriginalFilename string                     `json:"originalFilename,omitempty"`
+	Size             int64                      `json:"size,omitempty"`
+	MIMEType         string                     `json:"mimeType,omitempty"`
+	DetectedMIMEType string                     `json:"detectedMimeType,omitempty"`
+	Format           string                     `json:"format,omitempty"`
+	Encoding         string                     `json:"encoding,omitempty"`
+	SheetName        string                     `json:"sheetName,omitempty"`
+	Sheets           []string                   `json:"sheets,omitempty"`
+	HeaderRow        int                        `json:"headerRow,omitempty"`
+	Headers          []string                   `json:"headers"`
+	PreviewRows      []map[string]string        `json:"previewRows"`
+	Stats            models.ProcessingStats     `json:"stats"`
+	Warnings         []models.ProcessingWarning `json:"warnings,omitempty"`
+	InvalidRows      []models.InvalidRow        `json:"invalidRows,omitempty"`
 }
 
-// errorResponse – возврат ошибок в JSON-формате
 type errorResponse struct {
 	Error string `json:"error"`
 }
@@ -55,11 +71,14 @@ func (h *UploadHandler) Upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Ограничение размера файла через maxUploadSize
-	r.Body = http.MaxBytesReader(w, r.Body, maxUploadSize)
-
-	// Парсинг multipart-формы
-	if err := r.ParseMultipartForm(maxUploadSize); err != nil {
+	uploadLimit := maxUploadSize()
+	r.Body = http.MaxBytesReader(w, r.Body, uploadLimit)
+	if err := r.ParseMultipartForm(uploadLimit); err != nil {
+		var maxBytesError *http.MaxBytesError
+		if errors.As(err, &maxBytesError) {
+			writeJSONError(w, http.StatusRequestEntityTooLarge, fmt.Sprintf("Файл слишком большой. Максимальный размер: %s.", formatUploadSize(uploadLimit)))
+			return
+		}
 		writeJSONError(w, http.StatusBadRequest, "Не удалось прочитать файл.")
 		return
 	}
@@ -83,19 +102,19 @@ func (h *UploadHandler) Upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Парсинг файла
-	/*
-		data – структура с заголовками и данными
-		err – ошибка парсинга
-	*/
-	data, err := services.ParseByFilename(file, header.Filename)
+	data, err := services.ParseByFilenameWithOptions(file, header.Filename, services.ParseOptions{
+		SheetName: r.FormValue("sheet"),
+	})
 	if err != nil {
 		writeJSONError(w, http.StatusBadRequest, userMessage(err))
 		return
 	}
 
-	// Сохранение данных в памяти
-	// fileID – содержит уникальный ID
+	data.OriginalFilename = header.Filename
+	data.Size = header.Size
+	data.MIMEType = header.Header.Get("Content-Type")
+	addMIMEWarning(&data)
+
 	fileID := h.store.SaveFileData(data)
 	data.ID = fileID
 
@@ -106,13 +125,80 @@ func (h *UploadHandler) Upload(w http.ResponseWriter, r *http.Request) {
 		PreviewRows – первые 10 строк (предпросмотр)
 	*/
 	writeJSON(w, http.StatusOK, uploadResponse{
-		FileID:      fileID,
-		Headers:     data.Headers,
-		PreviewRows: previewRows(data.Rows),
+		FileID:           fileID,
+		OriginalFilename: data.OriginalFilename,
+		Size:             data.Size,
+		MIMEType:         data.MIMEType,
+		DetectedMIMEType: data.DetectedMIMEType,
+		Format:           data.Format,
+		Encoding:         data.Encoding,
+		SheetName:        data.SheetName,
+		Sheets:           data.Sheets,
+		HeaderRow:        data.HeaderRow,
+		Headers:          data.Headers,
+		PreviewRows:      previewRows(data.Rows),
+		Stats:            data.Stats,
+		Warnings:         data.Warnings,
+		InvalidRows:      data.InvalidRows,
 	})
 }
 
-//previewRows – возвращает первые 10 строк, либо все строки, если их < 10
+func maxUploadSize() int64 {
+	if value := strings.TrimSpace(os.Getenv("MAX_UPLOAD_SIZE_BYTES")); value != "" {
+		if parsed, err := strconv.ParseInt(value, 10, 64); err == nil && parsed > 0 {
+			return parsed
+		}
+	}
+
+	if value := strings.TrimSpace(os.Getenv("MAX_UPLOAD_SIZE_MB")); value != "" {
+		if parsed, err := strconv.ParseInt(value, 10, 64); err == nil && parsed > 0 {
+			return parsed << 20
+		}
+	}
+
+	return defaultMaxUploadSize
+}
+
+func addMIMEWarning(data *models.FileData) {
+	mimeType := strings.ToLower(strings.TrimSpace(data.MIMEType))
+	if mimeType == "" || mimeType == "application/octet-stream" {
+		return
+	}
+
+	if isExpectedMIME(data.Format, mimeType) {
+		return
+	}
+
+	data.Warnings = append(data.Warnings, models.ProcessingWarning{
+		Message: fmt.Sprintf("MIME-тип %s не соответствует формату %s.", data.MIMEType, strings.ToUpper(data.Format)),
+	})
+	data.Stats.WarningCount = len(data.Warnings)
+}
+
+func isExpectedMIME(format string, mimeType string) bool {
+	switch format {
+	case "csv":
+		return mimeType == "text/csv" || mimeType == "application/csv" || strings.HasPrefix(mimeType, "text/plain")
+	case "xls":
+		return mimeType == "application/vnd.ms-excel"
+	case "xlsx":
+		return mimeType == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" || mimeType == "application/zip"
+	default:
+		return true
+	}
+}
+
+func formatUploadSize(size int64) string {
+	if size < 1024 {
+		return fmt.Sprintf("%d Б", size)
+	}
+	if size < 1<<20 {
+		return fmt.Sprintf("%.1f КБ", float64(size)/1024)
+	}
+
+	return fmt.Sprintf("%.1f МБ", float64(size)/(1<<20))
+}
+
 func previewRows(rows []map[string]string) []map[string]string {
 	limit := previewLimit
 	if len(rows) < limit {
@@ -132,7 +218,10 @@ func userMessage(err error) string {
 		errors.Is(err, services.ErrNoDataRows),
 		errors.Is(err, services.ErrInvalidCSV),
 		errors.Is(err, services.ErrInvalidExcel),
-		errors.Is(err, services.ErrReadFile):
+		errors.Is(err, services.ErrReadFile),
+		errors.Is(err, services.ErrFileTypeMismatch),
+		errors.Is(err, services.ErrInvalidEncoding),
+		errors.Is(err, services.ErrSheetNotFound):
 		return err.Error()
 	default:
 		return err.Error()
