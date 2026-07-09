@@ -1027,6 +1027,15 @@ func containsString(values []string, target string) bool {
 	return false
 }
 
+func DetectPhoneColumn(headers []string) string {
+	for _, h := range headers {
+		if classifyHeader(h) == columnPhone {
+			return h
+		}
+	}
+	return ""
+}
+
 func sheetIndexByName(sheetNames []string, target string) (int, bool) {
 	target = strings.TrimSpace(target)
 	for index, name := range sheetNames {

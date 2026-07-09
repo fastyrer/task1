@@ -42,8 +42,9 @@ type uploadResponse struct {
 	Headers          []string                   `json:"headers"`
 	PreviewRows      []map[string]string        `json:"previewRows"`
 	Stats            models.ProcessingStats     `json:"stats"`
-	Warnings         []models.ProcessingWarning `json:"warnings,omitempty"`
-	InvalidRows      []models.InvalidRow        `json:"invalidRows,omitempty"`
+	Warnings             []models.ProcessingWarning `json:"warnings,omitempty"`
+	InvalidRows          []models.InvalidRow        `json:"invalidRows,omitempty"`
+	DetectedPhoneColumn  string                     `json:"detectedPhoneColumn,omitempty"`
 }
 
 type errorResponse struct {
@@ -136,10 +137,11 @@ func (h *UploadHandler) Upload(w http.ResponseWriter, r *http.Request) {
 		Sheets:           data.Sheets,
 		HeaderRow:        data.HeaderRow,
 		Headers:          data.Headers,
-		PreviewRows:      previewRows(data.Rows),
-		Stats:            data.Stats,
-		Warnings:         data.Warnings,
-		InvalidRows:      data.InvalidRows,
+		PreviewRows:         previewRows(data.Rows),
+		Stats:               data.Stats,
+		Warnings:            data.Warnings,
+		InvalidRows:         data.InvalidRows,
+		DetectedPhoneColumn: services.DetectPhoneColumn(data.Headers),
 	})
 }
 

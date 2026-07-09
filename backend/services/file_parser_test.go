@@ -130,7 +130,7 @@ func TestParseCSVValidationReport(t *testing.T) {
 	if len(data.InvalidRows) != 2 {
 		t.Fatalf("expected invalid rows report, got %#v", data.InvalidRows)
 	}
-	if data.Rows[1]["Телефон"] != "+79990001122" {
+	if data.Rows[1]["Телефон"] != "+7 (999) 000-11-22" {
 		t.Fatalf("expected normalized phone, got %#v", data.Rows[1])
 	}
 }

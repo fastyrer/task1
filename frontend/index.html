@@ -323,13 +323,6 @@
         <h2>Конструктор уведомлений</h2>
 
         <div class="form-row">
-          <label for="phoneColumn">Колонка с номером телефона:</label>
-          <select id="phoneColumn">
-            <option value="">-- выберите колонку --</option>
-          </select>
-        </div>
-
-        <div class="form-row">
           <label for="templateInput">Шаблон сообщения:</label>
           <div class="placeholder-hint">Кликните по заголовку, чтобы вставить плейсхолдер в шаблон:</div>
           <ul id="constructorHeaders" class="headers-list"></ul>
@@ -366,7 +359,7 @@
       const warningsBlock = document.getElementById("warningsBlock");
       const invalidRowsTable = document.getElementById("invalidRowsTable");
       const constructorSection = document.getElementById("constructorSection");
-      const phoneColumn = document.getElementById("phoneColumn");
+
       const templateInput = document.getElementById("templateInput");
       const placeholderHint = document.getElementById("placeholderHint");
       const constructorHeaders = document.getElementById("constructorHeaders");
@@ -383,6 +376,7 @@
 
       let currentFileId = null;
       let currentHeaders = [];
+      let detectedPhoneColumn = "";
 
       uploadButton.addEventListener("click", async () => {
         clearError();
@@ -429,6 +423,7 @@
       function renderResult(payload) {
         currentFileId = payload.fileId;
         currentHeaders = payload.headers || [];
+        detectedPhoneColumn = payload.detectedPhoneColumn || "";
         renderFileInfo(payload);
         renderStats(payload.stats);
         renderHeaders(currentHeaders);
@@ -639,14 +634,6 @@
       function initConstructor() {
         constructorSection.style.display = "block";
 
-        phoneColumn.innerHTML = '<option value="">-- выберите колонку --</option>';
-        currentHeaders.forEach((h) => {
-          const opt = document.createElement("option");
-          opt.value = h;
-          opt.textContent = h;
-          phoneColumn.appendChild(opt);
-        });
-
         constructorHeaders.replaceChildren();
         currentHeaders.forEach((h) => {
           const item = document.createElement("li");
@@ -660,18 +647,17 @@
         exportButton.style.display = "none";
         notificationError.textContent = "";
         templateInput.value = "";
-        phoneColumn.value = "";
       }
 
       async function handlePreview() {
         clearNotificationError();
 
         const fileId = currentFileId;
-        const col = phoneColumn.value;
+        const col = detectedPhoneColumn;
         const template = templateInput.value;
 
         if (!col) {
-          showNotificationError("Выберите колонку с номером телефона.");
+          showNotificationError("Не удалось определить колонку с номером телефона.");
           return;
         }
         if (!template.trim()) {
@@ -762,11 +748,11 @@
         clearNotificationError();
 
         const fileId = currentFileId;
-        const col = phoneColumn.value;
+        const col = detectedPhoneColumn;
         const template = templateInput.value;
 
         if (!col) {
-          showNotificationError("Выберите колонку с номером телефона.");
+          showNotificationError("Не удалось определить колонку с номером телефона.");
           return;
         }
         if (!template.trim()) {
