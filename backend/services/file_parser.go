@@ -901,6 +901,7 @@ func headerKey(header string) string {
 }
 
 func normalizePhone(value string) (string, bool) {
+
 	var digits strings.Builder
 	for _, symbol := range value {
 		if symbol >= '0' && symbol <= '9' {
@@ -909,18 +910,31 @@ func normalizePhone(value string) (string, bool) {
 	}
 
 	number := digits.String()
+	var normalized string
+
 	switch {
 	case len(number) == 10:
-		return "+7" + number, true
+		normalized = "+7" + number
 	case len(number) == 11 && strings.HasPrefix(number, "8"):
-		return "+7" + number[1:], true
+		normalized = "+7" + number[1:]
 	case len(number) == 11 && strings.HasPrefix(number, "7"):
-		return "+" + number, true
-	case len(number) >= 10 && len(number) <= 15 && strings.HasPrefix(strings.TrimSpace(value), "+"):
-		return "+" + number, true
+		normalized = "+" + number
 	default:
 		return "", false
 	}
+
+	firstCodeDigit := normalized[2]
+	if firstCodeDigit != '3' && firstCodeDigit != '4' && firstCodeDigit != '9' {
+		return "", false
+	}
+
+	// +7XXXXXXXXXX --> +7 (XXX) XXX-XX-XX
+	return fmt.Sprintf( "+7 (%s) %s-%s-%s",
+		normalized[2:5],
+		normalized[5:8],
+		normalized[8:10],
+		normalized[10:12],
+	), true
 }
 
 func normalizeEmail(value string) (string, bool) {

@@ -14,16 +14,19 @@ import (
 	"task1/backend/storage"
 )
 
+// NotificationHandler –
 type NotificationHandler struct {
 	store *storage.MemoryStorage
 }
 
+// 
 type previewRequest struct {
 	FileID      string `json:"fileId"`
 	PhoneColumn string `json:"phoneColumn"`
 	Template    string `json:"template"`
 }
 
+// 
 type notificationItem struct {
 	Phone string `json:"phone"`
 	Text  string `json:"text"`
