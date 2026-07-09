@@ -180,7 +180,10 @@
         padding: 10px 12px;
         text-align: left;
         vertical-align: top;
-        white-space: nowrap;
+      }
+
+      td {
+        word-break: break-word;
       }
 
       th {
@@ -275,6 +278,7 @@
         white-space: pre-wrap;
         outline: none;
         overflow-y: auto;
+        overflow-wrap: break-word;
       }
 
       .template-editor:empty::before {
@@ -289,6 +293,12 @@
         border-radius: 4px;
         padding: 1px 3px;
         user-select: all;
+      }
+
+      #notificationTable th:nth-child(2),
+      #notificationTable td:nth-child(2) {
+        white-space: nowrap;
+        width: 200px;
       }
     </style>
   </head>
