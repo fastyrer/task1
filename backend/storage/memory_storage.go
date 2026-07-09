@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"strconv"
@@ -24,19 +25,19 @@ func NewMemoryStorage() *MemoryStorage {
 	}
 }
 
-func DefaultStorage() *MemoryStorage {
+func DefaultStorage() FileStore {
 	return defaultStorage
 }
 
-func SaveFileData(data models.FileData) string {
-	return defaultStorage.SaveFileData(data)
+func SaveFileData(ctx context.Context, data models.FileData) (string, error) {
+	return defaultStorage.SaveFileData(ctx, data)
 }
 
-func GetFileData(fileID string) (models.FileData, bool) {
-	return defaultStorage.GetFileData(fileID)
+func GetFileData(ctx context.Context, fileID string) (models.FileData, bool, error) {
+	return defaultStorage.GetFileData(ctx, fileID)
 }
 
-func (s *MemoryStorage) SaveFileData(data models.FileData) string {
+func (s *MemoryStorage) SaveFileData(_ context.Context, data models.FileData) (string, error) {
 	fileID := strings.TrimSpace(data.ID)
 	if fileID == "" {
 		fileID = generateFileID()
@@ -48,15 +49,26 @@ func (s *MemoryStorage) SaveFileData(data models.FileData) string {
 	defer s.mu.Unlock()
 	s.files[fileID] = data
 
-	return fileID
+	return fileID, nil
 }
 
-func (s *MemoryStorage) GetFileData(fileID string) (models.FileData, bool) {
+func (s *MemoryStorage) GetFileData(_ context.Context, fileID string) (models.FileData, bool, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	data, ok := s.files[fileID]
-	return data, ok
+	return data, ok, nil
+}
+
+func (s *MemoryStorage) Ping(_ context.Context) error {
+	return nil
+}
+
+func (s *MemoryStorage) Close() {
+}
+
+func (s *MemoryStorage) Driver() string {
+	return "memory"
 }
 
 func generateFileID() string {

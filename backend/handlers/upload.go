@@ -24,7 +24,7 @@ const (
 
 // UploadHandler – структура обработчика
 type UploadHandler struct {
-	store *storage.MemoryStorage
+	store storage.FileStore
 }
 
 // uploadResponse – JSON теги
@@ -51,8 +51,8 @@ type errorResponse struct {
 	Error string `json:"error"`
 }
 
-// RegisterUploadRoutes – регистрация маршрута 
-func RegisterUploadRoutes(mux *http.ServeMux, store *storage.MemoryStorage) {
+// RegisterUploadRoutes – регистрация маршрута
+func RegisterUploadRoutes(mux *http.ServeMux, store storage.FileStore) {
 	handler := &UploadHandler{store: store}
 	mux.HandleFunc("/api/upload", handler.Upload)
 }
@@ -66,7 +66,7 @@ func (h *UploadHandler) Upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Проверка на метод POST, иначе ошибка 405 
+	// Проверка на метод POST, иначе ошибка 405
 	if r.Method != http.MethodPost {
 		writeJSONError(w, http.StatusMethodNotAllowed, "Метод не поддерживается.")
 		return
@@ -116,7 +116,11 @@ func (h *UploadHandler) Upload(w http.ResponseWriter, r *http.Request) {
 	data.MIMEType = header.Header.Get("Content-Type")
 	addMIMEWarning(&data)
 
-	fileID := h.store.SaveFileData(data)
+	fileID, err := h.store.SaveFileData(r.Context(), data)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "Не удалось сохранить данные файла.")
+		return
+	}
 	data.ID = fileID
 
 	// Возврат ответа

@@ -10,13 +10,14 @@ import (
 	"net/http"
 	"strings"
 
+	"task1/backend/models"
 	"task1/backend/services"
 	"task1/backend/storage"
 )
 
 // NotificationHandler инкапсулирует доступ к хранилищу файлов
 type NotificationHandler struct {
-	store *storage.MemoryStorage
+	store storage.FileStore
 }
 
 // previewRequest 
@@ -39,7 +40,7 @@ type previewResponse struct {
 	Skipped       int                `json:"skipped"`
 }
 
-func RegisterNotificationRoutes(mux *http.ServeMux, store *storage.MemoryStorage) {
+func RegisterNotificationRoutes(mux *http.ServeMux, store storage.FileStore) {
 	h := &NotificationHandler{store: store}
 	mux.HandleFunc("/api/preview", h.Preview)
 	mux.HandleFunc("/api/export", h.Export)
@@ -61,13 +62,17 @@ func (h *NotificationHandler) Preview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, ok := h.store.GetFileData(req.FileID)
+	data, ok, err := h.store.GetFileData(r.Context(), req.FileID)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "Не удалось прочитать данные файла.")
+		return
+	}
 	if !ok {
 		writeJSONError(w, http.StatusNotFound, "Файл не найден. Загрузите файл снова.")
 		return
 	}
 
-	resp, err := h.generate(req)
+	resp, err := h.generate(data, req)
 	if err != nil {
 		writeJSONError(w, http.StatusBadRequest, err.Error())
 		return
@@ -92,13 +97,17 @@ func (h *NotificationHandler) Export(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, ok := h.store.GetFileData(req.FileID)
+	data, ok, err := h.store.GetFileData(r.Context(), req.FileID)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "Не удалось прочитать данные файла.")
+		return
+	}
 	if !ok {
 		writeJSONError(w, http.StatusNotFound, "Файл не найден. Загрузите файл снова.")
 		return
 	}
 
-	resp, err := h.generate(req)
+	resp, err := h.generate(data, req)
 	if err != nil {
 		writeJSONError(w, http.StatusBadRequest, err.Error())
 		return
@@ -119,9 +128,7 @@ func (h *NotificationHandler) Export(w http.ResponseWriter, r *http.Request) {
 	w.Write(buf.Bytes())
 }
 
-func (h *NotificationHandler) generate(req previewRequest) (previewResponse, error) {
-	data, _ := h.store.GetFileData(req.FileID)
-
+func (h *NotificationHandler) generate(data models.FileData, req previewRequest) (previewResponse, error) {
 	phoneExists := false
 	for _, h := range data.Headers {
 		if h == req.PhoneColumn {
