@@ -25,6 +25,7 @@ func main() {
 	handlers.RegisterUploadRoutes(mux, store)
 	handlers.RegisterNotificationRoutes(mux, store)
 	handlers.RegisterSearchRoutes(mux, store)
+	handlers.RegisterContactRoutes(mux, store, store)
 	registerFrontend(mux)
 
 	port := os.Getenv("PORT")

@@ -52,7 +52,7 @@ func parseCSVContent(content []byte) (models.FileData, error) {
 		data.Warnings = append(data.Warnings, models.ProcessingWarning{
 			Message: fmt.Sprintf("CSV декодирован из %s.", encoding),
 		})
-		refreshStats(&data)
+		RefreshStats(&data)
 	}
 
 	return data, nil

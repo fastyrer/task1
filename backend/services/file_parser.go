@@ -203,7 +203,7 @@ func recordsToFileData(records []parsedRecord) (models.FileData, error) {
 			SkippedRowCount: headerIndex,
 		},
 	}
-	refreshStats(&data)
+	RefreshStats(&data)
 
 	return data, nil
 }

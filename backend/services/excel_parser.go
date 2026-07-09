@@ -82,7 +82,7 @@ func parseXLSXSheet(workbook *excelize.File, sheetName string, sheets []string) 
 		data.Warnings = append(data.Warnings, models.ProcessingWarning{
 			Message: fmt.Sprintf("На листе обработаны объединенные ячейки: %d.", mergedCount),
 		})
-		refreshStats(&data)
+		RefreshStats(&data)
 	}
 
 	return data, nil

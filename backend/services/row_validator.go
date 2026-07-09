@@ -92,7 +92,7 @@ func duplicateWarning(seenValues map[string]map[string]int, column string, value
 	return nil
 }
 
-func refreshStats(data *models.FileData) {
+func RefreshStats(data *models.FileData) {
 	data.Stats.ColumnCount = len(data.Headers)
 	data.Stats.RowCount = len(data.Rows)
 	data.Stats.InvalidRowCount = len(data.InvalidRows)

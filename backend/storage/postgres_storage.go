@@ -30,6 +30,37 @@ CREATE TABLE IF NOT EXISTS uploaded_files (
 
 CREATE INDEX IF NOT EXISTS uploaded_files_created_at_idx ON uploaded_files (created_at DESC);
 CREATE INDEX IF NOT EXISTS uploaded_files_format_idx ON uploaded_files (format);
+
+CREATE TABLE IF NOT EXISTS contacts (
+	id TEXT PRIMARY KEY,
+	phone TEXT NOT NULL UNIQUE,
+	email TEXT NOT NULL DEFAULT '',
+	name TEXT NOT NULL DEFAULT '',
+	discount TEXT NOT NULL DEFAULT '',
+	data JSONB NOT NULL DEFAULT '{}',
+	file_id TEXT NOT NULL REFERENCES uploaded_files(id) ON DELETE CASCADE,
+	created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+	updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS contacts_phone_idx ON contacts (phone);
+CREATE INDEX IF NOT EXISTS contacts_file_id_idx ON contacts (file_id);
+CREATE INDEX IF NOT EXISTS contacts_email_idx ON contacts (email);
+
+CREATE TABLE IF NOT EXISTS contact_versions (
+	id SERIAL PRIMARY KEY,
+	contact_id TEXT NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,
+	phone TEXT NOT NULL DEFAULT '',
+	email TEXT NOT NULL DEFAULT '',
+	name TEXT NOT NULL DEFAULT '',
+	discount TEXT NOT NULL DEFAULT '',
+	data JSONB NOT NULL DEFAULT '{}',
+	file_id TEXT NOT NULL,
+	action TEXT NOT NULL DEFAULT '',
+	created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS contact_versions_contact_id_idx ON contact_versions (contact_id);
 `
 
 type PostgresStorage struct {
@@ -216,4 +247,175 @@ func envDuration(name string, fallback time.Duration) time.Duration {
 	}
 
 	return time.Duration(parsed) * time.Second
+}
+
+func (s *PostgresStorage) SaveContact(ctx context.Context, contact models.Contact) (string, error) {
+	contactID := strings.TrimSpace(contact.ID)
+	if contactID == "" {
+		contactID = generateFileID()
+	}
+	contact.ID = contactID
+
+	dataJSON, err := json.Marshal(contact.Data)
+	if err != nil {
+		return "", fmt.Errorf("marshal contact data: %w", err)
+	}
+
+	queryCtx, cancel := s.withTimeout(ctx)
+	defer cancel()
+
+	_, err = s.pool.Exec(queryCtx, `
+		INSERT INTO contacts (id, phone, email, name, discount, data, file_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		ON CONFLICT (id) DO UPDATE SET
+			phone = EXCLUDED.phone,
+			email = EXCLUDED.email,
+			name = EXCLUDED.name,
+			discount = EXCLUDED.discount,
+			data = EXCLUDED.data,
+			file_id = EXCLUDED.file_id,
+			updated_at = now()
+	`, contactID, contact.Phone, contact.Email, contact.Name, contact.Discount, dataJSON, contact.FileID)
+	if err != nil {
+		return "", fmt.Errorf("save contact: %w", err)
+	}
+
+	s.saveContactVersion(ctx, contact, "created")
+
+	return contactID, nil
+}
+
+func (s *PostgresStorage) GetContactByPhone(ctx context.Context, phone string) (models.Contact, bool, error) {
+	queryCtx, cancel := s.withTimeout(ctx)
+	defer cancel()
+
+	var contact models.Contact
+	var dataJSON []byte
+	err := s.pool.QueryRow(queryCtx, `
+		SELECT id, phone, email, name, discount, data, file_id, created_at, updated_at
+		FROM contacts
+		WHERE phone = $1
+	`, phone).Scan(&contact.ID, &contact.Phone, &contact.Email, &contact.Name, &contact.Discount, &dataJSON, &contact.FileID, &contact.CreatedAt, &contact.UpdatedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return models.Contact{}, false, nil
+	}
+	if err != nil {
+		return models.Contact{}, false, fmt.Errorf("get contact by phone: %w", err)
+	}
+
+	if dataJSON != nil {
+		json.Unmarshal(dataJSON, &contact.Data)
+	}
+
+	return contact, true, nil
+}
+
+func (s *PostgresStorage) ListContactsByFileID(ctx context.Context, fileID string) ([]models.Contact, error) {
+	queryCtx, cancel := s.withTimeout(ctx)
+	defer cancel()
+
+	rows, err := s.pool.Query(queryCtx, `
+		SELECT id, phone, email, name, discount, data, file_id, created_at, updated_at
+		FROM contacts
+		WHERE file_id = $1
+		ORDER BY created_at
+	`, fileID)
+	if err != nil {
+		return nil, fmt.Errorf("list contacts by file id: %w", err)
+	}
+	defer rows.Close()
+
+	contacts := make([]models.Contact, 0)
+	for rows.Next() {
+		var c models.Contact
+		var dataJSON []byte
+		if err := rows.Scan(&c.ID, &c.Phone, &c.Email, &c.Name, &c.Discount, &dataJSON, &c.FileID, &c.CreatedAt, &c.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("scan contact: %w", err)
+		}
+		if dataJSON != nil {
+			json.Unmarshal(dataJSON, &c.Data)
+		}
+		contacts = append(contacts, c)
+	}
+
+	return contacts, nil
+}
+
+func (s *PostgresStorage) UpdateContact(ctx context.Context, contact models.Contact) error {
+	dataJSON, err := json.Marshal(contact.Data)
+	if err != nil {
+		return fmt.Errorf("marshal contact data: %w", err)
+	}
+
+	queryCtx, cancel := s.withTimeout(ctx)
+	defer cancel()
+
+	_, err = s.pool.Exec(queryCtx, `
+		UPDATE contacts
+		SET phone = $1, email = $2, name = $3, discount = $4, data = $5, file_id = $6, updated_at = now()
+		WHERE id = $7
+	`, contact.Phone, contact.Email, contact.Name, contact.Discount, dataJSON, contact.FileID, contact.ID)
+	if err != nil {
+		return fmt.Errorf("update contact: %w", err)
+	}
+
+	s.saveContactVersion(ctx, contact, "updated")
+
+	return nil
+}
+
+func (s *PostgresStorage) ResolveConflict(ctx context.Context, phone string, action models.ConflictAction, incoming models.Contact) error {
+	existing, _, err := s.GetContactByPhone(ctx, phone)
+	if err != nil {
+		return fmt.Errorf("resolve conflict get existing: %w", err)
+	}
+
+	switch action {
+	case models.ConflictActionSkip:
+		return nil
+	case models.ConflictActionReplace:
+		incoming.ID = existing.ID
+		incoming.CreatedAt = existing.CreatedAt
+		return s.UpdateContact(ctx, incoming)
+	case models.ConflictActionMerge:
+		if incoming.Name == "" {
+			incoming.Name = existing.Name
+		}
+		if incoming.Email == "" {
+			incoming.Email = existing.Email
+		}
+		if incoming.Discount == "" {
+			incoming.Discount = existing.Discount
+		}
+		if incoming.Data == nil {
+			incoming.Data = existing.Data
+		} else {
+			for k, v := range existing.Data {
+				if _, ok := incoming.Data[k]; !ok {
+					incoming.Data[k] = v
+				}
+			}
+		}
+		incoming.ID = existing.ID
+		incoming.CreatedAt = existing.CreatedAt
+		return s.UpdateContact(ctx, incoming)
+	default:
+		return fmt.Errorf("unknown conflict action: %s", action)
+	}
+}
+
+func (s *PostgresStorage) saveContactVersion(ctx context.Context, contact models.Contact, action string) error {
+	dataJSON, err := json.Marshal(contact.Data)
+	if err != nil {
+		return err
+	}
+
+	queryCtx, cancel := s.withTimeout(ctx)
+	defer cancel()
+
+	_, err = s.pool.Exec(queryCtx, `
+		INSERT INTO contact_versions (contact_id, phone, email, name, discount, data, file_id, action)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+	`, contact.ID, contact.Phone, contact.Email, contact.Name, contact.Discount, dataJSON, contact.FileID, action)
+	return err
 }

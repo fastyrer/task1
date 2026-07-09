@@ -17,7 +17,22 @@ type FileStore interface {
 	Driver() string
 }
 
-func NewFromEnv(ctx context.Context) (FileStore, error) {
+type ContactStore interface {
+	SaveContact(ctx context.Context, contact models.Contact) (string, error)
+	GetContactByPhone(ctx context.Context, phone string) (models.Contact, bool, error)
+	ListContactsByFileID(ctx context.Context, fileID string) ([]models.Contact, error)
+	UpdateContact(ctx context.Context, contact models.Contact) error
+	ResolveConflict(ctx context.Context, phone string, action models.ConflictAction, incoming models.Contact) error
+	Close()
+	Driver() string
+}
+
+type CombinedStore interface {
+	FileStore
+	ContactStore
+}
+
+func NewFromEnv(ctx context.Context) (CombinedStore, error) {
 	driver := strings.ToLower(strings.TrimSpace(os.Getenv("STORAGE_DRIVER")))
 	databaseURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
 

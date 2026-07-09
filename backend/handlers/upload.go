@@ -124,12 +124,6 @@ func (h *UploadHandler) Upload(w http.ResponseWriter, r *http.Request) {
 	}
 	data.ID = fileID
 
-	// Возврат ответа
-	/*
-		FileID – идентификация файла в следующих запросах
-		Headers – список всех заголовков
-		PreviewRows – первые 10 строк (предпросмотр)
-	*/
 	writeJSON(w, http.StatusOK, uploadResponse{
 		FileID:              fileID,
 		OriginalFilename:    data.OriginalFilename,
