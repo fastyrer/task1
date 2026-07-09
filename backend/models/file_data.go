@@ -3,12 +3,6 @@
 package models
 
 // FileData – структура для хранения информации о загруженных файлах
-/*
-	ID – уникальный id файла
-	Headers – список заголовков колонок из файла
-	Rows – словарь данных из файла, ключи – заголовки колонок, значения – данные
-		этих колонок
-*/
 type FileData struct {
 	ID               string              `json:"id"`
 	OriginalFilename string              `json:"originalFilename,omitempty"`
@@ -28,6 +22,7 @@ type FileData struct {
 	InvalidRows      []InvalidRow        `json:"invalidRows,omitempty"`
 }
 
+// ProcessingStats хранит все количественные данные (счетчики) для сводки
 type ProcessingStats struct {
 	RowCount        int `json:"rowCount"`
 	ColumnCount     int `json:"columnCount"`
@@ -38,12 +33,14 @@ type ProcessingStats struct {
 	WarningCount    int `json:"warningCount"`
 }
 
+// ProcessingWarning хранит данные конкретной ошибки или поля
 type ProcessingWarning struct {
 	Row     int    `json:"row,omitempty"`
 	Column  string `json:"column,omitempty"`
 	Message string `json:"message"`
 }
 
+// InvalidRow хранит данные строки, не прошедшей валидацию
 type InvalidRow struct {
 	Row    int                 `json:"row"`
 	Values map[string]string   `json:"values"`
