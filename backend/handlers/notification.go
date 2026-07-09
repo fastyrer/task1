@@ -40,12 +40,21 @@ type previewResponse struct {
 	Skipped       int                `json:"skipped"`
 }
 
+// Привязывает два эндпоинта к одному NotificationHandler.
 func RegisterNotificationRoutes(mux *http.ServeMux, store storage.FileStore) {
 	h := &NotificationHandler{store: store}
 	mux.HandleFunc("/api/preview", h.Preview)
 	mux.HandleFunc("/api/export", h.Export)
 }
 
+// Preview 
+/*
+	CORS — OPTIONS → 204.
+	Декодирует JSON-тело в previewRequest (fileId, phoneColumn, template).
+	Проверяет существование файла в хранилище.
+	Вызывает generate(req) — общая логика формирования уведомлений.
+	Возвращает { notifications: [...], skipped: int } в JSON (200) или ошибку.
+*/
 func (h *NotificationHandler) Preview(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodOptions {
 		w.WriteHeader(http.StatusNoContent)
@@ -81,6 +90,11 @@ func (h *NotificationHandler) Preview(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, resp)
 }
 
+// Export делает все то же самое, что и Preview, только возвращает JSON-файл
+/*
+	Пишет BOM (0xEF, 0xBB, 0xBF) → заголовки Телефон,Сообщение → строки уведомлений.
+	Отдаёт с Content-Type: text/csv; charset=utf-8 и Content-Disposition: attachment.
+*/
 func (h *NotificationHandler) Export(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodOptions {
 		w.WriteHeader(http.StatusNoContent)
@@ -128,6 +142,17 @@ func (h *NotificationHandler) Export(w http.ResponseWriter, r *http.Request) {
 	w.Write(buf.Bytes())
 }
 
+// generate
+/*
+	Проверяет колонку телефона — ищет req.PhoneColumn среди data.Headers.
+	Проверяет шаблон — не пустой, неизвестные плейсхолдеры (ValidateUnknownPlaceholders).
+	Строит invalidSet — map[int]struct{} из номеров невалидных строк (data.InvalidRows[].Row).
+	Цикл по data.Rows:
+	Пустой телефон → skipped++, continue.
+	Номер строки (data.RowNumbers[i]) в invalidSet → skipped++, continue.
+	Иначе GenerateText(template, row) → notificationItem{Phone, Text, Row}.
+	Возвращает previewResponse{Notifications, Skipped}.
+*/
 func (h *NotificationHandler) generate(data models.FileData, req previewRequest) (previewResponse, error) {
 	phoneExists := false
 	for _, h := range data.Headers {
