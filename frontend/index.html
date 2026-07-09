@@ -262,6 +262,34 @@
       #constructorSection {
         display: none;
       }
+
+      .template-editor {
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 10px;
+        min-height: 80px;
+        background: #fbfcfd;
+        color: var(--text);
+        font: inherit;
+        font-size: 14px;
+        white-space: pre-wrap;
+        outline: none;
+        overflow-y: auto;
+      }
+
+      .template-editor:empty::before {
+        content: attr(data-placeholder);
+        color: var(--muted);
+        pointer-events: none;
+      }
+
+      .template-editor .tag {
+        background: #e0f2f1;
+        color: #0f766e;
+        border-radius: 4px;
+        padding: 1px 3px;
+        user-select: all;
+      }
     </style>
   </head>
   <body>
@@ -327,7 +355,7 @@
           <div class="placeholder-hint">Кликните по заголовку, чтобы вставить плейсхолдер в шаблон:</div>
           <ul id="constructorHeaders" class="headers-list"></ul>
           <div id="placeholderHint" class="placeholder-hint"></div>
-          <textarea id="templateInput" placeholder="Введите текст уведомления..." rows="4"></textarea>
+          <div id="templateInput" contenteditable="true" class="template-editor" data-placeholder="Введите текст уведомления..."></div>
         </div>
 
         <div class="action-row">
@@ -417,6 +445,76 @@
         }
       });
 
+      templateInput.addEventListener("input", renderTemplateTags);
+
+      templateInput.addEventListener("keydown", (e) => {
+        const sel = window.getSelection();
+        if (!sel.rangeCount || !sel.isCollapsed) return;
+        const r = sel.getRangeAt(0);
+
+        if (e.key === "Backspace") {
+          const targetTag = findTagAtCursor(r, "left");
+          if (targetTag) {
+            e.preventDefault();
+            const offset = getCaretOffset(templateInput);
+            const tagLen = targetTag.textContent.length;
+            const text = templateInput.textContent || "";
+            const newText = text.slice(0, offset - tagLen) + text.slice(offset);
+            const html = newText
+              .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+              .replace(/\{\{(.+?)\}\}/g, '<span class="tag">{{$1}}</span>')
+              .replace(/\n/g, "<br>");
+            templateInput.innerHTML = html;
+            setCaretOffset(templateInput, offset - tagLen);
+            return;
+          }
+        }
+
+        if (e.key === "Delete") {
+          const targetTag = findTagAtCursor(r, "right");
+          if (targetTag) {
+            e.preventDefault();
+            const offset = getCaretOffset(templateInput);
+            const tagLen = targetTag.textContent.length;
+            const text = templateInput.textContent || "";
+            const newText = text.slice(0, offset) + text.slice(offset + tagLen);
+            const html = newText
+              .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+              .replace(/\{\{(.+?)\}\}/g, '<span class="tag">{{$1}}</span>')
+              .replace(/\n/g, "<br>");
+            templateInput.innerHTML = html;
+            setCaretOffset(templateInput, offset);
+          }
+        }
+      });
+
+      function findTagAtCursor(range, direction) {
+        const container = range.startContainer;
+        const offset = range.startOffset;
+        const isText = container.nodeType === 3;
+        const len = (container.textContent || "").length;
+
+        if (direction === "left") {
+          if (isText && offset === 0) {
+            const prev = container.previousSibling;
+            if (prev && prev.classList && prev.classList.contains("tag")) return prev;
+          }
+          if (isText && offset > 0) {
+            if (container.parentNode && container.parentNode.classList && container.parentNode.classList.contains("tag")) {
+              if (offset === len) return container.parentNode;
+            }
+          }
+        }
+
+        if (direction === "right") {
+          if (isText && offset === len) {
+            const next = container.nextSibling;
+            if (next && next.classList && next.classList.contains("tag")) return next;
+          }
+        }
+
+        return null;
+      }
       previewButton.addEventListener("click", handlePreview);
       exportButton.addEventListener("click", handleExport);
 
@@ -621,14 +719,75 @@
         return `${(value / 1024 / 1024).toFixed(1)} МБ`;
       }
 
-      function insertAtCursor(textarea, text) {
-        const start = textarea.selectionStart;
-        const end = textarea.selectionEnd;
-        const before = textarea.value.substring(0, start);
-        const after = textarea.value.substring(end);
-        textarea.value = before + text + after;
-        textarea.selectionStart = textarea.selectionEnd = start + text.length;
-        textarea.focus();
+      function insertAtCursor(editor, text) {
+        const sel = window.getSelection();
+        let offset;
+        if (sel.rangeCount > 0 && editor.contains(sel.getRangeAt(0).startContainer)) {
+          offset = getCaretOffset(editor);
+        } else {
+          offset = (editor.textContent || "").length;
+        }
+
+        const currentText = editor.textContent || "";
+        const newText = currentText.slice(0, offset) + text + currentText.slice(offset);
+
+        const html = newText
+          .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+          .replace(/\{\{(.+?)\}\}/g, '<span class="tag">{{$1}}</span>')
+          .replace(/\n/g, "<br>");
+        editor.innerHTML = html;
+        setCaretOffset(editor, offset + text.length);
+      }
+
+      function getCaretOffset(el) {
+        const sel = window.getSelection();
+        if (!sel.rangeCount) return 0;
+        const range = sel.getRangeAt(0);
+        const pre = document.createRange();
+        pre.selectNodeContents(el);
+        pre.setEnd(range.startContainer, range.startOffset);
+        return pre.toString().length;
+      }
+
+      function setCaretOffset(el, offset) {
+        el.focus();
+        const sel = window.getSelection();
+        const range = document.createRange();
+        const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null, false);
+        let pos = 0;
+        while (walker.nextNode()) {
+          const node = walker.currentNode;
+          const len = node.textContent.length;
+          if (pos + len >= offset) {
+            range.setStart(node, offset - pos);
+            range.collapse(true);
+            sel.removeAllRanges();
+            sel.addRange(range);
+            return;
+          }
+          pos += len;
+        }
+        range.selectNodeContents(el);
+        range.collapse(false);
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+
+      function renderTemplateTags() {
+        const offset = getCaretOffset(templateInput);
+        const text = templateInput.textContent || "";
+        if (!text) {
+          templateInput.innerHTML = "";
+          return;
+        }
+        const html = text
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/\{\{(.+?)\}\}/g, '<span class="tag">{{$1}}</span>')
+          .replace(/\n/g, "<br>");
+        templateInput.innerHTML = html;
+        setCaretOffset(templateInput, offset);
       }
 
       function initConstructor() {
@@ -646,7 +805,7 @@
         notificationResults.style.display = "none";
         exportButton.style.display = "none";
         notificationError.textContent = "";
-        templateInput.value = "";
+        templateInput.innerHTML = "";
       }
 
       async function handlePreview() {
@@ -654,7 +813,7 @@
 
         const fileId = currentFileId;
         const col = detectedPhoneColumn;
-        const template = templateInput.value;
+        const template = templateInput.textContent || "";
 
         if (!col) {
           showNotificationError("Не удалось определить колонку с номером телефона.");
@@ -749,7 +908,7 @@
 
         const fileId = currentFileId;
         const col = detectedPhoneColumn;
-        const template = templateInput.value;
+        const template = templateInput.textContent || "";
 
         if (!col) {
           showNotificationError("Не удалось определить колонку с номером телефона.");
