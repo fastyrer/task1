@@ -14,25 +14,26 @@ import (
 	"task1/backend/storage"
 )
 
-// NotificationHandler –
+// NotificationHandler инкапсулирует доступ к хранилищу файлов
 type NotificationHandler struct {
 	store *storage.MemoryStorage
 }
 
-// 
+// previewRequest 
 type previewRequest struct {
 	FileID      string `json:"fileId"`
 	PhoneColumn string `json:"phoneColumn"`
 	Template    string `json:"template"`
 }
 
-// 
+// notificationItem
 type notificationItem struct {
 	Phone string `json:"phone"`
 	Text  string `json:"text"`
 	Row   int    `json:"row"`
 }
 
+// previewResponse 
 type previewResponse struct {
 	Notifications []notificationItem `json:"notifications"`
 	Skipped       int                `json:"skipped"`
