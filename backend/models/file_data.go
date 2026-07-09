@@ -22,6 +22,7 @@ type FileData struct {
 	HeaderRow        int                 `json:"headerRow,omitempty"`
 	Headers          []string            `json:"headers"`
 	Rows             []map[string]string `json:"rows"`
+	RowNumbers       []int               `json:"-"`
 	Stats            ProcessingStats     `json:"stats"`
 	Warnings         []ProcessingWarning `json:"warnings,omitempty"`
 	InvalidRows      []InvalidRow        `json:"invalidRows,omitempty"`

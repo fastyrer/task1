@@ -141,6 +141,11 @@ func (h *NotificationHandler) generate(req previewRequest) (previewResponse, err
 		return previewResponse{}, err
 	}
 
+	invalidSet := make(map[int]struct{}, len(data.InvalidRows))
+	for _, inv := range data.InvalidRows {
+		invalidSet[inv.Row] = struct{}{}
+	}
+
 	notifications := make([]notificationItem, 0, len(data.Rows))
 	skipped := 0
 
@@ -149,6 +154,13 @@ func (h *NotificationHandler) generate(req previewRequest) (previewResponse, err
 		if phone == "" {
 			skipped++
 			continue
+		}
+
+		if i < len(data.RowNumbers) {
+			if _, ok := invalidSet[data.RowNumbers[i]]; ok {
+				skipped++
+				continue
+			}
 		}
 
 		text := services.GenerateText(req.Template, row)

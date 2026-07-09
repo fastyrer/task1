@@ -480,14 +480,17 @@ func recordsToFileData(records []parsedRecord) (models.FileData, error) {
 	warnings = append(warnings, validationWarnings...)
 
 	rows := make([]map[string]string, 0, len(dataRows))
+	rowNumbers := make([]int, 0, len(dataRows))
 	for _, row := range dataRows {
 		rows = append(rows, row.Values)
+		rowNumbers = append(rowNumbers, row.Number)
 	}
 
 	data := models.FileData{
 		HeaderRow:   records[headerIndex].Number,
 		Headers:     headers,
 		Rows:        rows,
+		RowNumbers:  rowNumbers,
 		Warnings:    warnings,
 		InvalidRows: invalidRows,
 		Stats: models.ProcessingStats{
