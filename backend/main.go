@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
@@ -11,10 +12,19 @@ import (
 )
 
 func main() {
+	ctx := context.Background()
+	store, err := storage.NewFromEnv(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer store.Close()
+
 	mux := http.NewServeMux()
 
-	handlers.RegisterUploadRoutes(mux, storage.DefaultStorage())
-	handlers.RegisterNotificationRoutes(mux, storage.DefaultStorage())
+	handlers.RegisterHealthRoutes(mux, store)
+	handlers.RegisterUploadRoutes(mux, store)
+	handlers.RegisterNotificationRoutes(mux, store)
+	handlers.RegisterSearchRoutes(mux, store)
 	registerFrontend(mux)
 
 	port := os.Getenv("PORT")
@@ -23,6 +33,7 @@ func main() {
 	}
 
 	addr := ":" + port
+	log.Printf("storage driver: %s", store.Driver())
 	log.Printf("server started at http://localhost%s", addr)
 	if err := http.ListenAndServe(addr, withCORS(mux)); err != nil {
 		log.Fatal(err)

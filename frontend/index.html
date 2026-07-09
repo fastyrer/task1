@@ -70,7 +70,19 @@
         gap: 12px;
       }
 
-      input[type="file"] {
+      .search-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .search-row input {
+        flex: 1 1 260px;
+      }
+
+      input[type="file"],
+      input[type="text"] {
         max-width: 100%;
         border: 1px solid var(--border);
         border-radius: 6px;
@@ -180,16 +192,20 @@
         padding: 10px 12px;
         text-align: left;
         vertical-align: top;
-      }
-
-      td {
-        word-break: break-word;
+        white-space: nowrap;
       }
 
       th {
         background: #eef2f5;
         font-size: 13px;
         color: #27313d;
+      }
+
+      mark {
+        border-radius: 3px;
+        padding: 0 2px;
+        background: #ffe16a;
+        color: inherit;
       }
 
       tr:last-child td {
@@ -339,6 +355,25 @@
         </div>
       </section>
 
+      <section class="panel stack" aria-label="Поиск по файлу">
+        <h2>Поиск</h2>
+        <div class="search-row">
+          <input type="text" id="searchInput" placeholder="Например, +79" disabled>
+          <button id="searchButton" type="button" disabled>Найти</button>
+          <button id="clearSearchButton" type="button" disabled>Очистить</button>
+        </div>
+        <div id="searchInfo" class="meta">Поиск доступен после загрузки файла.</div>
+        <div class="table-wrap">
+          <table id="searchTable">
+            <tbody>
+              <tr>
+                <td class="empty-state">Результаты появятся после поиска.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
       <section class="panel stack" aria-label="Предупреждения">
         <h2>Предупреждения</h2>
         <div id="warningsBlock" class="empty-state">Предупреждений пока нет.</div>
@@ -397,7 +432,6 @@
       const warningsBlock = document.getElementById("warningsBlock");
       const invalidRowsTable = document.getElementById("invalidRowsTable");
       const constructorSection = document.getElementById("constructorSection");
-
       const templateInput = document.getElementById("templateInput");
       const placeholderHint = document.getElementById("placeholderHint");
       const constructorHeaders = document.getElementById("constructorHeaders");
@@ -407,21 +441,30 @@
       const notificationResults = document.getElementById("notificationResults");
       const resultSummary = document.getElementById("resultSummary");
       const notificationTable = document.getElementById("notificationTable");
-      const origin = window.location.protocol === "file:" ? "http://localhost:8080" : "";
-      const apiURL = origin + "/api/upload";
-      const previewURL = origin + "/api/preview";
-      const exportURL = origin + "/api/export";
+      const searchInput = document.getElementById("searchInput");
+      const searchButton = document.getElementById("searchButton");
+      const clearSearchButton = document.getElementById("clearSearchButton");
+      const searchInfo = document.getElementById("searchInfo");
+      const searchTable = document.getElementById("searchTable");
+      const uploadURL = apiPath("/api/upload");
+      const previewURL = apiPath("/api/preview");
+      const exportURL = apiPath("/api/export");
+      const searchURL = apiPath("/api/search");
 
-      let currentFileId = null;
+      let currentFileId = "";
       let currentHeaders = [];
       let detectedPhoneColumn = "";
+      let searchTimer = 0;
+      let searchSequence = 0;
 
       uploadButton.addEventListener("click", async () => {
         clearError();
+        setSearchEnabled(false);
 
         const file = fileInput.files[0];
         if (!file) {
           showError("Выберите CSV, XLS или XLSX-файл.");
+          setSearchEnabled(Boolean(currentFileId));
           return;
         }
 
@@ -435,7 +478,7 @@
         uploadButton.textContent = "Загрузка...";
 
         try {
-          const response = await fetch(apiURL, {
+          const response = await fetch(uploadURL, {
             method: "POST",
             body: formData,
           });
@@ -443,12 +486,14 @@
 
           if (!response.ok) {
             showError(payload.error || "Не удалось загрузить файл.");
+            setSearchEnabled(Boolean(currentFileId));
             return;
           }
 
           renderResult(payload);
         } catch (error) {
           showError("Не удалось подключиться к серверу.");
+          setSearchEnabled(Boolean(currentFileId));
         } finally {
           uploadButton.disabled = false;
           uploadButton.textContent = "Загрузить файл";
@@ -457,81 +502,78 @@
 
       templateInput.addEventListener("input", renderTemplateTags);
 
-      templateInput.addEventListener("keydown", (e) => {
-        const sel = window.getSelection();
-        if (!sel.rangeCount || !sel.isCollapsed) return;
-        const r = sel.getRangeAt(0);
+      templateInput.addEventListener("keydown", (event) => {
+        const selection = window.getSelection();
+        if (!selection.rangeCount || !selection.isCollapsed) {
+          return;
+        }
 
-        if (e.key === "Backspace") {
-          const targetTag = findTagAtCursor(r, "left");
+        const range = selection.getRangeAt(0);
+        if (event.key === "Backspace") {
+          const targetTag = findTagAtCursor(range, "left");
           if (targetTag) {
-            e.preventDefault();
+            event.preventDefault();
             const offset = getCaretOffset(templateInput);
-            const tagLen = targetTag.textContent.length;
+            const tagLength = targetTag.textContent.length;
             const text = templateInput.textContent || "";
-            const newText = text.slice(0, offset - tagLen) + text.slice(offset);
-            const html = newText
-              .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-              .replace(/\{\{(.+?)\}\}/g, '<span class="tag">{{$1}}</span>')
-              .replace(/\n/g, "<br>");
-            templateInput.innerHTML = html;
-            setCaretOffset(templateInput, offset - tagLen);
-            return;
+            renderTemplateText(text.slice(0, offset - tagLength) + text.slice(offset));
+            setCaretOffset(templateInput, offset - tagLength);
           }
         }
 
-        if (e.key === "Delete") {
-          const targetTag = findTagAtCursor(r, "right");
+        if (event.key === "Delete") {
+          const targetTag = findTagAtCursor(range, "right");
           if (targetTag) {
-            e.preventDefault();
+            event.preventDefault();
             const offset = getCaretOffset(templateInput);
-            const tagLen = targetTag.textContent.length;
+            const tagLength = targetTag.textContent.length;
             const text = templateInput.textContent || "";
-            const newText = text.slice(0, offset) + text.slice(offset + tagLen);
-            const html = newText
-              .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-              .replace(/\{\{(.+?)\}\}/g, '<span class="tag">{{$1}}</span>')
-              .replace(/\n/g, "<br>");
-            templateInput.innerHTML = html;
+            renderTemplateText(text.slice(0, offset) + text.slice(offset + tagLength));
             setCaretOffset(templateInput, offset);
           }
         }
       });
 
-      function findTagAtCursor(range, direction) {
-        const container = range.startContainer;
-        const offset = range.startOffset;
-        const isText = container.nodeType === 3;
-        const len = (container.textContent || "").length;
-
-        if (direction === "left") {
-          if (isText && offset === 0) {
-            const prev = container.previousSibling;
-            if (prev && prev.classList && prev.classList.contains("tag")) return prev;
-          }
-          if (isText && offset > 0) {
-            if (container.parentNode && container.parentNode.classList && container.parentNode.classList.contains("tag")) {
-              if (offset === len) return container.parentNode;
-            }
-          }
-        }
-
-        if (direction === "right") {
-          if (isText && offset === len) {
-            const next = container.nextSibling;
-            if (next && next.classList && next.classList.contains("tag")) return next;
-          }
-        }
-
-        return null;
-      }
       previewButton.addEventListener("click", handlePreview);
       exportButton.addEventListener("click", handleExport);
 
+      searchButton.addEventListener("click", () => {
+        runSearch();
+      });
+
+      searchInput.addEventListener("input", () => {
+        clearTimeout(searchTimer);
+        if (!searchInput.value.trim()) {
+          renderEmptySearch("Введите строку поиска.");
+          return;
+        }
+        searchTimer = window.setTimeout(runSearch, 300);
+      });
+
+      searchInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          clearTimeout(searchTimer);
+          runSearch();
+        }
+      });
+
+      clearSearchButton.addEventListener("click", () => {
+        clearTimeout(searchTimer);
+        searchSequence += 1;
+        searchInput.value = "";
+        renderEmptySearch("Введите строку поиска.");
+        searchInput.focus();
+      });
+
       function renderResult(payload) {
-        currentFileId = payload.fileId;
+        currentFileId = payload.fileId || "";
         currentHeaders = payload.headers || [];
         detectedPhoneColumn = payload.detectedPhoneColumn || "";
+        searchSequence += 1;
+        searchInput.value = "";
+        setSearchEnabled(Boolean(currentFileId));
+        renderEmptySearch("Введите строку поиска.");
         renderFileInfo(payload);
         renderStats(payload.stats);
         renderHeaders(currentHeaders);
@@ -706,6 +748,146 @@
         invalidRowsTable.replaceChildren(thead, tbody);
       }
 
+      async function runSearch() {
+        clearError();
+
+        const query = searchInput.value.trim();
+        if (!currentFileId) {
+          renderEmptySearch("Сначала загрузите файл.");
+          return;
+        }
+        if (!query) {
+          renderEmptySearch("Введите строку поиска.");
+          return;
+        }
+
+        const sequence = searchSequence + 1;
+        searchSequence = sequence;
+        searchButton.disabled = true;
+        searchButton.textContent = "Поиск...";
+        searchInfo.textContent = "Идет поиск...";
+
+        try {
+          const response = await fetch(searchURL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              fileId: currentFileId,
+              query,
+            }),
+          });
+          const payload = await response.json();
+
+          if (sequence !== searchSequence) {
+            return;
+          }
+
+          if (!response.ok) {
+            showError(payload.error || "Не удалось выполнить поиск.");
+            renderEmptySearch("Поиск не выполнен.");
+            return;
+          }
+
+          renderSearchResults(payload);
+        } catch (error) {
+          if (sequence === searchSequence) {
+            showError("Не удалось подключиться к серверу.");
+            renderEmptySearch("Поиск не выполнен.");
+          }
+        } finally {
+          if (sequence === searchSequence) {
+            searchButton.disabled = !currentFileId;
+            searchButton.textContent = "Найти";
+          }
+        }
+      }
+
+      function renderSearchResults(payload) {
+        const rows = payload.rows || [];
+        const headers = payload.headers || currentHeaders;
+        const query = payload.query || searchInput.value.trim();
+
+        if (!rows.length) {
+          searchInfo.textContent = "Совпадений не найдено.";
+          renderEmptySearch("Нет строк с таким фрагментом.");
+          return;
+        }
+
+        const total = Number.isFinite(payload.totalMatches) ? payload.totalMatches : rows.length;
+        const returned = Number.isFinite(payload.returned) ? payload.returned : rows.length;
+        const suffix = payload.truncated ? ` Показано ${returned} из ${total}.` : "";
+        searchInfo.textContent = `Найдено строк: ${total}.${suffix}`;
+
+        const thead = document.createElement("thead");
+        const headerRow = document.createElement("tr");
+        ["Строка", ...headers].forEach((header) => {
+          const cell = document.createElement("th");
+          cell.textContent = header;
+          headerRow.appendChild(cell);
+        });
+        thead.appendChild(headerRow);
+
+        const tbody = document.createElement("tbody");
+        rows.forEach((row) => {
+          const tr = document.createElement("tr");
+
+          const rowNumberCell = document.createElement("td");
+          rowNumberCell.textContent = row.row || "";
+          tr.appendChild(rowNumberCell);
+
+          headers.forEach((header) => {
+            const cell = document.createElement("td");
+            appendHighlightedText(cell, (row.values || {})[header] || "", query);
+            tr.appendChild(cell);
+          });
+
+          tbody.appendChild(tr);
+        });
+
+        searchTable.replaceChildren(thead, tbody);
+      }
+
+      function renderEmptySearch(message) {
+        searchInfo.textContent = message;
+        searchTable.innerHTML = '<tbody><tr><td class="empty-state">Результаты появятся после поиска.</td></tr></tbody>';
+      }
+
+      function appendHighlightedText(parent, value, query) {
+        const text = String(value || "");
+        const needle = String(query || "").toLocaleLowerCase();
+        const haystack = text.toLocaleLowerCase();
+        if (!needle) {
+          parent.textContent = text;
+          return;
+        }
+
+        let position = 0;
+        while (position < text.length) {
+          const index = haystack.indexOf(needle, position);
+          if (index === -1) {
+            parent.appendChild(document.createTextNode(text.slice(position)));
+            break;
+          }
+
+          if (index > position) {
+            parent.appendChild(document.createTextNode(text.slice(position, index)));
+          }
+
+          const marker = document.createElement("mark");
+          marker.textContent = text.slice(index, index + query.length);
+          parent.appendChild(marker);
+          position = index + query.length;
+        }
+      }
+
+      function setSearchEnabled(enabled) {
+        searchInput.disabled = !enabled;
+        searchButton.disabled = !enabled;
+        clearSearchButton.disabled = !enabled;
+      }
+
       function formatWarning(warning) {
         const parts = [];
         if (warning.row) {
@@ -729,253 +911,20 @@
         return `${(value / 1024 / 1024).toFixed(1)} МБ`;
       }
 
-      function insertAtCursor(editor, text) {
-        const sel = window.getSelection();
-        let offset;
-        if (sel.rangeCount > 0 && editor.contains(sel.getRangeAt(0).startContainer)) {
-          offset = getCaretOffset(editor);
-        } else {
-          offset = (editor.textContent || "").length;
-        }
-
-        const currentText = editor.textContent || "";
-        const newText = currentText.slice(0, offset) + text + currentText.slice(offset);
-
-        const html = newText
-          .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-          .replace(/\{\{(.+?)\}\}/g, '<span class="tag">{{$1}}</span>')
-          .replace(/\n/g, "<br>");
-        editor.innerHTML = html;
-        setCaretOffset(editor, offset + text.length);
-      }
-
-      function getCaretOffset(el) {
-        const sel = window.getSelection();
-        if (!sel.rangeCount) return 0;
-        const range = sel.getRangeAt(0);
-        const pre = document.createRange();
-        pre.selectNodeContents(el);
-        pre.setEnd(range.startContainer, range.startOffset);
-        return pre.toString().length;
-      }
-
-      function setCaretOffset(el, offset) {
-        el.focus();
-        const sel = window.getSelection();
-        const range = document.createRange();
-        const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null, false);
-        let pos = 0;
-        while (walker.nextNode()) {
-          const node = walker.currentNode;
-          const len = node.textContent.length;
-          if (pos + len >= offset) {
-            range.setStart(node, offset - pos);
-            range.collapse(true);
-            sel.removeAllRanges();
-            sel.addRange(range);
-            return;
-          }
-          pos += len;
-        }
-        range.selectNodeContents(el);
-        range.collapse(false);
-        sel.removeAllRanges();
-        sel.addRange(range);
-      }
-
-      function renderTemplateTags() {
-        const offset = getCaretOffset(templateInput);
-        const text = templateInput.textContent || "";
-        if (!text) {
-          templateInput.innerHTML = "";
-          return;
-        }
-        const html = text
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;")
-          .replace(/\{\{(.+?)\}\}/g, '<span class="tag">{{$1}}</span>')
-          .replace(/\n/g, "<br>");
-        templateInput.innerHTML = html;
-        setCaretOffset(templateInput, offset);
-      }
-
-      function initConstructor() {
-        constructorSection.style.display = "block";
-
-        constructorHeaders.replaceChildren();
-        currentHeaders.forEach((h) => {
-          const item = document.createElement("li");
-          item.textContent = "{{" + h + "}}";
-          item.style.cursor = "pointer";
-          item.addEventListener("click", () => insertAtCursor(templateInput, "{{" + h + "}}"));
-          constructorHeaders.appendChild(item);
-        });
-
-        notificationResults.style.display = "none";
-        exportButton.style.display = "none";
-        notificationError.textContent = "";
-        templateInput.innerHTML = "";
-      }
-
-      async function handlePreview() {
-        clearNotificationError();
-
-        const fileId = currentFileId;
-        const col = detectedPhoneColumn;
-        const template = templateInput.textContent || "";
-
-        if (!col) {
-          showNotificationError("Не удалось определить колонку с номером телефона.");
-          return;
-        }
-        if (!template.trim()) {
-          showNotificationError("Введите шаблон сообщения.");
-          return;
-        }
-
-        previewButton.disabled = true;
-        previewButton.textContent = "Загрузка...";
-
-        try {
-          const response = await fetch(previewURL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ fileId, phoneColumn: col, template }),
-          });
-
-          const data = await response.json();
-
-          if (!response.ok) {
-            showNotificationError(data.error || "Ошибка при формировании уведомлений.");
-            return;
-          }
-
-          renderNotifications(data);
-        } catch (err) {
-          showNotificationError("Не удалось подключиться к серверу.");
-        } finally {
-          previewButton.disabled = false;
-          previewButton.textContent = "Предпросмотр";
-        }
-      }
-
-      function renderNotifications(data) {
-        const items = data.notifications || [];
-        const skipped = data.skipped || 0;
-
-        if (!items.length) {
-          showNotificationError("Нет строк с номерами телефонов.");
-          notificationResults.style.display = "none";
-          exportButton.style.display = "none";
-          return;
-        }
-
-        notificationResults.style.display = "";
-        exportButton.style.display = "";
-
-        let summary = "Сформировано уведомлений: " + items.length;
-        if (skipped > 0) {
-          summary += ". Пропущено строк с пустым телефоном: " + skipped;
-        }
-        resultSummary.textContent = summary;
-
-        const thead = document.createElement("thead");
-        const hr = document.createElement("tr");
-        ["№", "Телефон", "Сообщение"].forEach((h) => {
-          const c = document.createElement("th");
-          c.textContent = h;
-          hr.appendChild(c);
-        });
-        thead.appendChild(hr);
-
-        const tbody = document.createElement("tbody");
-        items.forEach((item) => {
-          const tr = document.createElement("tr");
-          if (!item.phone) {
-            tr.className = "phone-empty";
-          }
-          const numCell = document.createElement("td");
-          numCell.textContent = item.row;
-          tr.appendChild(numCell);
-
-          const phoneCell = document.createElement("td");
-          phoneCell.textContent = item.phone || "(пусто)";
-          tr.appendChild(phoneCell);
-
-          const textCell = document.createElement("td");
-          textCell.textContent = item.text;
-          tr.appendChild(textCell);
-
-          tbody.appendChild(tr);
-        });
-
-        notificationTable.replaceChildren(thead, tbody);
-      }
-
-      async function handleExport() {
-        clearNotificationError();
-
-        const fileId = currentFileId;
-        const col = detectedPhoneColumn;
-        const template = templateInput.textContent || "";
-
-        if (!col) {
-          showNotificationError("Не удалось определить колонку с номером телефона.");
-          return;
-        }
-        if (!template.trim()) {
-          showNotificationError("Введите шаблон сообщения.");
-          return;
-        }
-
-        exportButton.disabled = true;
-        exportButton.textContent = "Скачивание...";
-
-        try {
-          const response = await fetch(exportURL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ fileId, phoneColumn: col, template }),
-          });
-
-          if (!response.ok) {
-            const data = await response.json();
-            showNotificationError(data.error || "Ошибка при экспорте.");
-            return;
-          }
-
-          const blob = await response.blob();
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = "notifications.csv";
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-        } catch (err) {
-          showNotificationError("Не удалось подключиться к серверу.");
-        } finally {
-          exportButton.disabled = false;
-          exportButton.textContent = "Скачать CSV";
-        }
-      }
-
-      function showNotificationError(message) {
-        notificationError.textContent = message;
-      }
-
-      function clearNotificationError() {
-        notificationError.textContent = "";
-      }
-
       function showError(message) {
         errorBlock.textContent = message;
       }
 
       function clearError() {
         errorBlock.textContent = "";
+      }
+
+      function apiPath(path) {
+        if (window.location.protocol === "file:") {
+          return `http://localhost:8080${path}`;
+        }
+
+        return path;
       }
     </script>
   </body>
