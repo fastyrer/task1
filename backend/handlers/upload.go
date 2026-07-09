@@ -14,6 +14,7 @@ import (
 	"task1/backend/models"
 	"task1/backend/services"
 	"task1/backend/storage"
+	"task1/backend/utils"
 )
 
 // Ограничения по размеру
@@ -29,22 +30,22 @@ type UploadHandler struct {
 
 // uploadResponse – JSON теги
 type uploadResponse struct {
-	FileID           string                     `json:"fileId"`
-	OriginalFilename string                     `json:"originalFilename,omitempty"`
-	Size             int64                      `json:"size,omitempty"`
-	MIMEType         string                     `json:"mimeType,omitempty"`
-	DetectedMIMEType string                     `json:"detectedMimeType,omitempty"`
-	Format           string                     `json:"format,omitempty"`
-	Encoding         string                     `json:"encoding,omitempty"`
-	SheetName        string                     `json:"sheetName,omitempty"`
-	Sheets           []string                   `json:"sheets,omitempty"`
-	HeaderRow        int                        `json:"headerRow,omitempty"`
-	Headers          []string                   `json:"headers"`
-	PreviewRows      []map[string]string        `json:"previewRows"`
-	Stats            models.ProcessingStats     `json:"stats"`
-	Warnings             []models.ProcessingWarning `json:"warnings,omitempty"`
-	InvalidRows          []models.InvalidRow        `json:"invalidRows,omitempty"`
-	DetectedPhoneColumn  string                     `json:"detectedPhoneColumn,omitempty"`
+	FileID              string                     `json:"fileId"`
+	OriginalFilename    string                     `json:"originalFilename,omitempty"`
+	Size                int64                      `json:"size,omitempty"`
+	MIMEType            string                     `json:"mimeType,omitempty"`
+	DetectedMIMEType    string                     `json:"detectedMimeType,omitempty"`
+	Format              string                     `json:"format,omitempty"`
+	Encoding            string                     `json:"encoding,omitempty"`
+	SheetName           string                     `json:"sheetName,omitempty"`
+	Sheets              []string                   `json:"sheets,omitempty"`
+	HeaderRow           int                        `json:"headerRow,omitempty"`
+	Headers             []string                   `json:"headers"`
+	PreviewRows         []map[string]string        `json:"previewRows"`
+	Stats               models.ProcessingStats     `json:"stats"`
+	Warnings            []models.ProcessingWarning `json:"warnings,omitempty"`
+	InvalidRows         []models.InvalidRow        `json:"invalidRows,omitempty"`
+	DetectedPhoneColumn string                     `json:"detectedPhoneColumn,omitempty"`
 }
 
 type errorResponse struct {
@@ -130,22 +131,22 @@ func (h *UploadHandler) Upload(w http.ResponseWriter, r *http.Request) {
 		PreviewRows – первые 10 строк (предпросмотр)
 	*/
 	writeJSON(w, http.StatusOK, uploadResponse{
-		FileID:           fileID,
-		OriginalFilename: data.OriginalFilename,
-		Size:             data.Size,
-		MIMEType:         data.MIMEType,
-		DetectedMIMEType: data.DetectedMIMEType,
-		Format:           data.Format,
-		Encoding:         data.Encoding,
-		SheetName:        data.SheetName,
-		Sheets:           data.Sheets,
-		HeaderRow:        data.HeaderRow,
-		Headers:          data.Headers,
+		FileID:              fileID,
+		OriginalFilename:    data.OriginalFilename,
+		Size:                data.Size,
+		MIMEType:            data.MIMEType,
+		DetectedMIMEType:    data.DetectedMIMEType,
+		Format:              data.Format,
+		Encoding:            data.Encoding,
+		SheetName:           data.SheetName,
+		Sheets:              data.Sheets,
+		HeaderRow:           data.HeaderRow,
+		Headers:             data.Headers,
 		PreviewRows:         previewRows(data.Rows),
 		Stats:               data.Stats,
 		Warnings:            data.Warnings,
 		InvalidRows:         data.InvalidRows,
-		DetectedPhoneColumn: services.DetectPhoneColumn(data.Headers),
+		DetectedPhoneColumn: utils.DetectPhoneColumn(data.Headers),
 	})
 }
 

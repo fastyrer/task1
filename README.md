@@ -16,6 +16,10 @@ backend/
     notification.go
   services/
     file_parser.go
+    csv_parser.go
+    excel_parser.go
+    header_detector.go
+    row_validator.go
     template.go
   storage/
     store.go
@@ -23,6 +27,14 @@ backend/
     postgres_storage.go
   models/
     file_data.go
+  utils/
+    columns.go
+    csv.go
+    encoding.go
+    excel.go
+    file_signature.go
+    normalizers.go
+    rows.go
 frontend/
   index.html
 compose.yml
