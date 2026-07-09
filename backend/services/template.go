@@ -1,5 +1,11 @@
 package services
 
+/*
+	=======================
+	Работа с плейсхолдерами
+	=======================
+*/
+
 import (
 	"fmt"
 	"regexp"
@@ -13,9 +19,11 @@ var (
 	ErrTooShortPhone = fmt.Errorf("Номер телефона слишком короткий (менее 7 цифр)")
 )
 
-// 
+// Регулярное выражение, MustCompile для безопасной инициализации
 var placeholderRegex = regexp.MustCompile(`\{\{(.+?)\}\}`)
 
+// ParsePlaceholders ищет все {{...}} в шаблоне, возвращает уникальные имена без
+// повторений
 func ParsePlaceholders(template string) []string {
 	matches := placeholderRegex.FindAllStringSubmatch(template, -1)
 	seen := make(map[string]struct{}, len(matches))
@@ -36,6 +44,9 @@ func ParsePlaceholders(template string) []string {
 	return placeholders
 }
 
+// ValidateUnknownPlaceholders строит map из заголовков файла, сверяет все
+// плейсхолдеры с ними. Если нет соответствия, то собирает список неизвестных
+// и возвращает ошибку
 func ValidateUnknownPlaceholders(placeholders, headers []string) error {
 	headerSet := make(map[string]struct{}, len(headers))
 	for _, h := range headers {
@@ -56,6 +67,9 @@ func ValidateUnknownPlaceholders(placeholders, headers []string) error {
 	return nil
 }
 
+// GenerateText Для каждого {{Name}} в шаблоне достаёт значение из row[Name] 
+// и подставляет в текст. 
+// Если заголовок в строке отсутствует — подставляет пустую строку.
 func GenerateText(template string, row map[string]string) string {
 	return placeholderRegex.ReplaceAllStringFunc(template, func(match string) string {
 		name := strings.TrimSpace(match[2 : len(match)-2])
