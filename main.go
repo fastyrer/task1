@@ -7,8 +7,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"task1/backend/handlers"
-	"task1/backend/storage"
+	"task1/handlers"
+	"task1/storage"
 )
 
 func main() {
