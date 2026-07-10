@@ -12,11 +12,9 @@ import (
 	"strings"
 
 	"task1/backend/models"
+	"task1/backend/services"
 	"task1/backend/storage"
 )
-
-// ВЫНЕСТИ!!!
-const defaultSearchResultLimit = 1000
 
 // SearchHandler – внедрение зависимости через интерфейс FileStore
 type SearchHandler struct {
@@ -177,12 +175,12 @@ func searchLimit(requested int) int {
 func maxSearchResultLimit() int {
 	value := strings.TrimSpace(os.Getenv("SEARCH_RESULT_LIMIT"))
 	if value == "" {
-		return defaultSearchResultLimit
+		return services.DefaultSearchResultLimit
 	}
 
 	parsed, err := strconv.Atoi(value)
 	if err != nil || parsed <= 0 {
-		return defaultSearchResultLimit
+		return services.DefaultSearchResultLimit
 	}
 
 	return parsed

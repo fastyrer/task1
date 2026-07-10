@@ -81,7 +81,7 @@ func (h *UploadHandler) Upload(w http.ResponseWriter, r *http.Request) {
 			writeJSONError(w, http.StatusRequestEntityTooLarge, fmt.Sprintf("Файл слишком большой. Максимальный размер: %s.", formatUploadSize(uploadLimit)))
 			return
 		}
-		writeJSONError(w, http.StatusBadRequest, "Не удалось прочитать файл.")
+		writeJSONError(w, http.StatusBadRequest, services.ErrorFileNotOpened)
 		return
 	}
 
