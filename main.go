@@ -7,6 +7,9 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/danielgtaylor/huma/v2/adapters/humago"
+
 	"task1/handlers"
 	"task1/storage"
 )
@@ -21,11 +24,27 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	handlers.RegisterHealthRoutes(mux, store)
-	handlers.RegisterUploadRoutes(mux, store)
-	handlers.RegisterNotificationRoutes(mux, store)
-	handlers.RegisterSearchRoutes(mux, store)
-	handlers.RegisterContactRoutes(mux, store, store)
+	// OpenAPI config with Huma v2
+	config := huma.DefaultConfig("Task1 API", "1.0.0")
+	config.Info.Description = "Веб-приложение для загрузки CSV/XLS/XLSX, чтения заголовков, preview, валидации данных и генерации уведомлений по шаблону."
+	config.Servers = []*huma.Server{{URL: "http://localhost:8080"}}
+	config.OpenAPIPath = "/openapi"
+	config.DocsPath = "/docs"
+	config.SchemasPath = "/schemas"
+
+	api := humago.New(mux, config)
+
+	// Huma-style handlers (OpenAPI docs auto-generated)
+	handlers.RegisterHumaRoutes(api, store, store)
+
+	// Legacy handlers are still present in handlers/ package for tests.
+	// If you need them, uncomment below:
+	// handlers.RegisterHealthRoutes(mux, store)
+	// handlers.RegisterUploadRoutes(mux, store)
+	// handlers.RegisterNotificationRoutes(mux, store)
+	// handlers.RegisterSearchRoutes(mux, store)
+	// handlers.RegisterContactRoutes(mux, store, store)
+
 	registerFrontend(mux)
 
 	port := os.Getenv("PORT")
@@ -36,6 +55,8 @@ func main() {
 	addr := ":" + port
 	log.Printf("storage driver: %s", store.Driver())
 	log.Printf("server started at http://localhost%s", addr)
+	log.Printf("OpenAPI docs at http://localhost%s/docs", addr)
+
 	if err := http.ListenAndServe(addr, withCORS(mux)); err != nil {
 		log.Fatal(err)
 	}
