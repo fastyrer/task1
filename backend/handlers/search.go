@@ -1,5 +1,9 @@
 package handlers
 
+/*
+
+ */
+
 import (
 	"encoding/json"
 	"net/http"
@@ -11,66 +15,87 @@ import (
 	"task1/backend/storage"
 )
 
+// ВЫНЕСТИ!!!
 const defaultSearchResultLimit = 1000
 
+// SearchHandler – внедрение зависимости через интерфейс FileStore
 type SearchHandler struct {
 	store storage.FileStore
 }
 
+// searchRequest – данные запроса 
 type searchRequest struct {
 	FileID string `json:"fileId"`
 	Query  string `json:"query"`
 	Limit  int    `json:"limit,omitempty"`
 }
 
+// searchMatch – найденная ячейка
 type searchMatch struct {
 	Column string `json:"column"`
 	Value  string `json:"value"`
 }
 
+// searchRow – строка с результатом поиска
 type searchRow struct {
 	Row     int               `json:"row"`
-	Values  map[string]string `json:"values"`
-	Matches []searchMatch     `json:"matches"`
+	Values  map[string]string `json:"values"` // Все строка целиком
+	Matches []searchMatch     `json:"matches"` // Массив совпадений (какие колонки совпали у данной строки)
 }
 
+// searchResponse – данные ответа
 type searchResponse struct {
 	Query        string      `json:"query"`
 	Headers      []string    `json:"headers"`
-	Rows         []searchRow `json:"rows"`
-	TotalMatches int         `json:"totalMatches"`
-	Returned     int         `json:"returned"`
-	Limit        int         `json:"limit"`
-	Truncated    bool        `json:"truncated"`
+	Rows         []searchRow `json:"rows"`	
+	TotalMatches int         `json:"totalMatches"` // Сколько всего совпадений
+	Returned     int         `json:"returned"`	// Сколько вернули строк
+	Limit        int         `json:"limit"`	
+	Truncated    bool        `json:"truncated"`	// Обрезали ли количество
 }
 
+// RegisterSearchRoutes – регистрация обработчиков для поисковых запросов
 func RegisterSearchRoutes(mux *http.ServeMux, store storage.FileStore) {
 	handler := &SearchHandler{store: store}
-	mux.HandleFunc("/api/search", handler.Search)
+	mux.HandleFunc("/api/search", handler.Search) // Регистрация маршрута
 }
 
+// Search:
+    // 1. Обработка CORS (preflight)
+    // 2. Проверка HTTP-метода
+    // 3. Парсинг JSON-запроса
+    // 4. Валидация данных
+    // 5. Получение данных из хранилища
+    // 6. Поиск и формирование ответа
 func (h *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
+
+	// 1. Проверка CORS
 	if r.Method == http.MethodOptions {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
+
+	// 2. Проверка метода на POST (только он поддерживается)
 	if r.Method != http.MethodPost {
 		writeJSONError(w, http.StatusMethodNotAllowed, "Метод не поддерживается.")
 		return
 	}
 
+	// 3. Парсинг JSON-запроса
 	var req searchRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSONError(w, http.StatusBadRequest, "Неверный формат запроса.")
 		return
 	}
 
+	// 4. Валидация данных запроса
 	query := strings.TrimSpace(req.Query)
 	if query == "" {
 		writeJSONError(w, http.StatusBadRequest, "Введите строку поиска.")
 		return
 	}
 
+	// 5. Получение данных из хранилища
 	data, ok, err := h.store.GetFileData(r.Context(), req.FileID)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "Не удалось прочитать данные файла.")
@@ -81,10 +106,12 @@ func (h *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 6. Поиск и формирование ответа
 	resp := searchFileData(data, query, searchLimit(req.Limit))
 	writeJSON(w, http.StatusOK, resp)
 }
 
+// searchFileData – основная функция поиска
 func searchFileData(data models.FileData, query string, limit int) searchResponse {
 	normalizedQuery := strings.ToLower(query)
 	rows := make([]searchRow, 0)
@@ -119,6 +146,8 @@ func searchFileData(data models.FileData, query string, limit int) searchRespons
 	}
 }
 
+// rowMatches – проходит по всем колонкам строки и ищет совпадения
+// вернет слайс с совпавшими колонками
 func rowMatches(headers []string, row map[string]string, normalizedQuery string) []searchMatch {
 	matches := make([]searchMatch, 0)
 	for _, header := range headers {
@@ -134,6 +163,7 @@ func rowMatches(headers []string, row map[string]string, normalizedQuery string)
 	return matches
 }
 
+// searchLimit – валидация лимита
 func searchLimit(requested int) int {
 	maxLimit := maxSearchResultLimit()
 	if requested <= 0 || requested > maxLimit {
@@ -143,6 +173,7 @@ func searchLimit(requested int) int {
 	return requested
 }
 
+// maxSearchResultLimit – чтение лимита из .env
 func maxSearchResultLimit() int {
 	value := strings.TrimSpace(os.Getenv("SEARCH_RESULT_LIMIT"))
 	if value == "" {
