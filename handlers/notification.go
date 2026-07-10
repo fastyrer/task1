@@ -49,7 +49,7 @@ func RegisterNotificationRoutes(mux *http.ServeMux, store storage.FileStore) {
 
 // Preview 
 /*
-	CORS — OPTIONS → 204.
+	CORS — OPTIONS --> 204.
 	Декодирует JSON-тело в previewRequest (fileId, phoneColumn, template).
 	Проверяет существование файла в хранилище.
 	Вызывает generate(req) — общая логика формирования уведомлений.
@@ -61,23 +61,23 @@ func (h *NotificationHandler) Preview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Method != http.MethodPost {
-		writeJSONError(w, http.StatusMethodNotAllowed, "Метод не поддерживается.")
+		writeJSONError(w, http.StatusMethodNotAllowed, services.ErrorMethodNotAllowed)
 		return
 	}
 
 	var req previewRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSONError(w, http.StatusBadRequest, "Неверный формат запроса.")
+		writeJSONError(w, http.StatusBadRequest, services.ErrorBadRequest)
 		return
 	}
 
 	data, ok, err := h.store.GetFileData(r.Context(), req.FileID)
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, "Не удалось прочитать данные файла.")
+		writeJSONError(w, http.StatusInternalServerError, services.ErrorFileNotOpened)
 		return
 	}
 	if !ok {
-		writeJSONError(w, http.StatusNotFound, "Файл не найден. Загрузите файл снова.")
+		writeJSONError(w, http.StatusNotFound, services.ErrorFileNotFound)
 		return
 	}
 
@@ -101,23 +101,23 @@ func (h *NotificationHandler) Export(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Method != http.MethodPost {
-		writeJSONError(w, http.StatusMethodNotAllowed, "Метод не поддерживается.")
+		writeJSONError(w, http.StatusMethodNotAllowed, services.ErrorMethodNotAllowed)
 		return
 	}
 
 	var req previewRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSONError(w, http.StatusBadRequest, "Неверный формат запроса.")
+		writeJSONError(w, http.StatusBadRequest, services.ErrorBadRequest)
 		return
 	}
 
 	data, ok, err := h.store.GetFileData(r.Context(), req.FileID)
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, "Не удалось прочитать данные файла.")
+		writeJSONError(w, http.StatusInternalServerError, services.ErrorFileNotOpened)
 		return
 	}
 	if !ok {
-		writeJSONError(w, http.StatusNotFound, "Файл не найден. Загрузите файл снова.")
+		writeJSONError(w, http.StatusNotFound, services.ErrorFileNotFound)
 		return
 	}
 
@@ -162,11 +162,11 @@ func (h *NotificationHandler) generate(data models.FileData, req previewRequest)
 		}
 	}
 	if !phoneExists {
-		return previewResponse{}, fmt.Errorf("Колонка '%s' не найдена в файле.", req.PhoneColumn)
+		return previewResponse{}, fmt.Errorf("Колонка '%s' не найдена в файле.", req.PhoneColumn) // ???
 	}
 
 	if strings.TrimSpace(req.Template) == "" {
-		return previewResponse{}, services.ErrEmptyTemplate
+		return previewResponse{}, fmt.Errorf(services.ErrorPhoneEmptyTemplate)
 	}
 
 	placeholders := services.ParsePlaceholders(req.Template)

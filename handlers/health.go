@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"task1/services"
 	"task1/storage"
 )
 
@@ -29,7 +30,7 @@ func (h *HealthHandler) Health(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Method != http.MethodGet {
-		writeJSONError(w, http.StatusMethodNotAllowed, "Метод не поддерживается.")
+		writeJSONError(w, http.StatusMethodNotAllowed, services.ErrorMethodNotAllowed)
 		return
 	}
 

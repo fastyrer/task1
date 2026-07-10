@@ -12,13 +12,6 @@ import (
 	"strings"
 )
 
-// Переменные с основными ошибками
-var (
-	ErrEmptyTemplate = fmt.Errorf("Шаблон уведомления не может быть пустым")
-	ErrEmptyPhone    = fmt.Errorf("Пустой номер телефона")
-	ErrTooShortPhone = fmt.Errorf("Номер телефона слишком короткий (менее 7 цифр)")
-)
-
 // Регулярное выражение, MustCompile для безопасной инициализации
 var placeholderRegex = regexp.MustCompile(`\{\{(.+?)\}\}`)
 

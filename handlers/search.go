@@ -1,8 +1,11 @@
+// Package handlers содержит HTTP-обработчики для всех эндпоинтов.
+
+// search.go – полнотекстовый поиск по загруженным данным.
+// GET/POST /api/search принимает fileId, строку запроса и опциональный лимит,
+// возвращает строки, где хотя бы одна колонка содержит подстроку запроса
+// (регистронезависимо), с информацией о конкретных колонках-совпадениях.
+
 package handlers
-
-/*
-
- */
 
 import (
 	"encoding/json"
@@ -75,32 +78,32 @@ func (h *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 
 	// 2. Проверка метода на POST (только он поддерживается)
 	if r.Method != http.MethodPost {
-		writeJSONError(w, http.StatusMethodNotAllowed, "Метод не поддерживается.")
+		writeJSONError(w, http.StatusMethodNotAllowed, services.ErrorMethodNotAllowed)
 		return
 	}
 
 	// 3. Парсинг JSON-запроса
 	var req searchRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSONError(w, http.StatusBadRequest, "Неверный формат запроса.")
+		writeJSONError(w, http.StatusBadRequest, services.ErrorBadRequest)
 		return
 	}
 
 	// 4. Валидация данных запроса
 	query := strings.TrimSpace(req.Query)
 	if query == "" {
-		writeJSONError(w, http.StatusBadRequest, "Введите строку поиска.")
+		writeJSONError(w, http.StatusBadRequest, services.ErrorEmptyRequestLine)
 		return
 	}
 
 	// 5. Получение данных из хранилища
 	data, ok, err := h.store.GetFileData(r.Context(), req.FileID)
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, "Не удалось прочитать данные файла.")
+		writeJSONError(w, http.StatusInternalServerError, services.ErrorFileNotOpened)
 		return
 	}
 	if !ok {
-		writeJSONError(w, http.StatusNotFound, "Файл не найден. Загрузите файл снова.")
+		writeJSONError(w, http.StatusNotFound, services.ErrorFileNotFound)
 		return
 	}
 

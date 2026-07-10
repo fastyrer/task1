@@ -69,7 +69,7 @@ func (h *UploadHandler) Upload(w http.ResponseWriter, r *http.Request) {
 
 	// Проверка на метод POST, иначе ошибка 405
 	if r.Method != http.MethodPost {
-		writeJSONError(w, http.StatusMethodNotAllowed, "Метод не поддерживается.")
+		writeJSONError(w, http.StatusMethodNotAllowed, services.ErrorMethodNotAllowed)
 		return
 	}
 
@@ -78,9 +78,9 @@ func (h *UploadHandler) Upload(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseMultipartForm(uploadLimit); err != nil {
 		var maxBytesError *http.MaxBytesError
 		if errors.As(err, &maxBytesError) {
-			writeJSONError(w, http.StatusRequestEntityTooLarge, fmt.Sprintf("Файл слишком большой. Максимальный размер: %s.", formatUploadSize(uploadLimit)))
+			writeJSONError(w, http.StatusRequestEntityTooLarge, fmt.Sprintf(services.ErrorFileExcessiveSize + strconv.FormatInt(uploadLimit, 10)))
 			return
-		}
+		} // !!!
 		writeJSONError(w, http.StatusBadRequest, services.ErrorFileNotOpened)
 		return
 	}
@@ -93,7 +93,7 @@ func (h *UploadHandler) Upload(w http.ResponseWriter, r *http.Request) {
 	*/
 	file, header, err := r.FormFile("file")
 	if err != nil {
-		writeJSONError(w, http.StatusBadRequest, "Файл не передан.")
+		writeJSONError(w, http.StatusBadRequest, services.ErrorFileAbsent)
 		return
 	}
 	defer file.Close()
@@ -119,7 +119,7 @@ func (h *UploadHandler) Upload(w http.ResponseWriter, r *http.Request) {
 
 	fileID, err := h.store.SaveFileData(r.Context(), data)
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, "Не удалось сохранить данные файла.")
+		writeJSONError(w, http.StatusInternalServerError, services.ErrorFileNotSaved)
 		return
 	}
 	data.ID = fileID
@@ -169,7 +169,7 @@ func addMIMEWarning(data *models.FileData) {
 	if isExpectedMIME(data.Format, mimeType) {
 		return
 	}
-
+	// ???
 	data.Warnings = append(data.Warnings, models.ProcessingWarning{
 		Message: fmt.Sprintf("MIME-тип %s не соответствует формату %s.", data.MIMEType, strings.ToUpper(data.Format)),
 	})

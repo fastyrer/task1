@@ -34,29 +34,29 @@ func (h *ContactHandler) FixRows(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Method != http.MethodPost {
-		writeJSONError(w, http.StatusMethodNotAllowed, "Метод не поддерживается.")
+		writeJSONError(w, http.StatusMethodNotAllowed, services.ErrorMethodNotAllowed)
 		return
 	}
 
 	var req fixRowsRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSONError(w, http.StatusBadRequest, "Неверный формат запроса.")
+		writeJSONError(w, http.StatusBadRequest, services.ErrorBadRequest)
 		return
 	}
 
 	data, ok, err := h.store.GetFileData(r.Context(), req.FileID)
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, "Не удалось прочитать данные файла.")
+		writeJSONError(w, http.StatusInternalServerError, services.ErrorFileNotOpened)
 		return
 	}
 	if !ok {
-		writeJSONError(w, http.StatusNotFound, "Файл не найден.")
+		writeJSONError(w, http.StatusNotFound, services.ErrorFileNotFound)
 		return
 	}
 
 	phoneColumn := utils.DetectPhoneColumn(data.Headers)
 	if phoneColumn == "" {
-		writeJSONError(w, http.StatusBadRequest, "Не найдена колонка с телефоном.")
+		writeJSONError(w, http.StatusBadRequest, services.ErrorPhoneColNotFound)
 		return
 	}
 
@@ -88,29 +88,29 @@ func (h *ContactHandler) Save(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Method != http.MethodPost {
-		writeJSONError(w, http.StatusMethodNotAllowed, "Метод не поддерживается.")
+		writeJSONError(w, http.StatusMethodNotAllowed, services.ErrorMethodNotAllowed)
 		return
 	}
 
 	var req saveRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSONError(w, http.StatusBadRequest, "Неверный формат запроса.")
+		writeJSONError(w, http.StatusBadRequest, services.ErrorBadRequest)
 		return
 	}
 
 	data, ok, err := h.store.GetFileData(r.Context(), req.FileID)
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, "Не удалось прочитать данные файла.")
+		writeJSONError(w, http.StatusInternalServerError, services.ErrorFileNotOpened)
 		return
 	}
 	if !ok {
-		writeJSONError(w, http.StatusNotFound, "Файл не найден. Загрузите файл снова.")
+		writeJSONError(w, http.StatusNotFound, services.ErrorFileNotFound)
 		return
 	}
 
 	phoneColumn := utils.DetectPhoneColumn(data.Headers)
 	if phoneColumn == "" {
-		writeJSONError(w, http.StatusBadRequest, "Не найдена колонка с телефоном.")
+		writeJSONError(w, http.StatusBadRequest, services.ErrorPhoneColNotFound)
 		return
 	}
 
@@ -133,41 +133,41 @@ func (h *ContactHandler) Resolve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Method != http.MethodPost {
-		writeJSONError(w, http.StatusMethodNotAllowed, "Метод не поддерживается.")
+		writeJSONError(w, http.StatusMethodNotAllowed, services.ErrorMethodNotAllowed)
 		return
 	}
 
 	var req models.ResolveRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSONError(w, http.StatusBadRequest, "Неверный формат запроса.")
+		writeJSONError(w, http.StatusBadRequest, services.ErrorBadRequest)
 		return
 	}
 
 	if req.Phone == "" {
-		writeJSONError(w, http.StatusBadRequest, "Не указан номер телефона.")
+		writeJSONError(w, http.StatusBadRequest, services.ErrorPhoneEmpty)
 		return
 	}
 
 	switch req.Action {
 	case models.ConflictActionSkip, models.ConflictActionReplace, models.ConflictActionMerge:
 	default:
-		writeJSONError(w, http.StatusBadRequest, "Неизвестное действие. Допустимые: skip, replace, merge.")
+		writeJSONError(w, http.StatusBadRequest, services.ErrUnsupportedFormat.Error())
 		return
 	}
 
 	fd, ok, err := h.store.GetFileData(r.Context(), req.FileID)
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, "Не удалось прочитать данные файла.")
+		writeJSONError(w, http.StatusInternalServerError, services.ErrorFileNotOpened)
 		return
 	}
 	if !ok {
-		writeJSONError(w, http.StatusNotFound, "Файл не найден.")
+		writeJSONError(w, http.StatusNotFound, services.ErrorFileNotFound)
 		return
 	}
 
 	phoneColumn := findPhoneColumn(fd.Headers)
 	if phoneColumn == "" {
-		writeJSONError(w, http.StatusBadRequest, "Не найдена колонка с телефоном.")
+		writeJSONError(w, http.StatusBadRequest, services.ErrorPhoneColNotFound)
 		return
 	}
 
@@ -182,12 +182,12 @@ func (h *ContactHandler) Resolve(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !found {
-		writeJSONError(w, http.StatusNotFound, "Запись с таким телефоном не найдена в файле.")
+		writeJSONError(w, http.StatusNotFound, services.ErrorPhoneNotFound)
 		return
 	}
 
 	if err := h.contacts.ResolveConflict(r.Context(), req.Phone, req.Action, incoming); err != nil {
-		writeJSONError(w, http.StatusInternalServerError, "Не удалось разрешить конфликт.")
+		writeJSONError(w, http.StatusInternalServerError, services.ErrorConflictNotSolved)
 		return
 	}
 
@@ -204,36 +204,36 @@ func (h *ContactHandler) ResolveAll(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Method != http.MethodPost {
-		writeJSONError(w, http.StatusMethodNotAllowed, "Метод не поддерживается.")
+		writeJSONError(w, http.StatusMethodNotAllowed, services.ErrorMethodNotAllowed)
 		return
 	}
 
 	var req models.BatchResolveRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSONError(w, http.StatusBadRequest, "Неверный формат запроса.")
+		writeJSONError(w, http.StatusBadRequest, services.ErrorBadRequest)
 		return
 	}
 
 	switch req.Action {
 	case models.ConflictActionSkip, models.ConflictActionReplace, models.ConflictActionMerge:
 	default:
-		writeJSONError(w, http.StatusBadRequest, "Неизвестное действие. Допустимые: skip, replace, merge.")
+		writeJSONError(w, http.StatusBadRequest, services.ErrorUnsupportedAction)
 		return
 	}
 
 	fd, ok, err := h.store.GetFileData(r.Context(), req.FileID)
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, "Не удалось прочитать данные файла.")
+		writeJSONError(w, http.StatusInternalServerError, services.ErrorFileNotOpened)
 		return
 	}
 	if !ok {
-		writeJSONError(w, http.StatusNotFound, "Файл не найден.")
+		writeJSONError(w, http.StatusNotFound, services.ErrorFileNotFound)
 		return
 	}
 
 	phoneColumn := findPhoneColumn(fd.Headers)
 	if phoneColumn == "" {
-		writeJSONError(w, http.StatusBadRequest, "Не найдена колонка с телефоном.")
+		writeJSONError(w, http.StatusBadRequest, services.ErrorPhoneColNotFound)
 		return
 	}
 
