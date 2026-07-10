@@ -7,8 +7,8 @@ import (
 	"io"
 	"strings"
 
-	"task1/backend/models"
-	"task1/backend/utils"
+	"task1/models"
+	"task1/utils"
 )
 
 func parseCSVContent(content []byte) (models.FileData, error) {

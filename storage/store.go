@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"task1/backend/models"
+	"task1/models"
 )
 
 type FileStore interface {

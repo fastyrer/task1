@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strings"
 
-	"task1/backend/models"
-	"task1/backend/storage"
-	"task1/backend/utils"
+	"task1/models"
+	"task1/storage"
+	"task1/utils"
 )
 
 type FixRowResult struct {

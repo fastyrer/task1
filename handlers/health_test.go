@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"task1/backend/storage"
+	"task1/storage"
 )
 
 func TestHealthOK(t *testing.T) {

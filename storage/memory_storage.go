@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"task1/backend/models"
+	"task1/models"
 )
 
 type MemoryStorage struct {

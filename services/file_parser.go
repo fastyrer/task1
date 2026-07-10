@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"task1/backend/models"
-	"task1/backend/utils"
+	"task1/models"
+	"task1/utils"
 )
 
 var (

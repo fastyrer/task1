@@ -9,8 +9,8 @@ import (
 	"github.com/extrame/xls"
 	"github.com/xuri/excelize/v2"
 
-	"task1/backend/models"
-	"task1/backend/utils"
+	"task1/models"
+	"task1/utils"
 )
 
 func parseExcelContent(content []byte, options ParseOptions) (models.FileData, error) {

@@ -13,7 +13,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"task1/backend/models"
+	"task1/models"
 )
 
 const uploadedFilesSchema = `

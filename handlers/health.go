@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"task1/backend/storage"
+	"task1/storage"
 )
 
 type HealthHandler struct {

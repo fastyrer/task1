@@ -3,8 +3,8 @@ package services
 import (
 	"fmt"
 
-	"task1/backend/models"
-	"task1/backend/utils"
+	"task1/models"
+	"task1/utils"
 )
 
 func validateRows(headers []string, rows []parsedDataRow) ([]models.InvalidRow, []models.ProcessingWarning) {

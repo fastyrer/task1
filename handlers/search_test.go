@@ -8,8 +8,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"task1/backend/models"
-	"task1/backend/storage"
+	"task1/models"
+	"task1/storage"
 )
 
 func setupSearchTest(t *testing.T) (*SearchHandler, string) {

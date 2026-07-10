@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 
-	"task1/backend/models"
-	"task1/backend/utils"
+	"task1/models"
+	"task1/utils"
 )
 
 const maxHeaderScanRows = 25

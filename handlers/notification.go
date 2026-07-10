@@ -10,9 +10,9 @@ import (
 	"net/http"
 	"strings"
 
-	"task1/backend/models"
-	"task1/backend/services"
-	"task1/backend/storage"
+	"task1/models"
+	"task1/services"
+	"task1/storage"
 )
 
 // NotificationHandler инкапсулирует доступ к хранилищу файлов
