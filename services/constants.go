@@ -11,17 +11,19 @@ const (
 	ErrorPhoneColNotFound = "Не найдена колонка с телефоном"
 	ErrorPhoneNotFound = "Запись с таким телефоном не найдена в файле"
 
-	// 
-	ErrorMethodNotAllowed = "Метод не поддерживается"
-	ErrorBadRequest = "Неверный формат запроса"
-	ErrorEmptyRequestLine = "Введите строку поиска"
-	ErrorUnsupportedAction = "Неизвестное действие. Допустимые: skip, replace, merge"
-	ErrorConflictNotSolved = "Не удалось разрешить конфликт"
-
 	// Файлы
 	ErrorFileNotOpened = "Не удалось прочитать данные файла"
 	ErrorFileNotFound = "Файл не найден. Загрузите файл снова"
 	ErrorFileExcessiveSize = "Файл слишком большой. Максимальный размер: "
 	ErrorFileAbsent = "Файл не передан"
 	ErrorFileNotSaved = "Не удалось сохранить файл"
+
+	// Разное
+	ErrorMethodNotAllowed = "Метод не поддерживается"
+	ErrorBadRequest = "Неверный формат запроса"
+	ErrorEmptyRequestLine = "Введите строку поиска"
+	ErrorUnsupportedAction = "Неизвестное действие. Допустимые: skip, replace, merge"
+	ErrorConflictNotSolved = "Не удалось разрешить конфликт"
+
+
 )
