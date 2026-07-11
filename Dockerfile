@@ -11,6 +11,7 @@ COPY services ./services
 COPY storage ./storage
 COPY utils ./utils
 COPY main.go ./main.go
+COPY frontend ./frontend
 
 RUN CGO_ENABLED=0 GOOS=linux go build -o /out/server .
 
@@ -23,6 +24,7 @@ RUN apk add --no-cache ca-certificates \
 	&& adduser -S -G app app
 
 COPY --from=builder /out/server ./server
+COPY --from=builder /src/frontend ./frontend
 
 RUN chown -R app:app /app
 

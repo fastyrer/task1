@@ -1,0 +1,524 @@
+/* ===== Стили интерфейса ===== */
+
+/* === Переменные === */
+:root {
+  color-scheme: light;
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --border: #d7dce2;
+  --text: #17202a;
+  --muted: #5d6978;
+  --accent: #0f766e;
+  --accent-dark: #0b5f59;
+  --danger-bg: #fff1f1;
+  --danger-text: #a51d2d;
+}
+
+/* === Сброс и базовая типографика === */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+main {
+  width: min(1120px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 32px 0;
+}
+
+h1 {
+  margin: 0 0 18px;
+  font-size: 28px;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+h2 {
+  margin: 0 0 12px;
+  font-size: 18px;
+  line-height: 1.3;
+  letter-spacing: 0;
+}
+
+/* === Макет === */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.stack {
+  display: grid;
+  gap: 18px;
+}
+
+.upload-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.search-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.search-row input {
+  flex: 1 1 260px;
+}
+
+/* === Поля ввода === */
+input[type="file"],
+input[type="text"] {
+  max-width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px;
+  background: #fbfcfd;
+  color: var(--text);
+}
+
+/* === Кнопки === */
+button {
+  min-height: 42px;
+  border: 0;
+  border-radius: 6px;
+  padding: 0 16px;
+  background: var(--accent);
+  color: #ffffff;
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+button:hover {
+  background: var(--accent-dark);
+}
+
+button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+/* === Ошибки === */
+.error {
+  display: none;
+  border: 1px solid #f0b5bd;
+  border-radius: 6px;
+  padding: 12px 14px;
+  background: var(--danger-bg);
+  color: var(--danger-text);
+}
+
+.error:not(:empty) {
+  display: block;
+}
+
+.meta {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+/* === Сводка === */
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.metric {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  background: #fbfcfd;
+}
+
+.metric-label {
+  margin: 0 0 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.metric-value {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+/* === Заголовки колонок === */
+.headers-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.headers-list li {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: #f8fafb;
+  color: var(--text);
+  font-size: 14px;
+}
+
+/* === Таблица === */
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+table {
+  width: 100%;
+  min-width: 640px;
+  border-collapse: collapse;
+  background: var(--surface);
+}
+
+th,
+td {
+  border-bottom: 1px solid var(--border);
+  padding: 10px 12px;
+  text-align: left;
+  vertical-align: top;
+  white-space: nowrap;
+}
+
+th {
+  background: #eef2f5;
+  font-size: 13px;
+  color: #27313d;
+}
+
+mark {
+  border-radius: 3px;
+  padding: 0 2px;
+  background: #ffe16a;
+  color: inherit;
+}
+
+tr:last-child td {
+  border-bottom: 0;
+}
+
+.empty-state {
+  color: var(--muted);
+}
+
+/* === Предупреждения === */
+.warning-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.warning-list li {
+  border-left: 3px solid #c78100;
+  padding: 8px 10px;
+  background: #fff8e8;
+  color: #613c00;
+  font-size: 14px;
+}
+
+/* === Формы === */
+select, textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px;
+  background: #fbfcfd;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+}
+
+textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.form-row {
+  display: grid;
+  gap: 6px;
+}
+
+.form-row label {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.placeholder-hint {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.result-summary {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.phone-empty {
+  opacity: 0.5;
+}
+
+/* === Конструктор === */
+#constructorSection {
+  display: none;
+}
+
+.template-editor {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px;
+  min-height: 80px;
+  background: #fbfcfd;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  white-space: pre-wrap;
+  outline: none;
+  overflow-y: auto;
+  overflow-wrap: break-word;
+}
+
+.template-editor:empty::before {
+  content: attr(data-placeholder);
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.template-editor .tag {
+  background: #e0f2f1;
+  color: #0f766e;
+  border-radius: 4px;
+  padding: 1px 3px;
+  user-select: all;
+}
+
+/* === Таблица уведомлений === */
+#notificationTable th:nth-child(2),
+#notificationTable td:nth-child(2) {
+  white-space: nowrap;
+  width: 200px;
+}
+
+/* === Конфликты === */
+.conflict-card {
+  border: 1px solid #e6a817;
+  border-radius: 8px;
+  padding: 14px;
+  margin-bottom: 12px;
+  background: #fffbe6;
+}
+
+.conflict-card .conflict-phone {
+  font-weight: 700;
+  font-size: 15px;
+  margin-bottom: 8px;
+}
+
+.conflict-diff-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0;
+  font-size: 13px;
+}
+
+.conflict-diff-table th,
+.conflict-diff-table td {
+  border: 1px solid var(--border);
+  padding: 6px 8px;
+  text-align: left;
+}
+
+.conflict-diff-table th {
+  background: #f1e8cc;
+  font-weight: 600;
+}
+
+.conflict-diff-table .diff {
+  background: #fff3cd;
+}
+
+.conflict-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+/* === Кнопки контурные === */
+.btn-outline {
+  background: transparent;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.btn-outline:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+.btn-outline.skip {
+  border-color: #6c757d;
+  color: #6c757d;
+}
+
+.btn-outline.skip:hover {
+  background: #6c757d;
+  color: #fff;
+}
+
+.btn-outline.replace {
+  border-color: #dc3545;
+  color: #dc3545;
+}
+
+.btn-outline.replace:hover {
+  background: #dc3545;
+  color: #fff;
+}
+
+.btn-outline.merge {
+  border-color: #0f766e;
+  color: #0f766e;
+}
+
+.btn-outline.merge:hover {
+  background: #0f766e;
+  color: #fff;
+}
+
+.conflict-badge {
+  display: inline-block;
+  background: #e6a817;
+  color: #fff;
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  margin-left: 8px;
+}
+
+/* === Сворачиваемые секции === */
+.collapsible {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.collapsible-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.collapsible-header:hover {
+  background: #f8fafb;
+}
+
+.collapsible-header h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.collapse-arrow {
+  font-size: 12px;
+  color: var(--muted);
+  transition: transform 0.2s;
+}
+
+.collapsible.closed .collapse-arrow {
+  transform: rotate(180deg);
+}
+
+.collapsible-body {
+  border-top: 1px solid var(--border);
+  padding: 16px 20px;
+}
+
+.collapsible.closed .collapsible-body {
+  display: none;
+}
+
+/* === Панель сохранения === */
+.save-panel {
+  background: linear-gradient(135deg, #e8f5f4 0%, #f0fdfb 100%);
+  border: 2px solid var(--accent);
+}
+
+.save-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.btn-primary.btn-lg {
+  padding: 14px 28px;
+  font-size: 16px;
+  min-height: 52px;
+}
+
+.save-stats {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.save-stat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.save-stat.ok {
+  background: #e0f2f1;
+  color: #0f766e;
+}
+
+.save-stat.warn {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.save-stat.danger {
+  background: #fff1f1;
+  color: #a51d2d;
+}

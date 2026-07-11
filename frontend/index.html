@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Загрузка данных клиентов</title>
+    <link rel="stylesheet" href="css/styles.css">
+  </head>
+  <body>
+    <main class="stack">
+      <!-- Шапка -->
+      <h1>Загрузка данных клиентов</h1>
+
+      <!-- Зона загрузки -->
+      <section class="panel stack" aria-label="Загрузка файла">
+        <div class="upload-row">
+          <input type="file" id="fileInput" accept=".csv,.xls,.xlsx">
+          <input type="text" id="sheetInput" placeholder="Лист Excel">
+          <button id="uploadButton" type="button">Загрузить файл</button>
+        </div>
+        <div id="errorBlock" class="error" role="alert"></div>
+        <div id="fileInfo" class="meta"></div>
+      </section>
+
+      <!-- Результаты -->
+      <div class="collapsible open">
+        <div class="collapsible-header" data-target="statsBody">
+          <h2>Сводка</h2>
+          <span class="collapse-arrow">▲</span>
+        </div>
+        <div id="statsBody" class="collapsible-body">
+          <div id="statsBlock" class="empty-state">Сводка появится после загрузки файла.</div>
+        </div>
+      </div>
+
+      <div class="collapsible open">
+        <div class="collapsible-header" data-target="headersBody">
+          <h2>Заголовки</h2>
+          <span class="collapse-arrow">▲</span>
+        </div>
+        <div id="headersBody" class="collapsible-body">
+          <div id="headersBlock" class="empty-state">Файл еще не загружен.</div>
+        </div>
+      </div>
+
+      <div class="collapsible open">
+        <div class="collapsible-header" data-target="previewBody">
+          <h2>Первые строки</h2>
+          <span class="collapse-arrow">▲</span>
+        </div>
+        <div id="previewBody" class="collapsible-body">
+          <div class="table-wrap">
+            <table id="previewTable">
+              <tbody>
+                <tr>
+                  <td class="empty-state">Данные появятся после загрузки файла.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="collapsible open">
+        <div class="collapsible-header" data-target="searchBody">
+          <h2>Поиск</h2>
+          <span class="collapse-arrow">▲</span>
+        </div>
+        <div id="searchBody" class="collapsible-body">
+          <div class="search-row">
+            <input type="text" id="searchInput" placeholder="Например, +79" disabled>
+            <button id="searchButton" type="button" disabled>Найти</button>
+            <button id="clearSearchButton" type="button" disabled>Очистить</button>
+          </div>
+          <div id="searchInfo" class="meta">Поиск доступен после загрузки файла.</div>
+          <div class="table-wrap">
+            <table id="searchTable">
+              <tbody>
+                <tr>
+                  <td class="empty-state">Результаты появятся после поиска.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="collapsible open">
+        <div class="collapsible-header" data-target="warningsBody">
+          <h2>Предупреждения</h2>
+          <span class="collapse-arrow">▲</span>
+        </div>
+        <div id="warningsBody" class="collapsible-body">
+          <div id="warningsBlock" class="empty-state">Предупреждений пока нет.</div>
+        </div>
+      </div>
+
+      <div class="collapsible open">
+        <div class="collapsible-header" data-target="invalidBody">
+          <h2>Строки с ошибками</h2>
+          <span class="collapse-arrow">▲</span>
+        </div>
+        <div id="invalidBody" class="collapsible-body">
+          <div class="table-wrap">
+            <table id="invalidRowsTable">
+              <tbody>
+                <tr>
+                  <td class="empty-state">Ошибочные строки появятся после проверки файла.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div id="fixRowRow" style="display:none; margin-top: 12px;" class="action-row">
+            <button id="fixRowsButton" type="button" class="btn-outline merge">✎ Применить исправления</button>
+            <span id="fixStatus" class="meta"></span>
+          </div>
+          <div id="fixError" class="error" role="alert" style="margin-top: 8px;"></div>
+        </div>
+      </div>
+
+      <!-- Модалки -->
+      <section class="panel save-panel" id="saveSection" style="display:none">
+        <div class="save-row">
+          <button id="saveButton" type="button" class="btn-primary btn-lg">💾 Сохранить данные в БД</button>
+          <span id="saveStatus" class="meta"></span>
+        </div>
+        <div id="saveError" class="error" role="alert"></div>
+        <div id="saveResult" class="save-result" style="display:none">
+          <div id="saveStats" class="save-stats"></div>
+          <div id="conflictsSection" style="display:none">
+            <h3 style="margin: 16px 0 12px">Конфликты при сохранении</h3>
+            <div id="conflictsBlock"></div>
+            <div class="action-row" id="batchResolveRow" style="display:none">
+              <button id="resolveAllSkip" type="button" class="btn-outline skip">Пропустить все</button>
+              <button id="resolveAllReplace" type="button" class="btn-outline replace">Заменить все</button>
+              <button id="resolveAllMerge" type="button" class="btn-outline merge">Объединить все</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel stack" id="constructorSection" aria-label="Конструктор уведомлений">
+        <h2>Конструктор уведомлений</h2>
+
+        <div class="form-row">
+          <label for="templateInput">Шаблон сообщения:</label>
+          <div class="placeholder-hint">Кликните по заголовку, чтобы вставить плейсхолдер в шаблон:</div>
+          <ul id="constructorHeaders" class="headers-list"></ul>
+          <div id="placeholderHint" class="placeholder-hint"></div>
+          <div id="templateInput" contenteditable="true" class="template-editor" data-placeholder="Введите текст уведомления..."></div>
+        </div>
+
+        <div class="action-row">
+          <button id="previewButton" type="button">Предпросмотр</button>
+          <button id="exportButton" type="button" style="display:none">Скачать CSV</button>
+        </div>
+
+        <div id="notificationError" class="error" role="alert"></div>
+
+        <div id="notificationResults" style="display:none">
+          <h3>Сформированные уведомления</h3>
+          <div id="resultSummary" class="result-summary"></div>
+          <div class="table-wrap">
+            <table id="notificationTable"></table>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Футер -->
+    <script src="js/state.js"></script>
+    <script src="js/dom.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/upload.js"></script>
+    <script src="js/template.js"></script>
+    <script src="js/search.js"></script>
+    <script src="js/notifications.js"></script>
+    <script src="js/contacts.js"></script>
+    <script src="js/rows.js"></script>
+  </body>
+</html>
