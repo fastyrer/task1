@@ -1,3 +1,8 @@
+// Package services содержит валидацию строк, проверку полей и обновление статистики.
+//
+// row_validator.go – проверяет значения в строках: нормализация телефонов и email,
+// проверка процентов и дат, поиск дубликатов и формирование предупреждений/invalid rows.
+
 package services
 
 import (
@@ -7,7 +12,15 @@ import (
 	"task1/utils"
 )
 
+// validateRows – проверяет каждую строку данных и возвращает список invalid-строк и предупреждений.
+
+// validateRows:
+	// 1. Классифицирует колонки по типам через utils.ClassifyHeader
+	// 2. Для каждой строки очищает значения и нормализует их по типу
+	// 3. Накапливает предупреждения и отмечает invalid-строки
 func validateRows(headers []string, rows []parsedDataRow) ([]models.InvalidRow, []models.ProcessingWarning) {
+
+	// Классифицирует колонки по типам через utils.ClassifyHeader
 	kinds := make(map[string]utils.ColumnKind, len(headers))
 	for _, header := range headers {
 		kinds[header] = utils.ClassifyHeader(header)
@@ -19,12 +32,15 @@ func validateRows(headers []string, rows []parsedDataRow) ([]models.InvalidRow, 
 	for _, row := range rows {
 		rowErrors := make([]models.ProcessingWarning, 0)
 		for _, header := range headers {
+
+			// Очистка значения
 			value := utils.CleanCell(row.Values[header])
 			row.Values[header] = value
 			if value == "" {
 				continue
 			}
 
+			// Нормализация и валидация по типу колонки
 			switch kinds[header] {
 			case utils.ColumnPhone:
 				normalized, ok := utils.NormalizePhone(value)
@@ -56,6 +72,7 @@ func validateRows(headers []string, rows []parsedDataRow) ([]models.InvalidRow, 
 			}
 		}
 
+		// Если были ошибки — помечаем строку как invalid и добавляем warnings
 		if len(rowErrors) > 0 {
 			warnings = append(warnings, rowErrors...)
 			invalidRows = append(invalidRows, models.InvalidRow{
@@ -69,6 +86,7 @@ func validateRows(headers []string, rows []parsedDataRow) ([]models.InvalidRow, 
 	return invalidRows, warnings
 }
 
+// fieldWarning – вспомогательная функция для создания ProcessingWarning для конкретного поля.
 func fieldWarning(row int, column string, message string) models.ProcessingWarning {
 	return models.ProcessingWarning{
 		Row:     row,
@@ -77,6 +95,7 @@ func fieldWarning(row int, column string, message string) models.ProcessingWarni
 	}
 }
 
+// duplicateWarning – проверяет дубликаты значений в колонке и возвращает предупреждение, если найдено.
 func duplicateWarning(seenValues map[string]map[string]int, column string, value string, row int) []models.ProcessingWarning {
 	if seenValues[column] == nil {
 		seenValues[column] = make(map[string]int)
@@ -92,6 +111,7 @@ func duplicateWarning(seenValues map[string]map[string]int, column string, value
 	return nil
 }
 
+// RefreshStats – обновляет статистику в models.FileData по текущему состоянию.
 func RefreshStats(data *models.FileData) {
 	data.Stats.ColumnCount = len(data.Headers)
 	data.Stats.RowCount = len(data.Rows)
