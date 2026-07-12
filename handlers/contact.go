@@ -1,3 +1,9 @@
+// Package handlers содержит HTTP-обработчики для всех эндпоинтов приложения.
+//
+// contact.go – управление контактами: сохранение строк из файла как контактов,
+// разрешение конфликтов (когда контакт с таким телефоном уже существует),
+// и исправление невалидных строк через редактирование на фронте.
+
 package handlers
 
 import (
@@ -10,11 +16,13 @@ import (
 	"task1/utils"
 )
 
+// ContactHandler – обработчик для работы с контактами
 type ContactHandler struct {
 	store    storage.FileStore
 	contacts storage.ContactStore
 }
 
+// RegisterContactRoutes – регистрация маршрутов для работы с контактами
 func RegisterContactRoutes(mux *http.ServeMux, store storage.FileStore, contacts storage.ContactStore) {
 	h := &ContactHandler{store: store, contacts: contacts}
 	mux.HandleFunc("/api/contacts/save", h.Save)
@@ -23,11 +31,25 @@ func RegisterContactRoutes(mux *http.ServeMux, store storage.FileStore, contacts
 	mux.HandleFunc("/api/rows/fix", h.FixRows)
 }
 
+// fixRowsRequest – запрос на исправление невалидных строк
 type fixRowsRequest struct {
 	FileID string               `json:"fileId"`
 	Rows   []services.FixRowInput `json:"rows"`
 }
 
+// FixRows – POST /api/rows/fix
+//
+// Позволяет пользователю отредактировать невалидные строки на фронте
+// (в таблице "Строки с ошибками") и отправить исправления на сервер.
+//
+// Алгоритм:
+//  1. Получаем данные файла.
+//  2. Определяем колонку телефона (обязательна для контакта).
+//  3. Для каждой исправленной строки:
+//     – Нормализуем телефон/email/скидку
+//     – Сохраняем контакт в ContactStore
+//     – Если нормализация не удалась – добавляем в список Failed
+//  4. Возвращаем {fixed: N, failed: [{row, errors}]}
 func (h *ContactHandler) FixRows(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodOptions {
 		w.WriteHeader(http.StatusNoContent)
@@ -72,16 +94,27 @@ func (h *ContactHandler) FixRows(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, result)
 }
 
+// saveRequest – запрос на сохранение данных из файла
 type saveRequest struct {
 	FileID string `json:"fileId"`
 }
 
+// saveResponse – ответ на сохранение
 type saveResponse struct {
-	Saved      int                   `json:"saved"`
-	Skipped    int                   `json:"skipped"`
-	Conflicts  []models.ConflictInfo `json:"conflicts,omitempty"`
+	Saved      int                   `json:"saved"` // Сколько сохранено
+	Skipped    int                   `json:"skipped"` // Сколько пропущено
+	Conflicts  []models.ConflictInfo `json:"conflicts,omitempty"` // конфликты 
+	// с существующими контактами
 }
 
+// Save – POST /api/contacts/save
+//
+// Проходит по всем валидным строкам файла и сохраняет их как контакты.
+// Если контакт с таким телефоном уже существует и данные различаются –
+// не сохраняет, а возвращает ConflictInfo с описанием расхождений.
+//
+// Фронт получает список конфликтов и предлагает пользователю выбрать действие:
+// skip (пропустить), replace (заменить) или merge (слить).
 func (h *ContactHandler) Save(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodOptions {
 		w.WriteHeader(http.StatusNoContent)
@@ -127,6 +160,17 @@ func (h *ContactHandler) Save(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// Resolve – POST /api/contacts/resolve
+//
+// Разрешает один конфликт по номеру телефона.
+// Frontend присылает: fileId, phone (телефон, по которому конфликт),
+// action (skip / replace / merge).
+//
+// Алгоритм:
+//  1. Проверяем, что action допустимый.
+//  2. Ищем строку с указанным телефоном в данных файла.
+//  3. Преобразуем строку в Contact (RowToContact).
+//  4. Вызываем ResolveConflict в хранилище – оно применяет выбранное действие.
 func (h *ContactHandler) Resolve(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodOptions {
 		w.WriteHeader(http.StatusNoContent)
@@ -198,6 +242,17 @@ func (h *ContactHandler) Resolve(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// ResolveAll – POST /api/contacts/resolve-all
+//
+// Применяет одно действие (skip/replace/merge) ко всем конфликтам в файле.
+// Используется, когда пользователь выбрал "разрешить все" на фронте.
+//
+// Алгоритм:
+//  1. Проходит по всем строкам файла.
+//  2. Для каждой строки с непустым телефоном проверяет,
+//     есть ли контакт с таким телефоном в хранилище.
+//  3. Если есть и контакты различаются – применяет выбранное действие.
+//  4. Возвращает количество разрешённых конфликтов.
 func (h *ContactHandler) ResolveAll(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodOptions {
 		w.WriteHeader(http.StatusNoContent)
@@ -271,6 +326,9 @@ func (h *ContactHandler) ResolveAll(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// findPhoneColumn – находит название колонки с телефоном среди заголовков.
+// Дублирует utils.DetectPhoneColumn, но без создания зависимостей.
+// Используется в Resolve и ResolveAll как локальная утилита.
 func findPhoneColumn(headers []string) string {
 	for _, h := range headers {
 		if utils.ClassifyHeader(h) == utils.ColumnPhone {
