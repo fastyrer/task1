@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS contacts (
 	updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS contacts_phone_idx ON contacts (phone);
+CREATE INDEX IF NOT EXISTS 	-- phone уже UNIQUE, индекс создаётся автоматически
 CREATE INDEX IF NOT EXISTS contacts_file_id_idx ON contacts (file_id);
 CREATE INDEX IF NOT EXISTS contacts_email_idx ON contacts (email);
 
@@ -256,9 +256,9 @@ func (s *PostgresStorage) SaveContact(ctx context.Context, contact models.Contac
 	}
 	contact.ID = contactID
 
-	dataJSON, err := json.Marshal(contact.Data)
+	dataJSON, err := marshalContactJSON(&contact)
 	if err != nil {
-		return "", fmt.Errorf("marshal contact data: %w", err)
+		return "", err
 	}
 
 	queryCtx, cancel := s.withTimeout(ctx)
@@ -289,13 +289,7 @@ func (s *PostgresStorage) GetContactByPhone(ctx context.Context, phone string) (
 	queryCtx, cancel := s.withTimeout(ctx)
 	defer cancel()
 
-	var contact models.Contact
-	var dataJSON []byte
-	err := s.pool.QueryRow(queryCtx, `
-		SELECT id, phone, email, name, discount, data, file_id, created_at, updated_at
-		FROM contacts
-		WHERE phone = $1
-	`, phone).Scan(&contact.ID, &contact.Phone, &contact.Email, &contact.Name, &contact.Discount, &dataJSON, &contact.FileID, &contact.CreatedAt, &contact.UpdatedAt)
+	c, err := s.scanContact(queryCtx, `WHERE phone = $1`, phone)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return models.Contact{}, false, nil
 	}
@@ -303,11 +297,7 @@ func (s *PostgresStorage) GetContactByPhone(ctx context.Context, phone string) (
 		return models.Contact{}, false, fmt.Errorf("get contact by phone: %w", err)
 	}
 
-	if dataJSON != nil {
-		json.Unmarshal(dataJSON, &contact.Data)
-	}
-
-	return contact, true, nil
+	return c, true, nil
 }
 
 func (s *PostgresStorage) ListContactsByFileID(ctx context.Context, fileID string) ([]models.Contact, error) {
@@ -342,9 +332,9 @@ func (s *PostgresStorage) ListContactsByFileID(ctx context.Context, fileID strin
 }
 
 func (s *PostgresStorage) UpdateContact(ctx context.Context, contact models.Contact) error {
-	dataJSON, err := json.Marshal(contact.Data)
+	dataJSON, err := marshalContactJSON(&contact)
 	if err != nil {
-		return fmt.Errorf("marshal contact data: %w", err)
+		return err
 	}
 
 	queryCtx, cancel := s.withTimeout(ctx)
@@ -362,6 +352,31 @@ func (s *PostgresStorage) UpdateContact(ctx context.Context, contact models.Cont
 	s.saveContactVersion(ctx, contact, "updated")
 
 	return nil
+}
+
+// scanContact – вспомогательный метод, читает одну строку из contacts по условию WHERE.
+// Принимает контекст, условие (например "WHERE phone = $1") и параметры.
+// Возвращает заполненный Contact или pgx.ErrNoRows, если строка не найдена.
+func (s *PostgresStorage) scanContact(ctx context.Context, whereClause string, args ...any) (models.Contact, error) {
+	var c models.Contact
+	var dataJSON []byte
+
+	err := s.pool.QueryRow(ctx, `
+		SELECT id, phone, email, name, discount, data, file_id, created_at, updated_at
+		FROM contacts
+		`+whereClause, args...).Scan(
+		&c.ID, &c.Phone, &c.Email, &c.Name, &c.Discount,
+		&dataJSON, &c.FileID, &c.CreatedAt, &c.UpdatedAt,
+	)
+	if err != nil {
+		return models.Contact{}, err
+	}
+
+	if dataJSON != nil {
+		json.Unmarshal(dataJSON, &c.Data)
+	}
+
+	return c, nil
 }
 
 func (s *PostgresStorage) ResolveConflict(ctx context.Context, phone string, action models.ConflictAction, incoming models.Contact) error {
@@ -405,7 +420,7 @@ func (s *PostgresStorage) ResolveConflict(ctx context.Context, phone string, act
 }
 
 func (s *PostgresStorage) saveContactVersion(ctx context.Context, contact models.Contact, action string) error {
-	dataJSON, err := json.Marshal(contact.Data)
+	dataJSON, err := marshalContactJSON(&contact)
 	if err != nil {
 		return err
 	}
@@ -418,4 +433,14 @@ func (s *PostgresStorage) saveContactVersion(ctx context.Context, contact models
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 	`, contact.ID, contact.Phone, contact.Email, contact.Name, contact.Discount, dataJSON, contact.FileID, action)
 	return err
+}
+
+// marshalContactJSON – marshals contact.Data into JSON bytes.
+// Паникует, если contact nil (программная ошибка, не рантайм).
+func marshalContactJSON(contact *models.Contact) ([]byte, error) {
+	dataJSON, err := json.Marshal(contact.Data)
+	if err != nil {
+		return nil, fmt.Errorf("marshal contact data: %w", err)
+	}
+	return dataJSON, nil
 }
