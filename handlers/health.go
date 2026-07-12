@@ -1,9 +1,11 @@
-package handlers
-
+// Package handlers содержит HTTP-обработчики для всех эндпоинтов приложения.
+//
 // health.go – проверка состояния сервера
 // GET /api/health проверяет доступность хранилища и возвращает статус
 // сервиса. Используется Docker для healthcheck и для быстрой диагностики
 // при запуске.
+
+package handlers
 
 import (
 	"context"
