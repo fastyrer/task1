@@ -48,7 +48,7 @@ type CombinedStore interface {
 	ContactStore
 }
 
-// NewFromEnv – 
+// NewFromEnv – создает хранилище исходя из драйвера в .env. Реализует CombinedStorage
 func NewFromEnv(ctx context.Context) (CombinedStore, error) {
 	driver := strings.ToLower(strings.TrimSpace(os.Getenv("STORAGE_DRIVER")))
 	databaseURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
