@@ -7,6 +7,7 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -17,13 +18,13 @@ import (
 
 // FixRowResult – результат исправления одной строки.
 type FixRowResult struct {
-	Fixed  int                     `json:"fixed"`
-	Failed []FixRowError           `json:"failed,omitempty"`
+	Fixed  int           `json:"fixed"`
+	Failed []FixRowError `json:"failed,omitempty"`
 }
 
 // FixRowError – ошибки, возникшие при исправлении строки.
 type FixRowError struct {
-	RowNumber int                      `json:"rowNumber"`
+	RowNumber int                        `json:"rowNumber"`
 	Errors    []models.ProcessingWarning `json:"errors"`
 }
 
@@ -31,23 +32,23 @@ var ErrNoPhoneInRow = fmt.Errorf("в строке нет номера телеф
 
 // ProcessingResult – итог обработки набора контактов.
 type ProcessingResult struct {
-	Saved      int                   `json:"saved"`
-	Conflicts  []models.ConflictInfo `json:"conflicts"`
-	Skipped    int                   `json:"skipped"`
+	Saved     int                   `json:"saved"`
+	Conflicts []models.ConflictInfo `json:"conflicts"`
+	Skipped   int                   `json:"skipped"`
 }
 
 // ProcessContacts – обрабатывает строки файла, пропускает пустые и помеченные как invalid записи,
 // сохраняет новые контакты и формирует список конфликтов при несовпадении данных.
 
 // ProcessContacts:
-	// 1. Проверка наличия колонки с телефоном
-	// 2. Создание набора invalid строк для быстрого поиска
-	// 3. Инициализация результата обработки
-	// 4. Обход всех строк файла
-	// 5. Проверка телефона и пропуск пустых/invalid строк
-	// 6. Сохранение новых контактов или формирование конфликтов
+// 1. Проверка наличия колонки с телефоном
+// 2. Создание набора invalid строк для быстрого поиска
+// 3. Инициализация результата обработки
+// 4. Обход всех строк файла
+// 5. Проверка телефона и пропуск пустых/invalid строк
+// 6. Сохранение новых контактов или формирование конфликтов
 func ProcessContacts(ctx context.Context, store storage.ContactStore, data models.FileData, phoneColumn string) (*ProcessingResult, error) {
-	
+
 	// 1. Проверка наличия колонки с телефоном
 	if phoneColumn == "" {
 		return nil, fmt.Errorf("колонка с телефоном не найдена")
@@ -81,22 +82,29 @@ func ProcessContacts(ctx context.Context, store storage.ContactStore, data model
 		}
 
 		// 6. Создание объекта контакта из строки
-		contact := RowToContact(row, phone, data.ID)
-
-		// Проверка наличия существующего контакта
-		existing, exists, err := store.GetContactByPhone(ctx, phone)
-		if err != nil {
-			return nil, fmt.Errorf("check existing contact: %w", err)
+		rowNumber := i + 1
+		if i < len(data.RowNumbers) && data.RowNumbers[i] > 0 {
+			rowNumber = data.RowNumbers[i]
 		}
+		contact := RowToContact(row, phone, data.ID)
+		contact.SourceRow = rowNumber
 
-		// Сохранение нового контакта
-		if !exists {
-			_, err := store.SaveContact(ctx, contact)
-			if err != nil {
-				return nil, fmt.Errorf("save contact: %w", err)
-			}
+		// INSERT ... ON CONFLICT в PostgreSQL атомарно определяет, новый ли это контакт.
+		_, err := store.SaveContact(ctx, contact)
+		if err == nil {
 			result.Saved++
 			continue
+		}
+		if !errors.Is(err, storage.ErrContactAlreadyExists) {
+			return nil, fmt.Errorf("save contact: %w", err)
+		}
+
+		existing, exists, err := store.GetContactByPhone(ctx, phone)
+		if err != nil {
+			return nil, fmt.Errorf("load conflicting contact: %w", err)
+		}
+		if !exists {
+			return nil, fmt.Errorf("load conflicting contact: %w", storage.ErrContactNotFound)
 		}
 
 		// Проверка на совпадение данных
@@ -106,7 +114,7 @@ func ProcessContacts(ctx context.Context, store storage.ContactStore, data model
 		}
 
 		// 6. Формирование конфликта и добавление его в результат
-		conflict := detectConflict(i+1, existing, contact)
+		conflict := detectConflict(rowNumber, existing, contact)
 		result.Conflicts = append(result.Conflicts, conflict)
 	}
 
@@ -272,8 +280,8 @@ func contactToMap(c models.Contact) map[string]string {
 
 // FixRowInput – данные строки, которую нужно исправить и сохранить.
 type FixRowInput struct {
-	RowNumber int                `json:"rowNumber"`
-	Values    map[string]string  `json:"values"`
+	RowNumber int               `json:"rowNumber"`
+	Values    map[string]string `json:"values"`
 }
 
 // FixAndSaveRow – валидирует и сохраняет исправленную строку, учитывая возможные конфликты.
@@ -364,15 +372,19 @@ func FixAndSaveRow(ctx context.Context, store storage.ContactStore, row FixRowIn
 
 	// 3. Сохранение контакта или формирование ошибки/конфликта
 	contact := RowToContact(values, phone, fileID)
+	contact.SourceRow = row.RowNumber
 	existing, exists, err := store.GetContactByPhone(ctx, phone)
 	if err != nil {
 		return &FixRowError{
 			RowNumber: row.RowNumber,
-			Errors: []models.ProcessingWarning{{Message: fmt.Sprintf("Ошибка БД: %v", err)}},
+			Errors:    []models.ProcessingWarning{{Message: fmt.Sprintf("Ошибка БД: %v", err)}},
 		}
 	}
 
-	if exists && !ContactsEqual(existing, contact) {
+	if exists {
+		if ContactsEqual(existing, contact) {
+			return nil
+		}
 		if err := store.ResolveConflict(ctx, phone, models.ConflictActionReplace, contact); err != nil {
 			return &FixRowError{
 				RowNumber: row.RowNumber,
@@ -383,6 +395,11 @@ func FixAndSaveRow(ctx context.Context, store storage.ContactStore, row FixRowIn
 	}
 
 	if _, err := store.SaveContact(ctx, contact); err != nil {
+		if errors.Is(err, storage.ErrContactAlreadyExists) {
+			if resolveErr := store.ResolveConflict(ctx, phone, models.ConflictActionReplace, contact); resolveErr == nil {
+				return nil
+			}
+		}
 		return &FixRowError{
 			RowNumber: row.RowNumber,
 			Errors:    []models.ProcessingWarning{{Message: fmt.Sprintf("Ошибка сохранения: %v", err)}},

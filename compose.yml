@@ -1,22 +1,50 @@
 services:
   app:
     build: .
+    image: task1-app:local
     restart: unless-stopped
     environment:
       PORT: "8080"
-      STORAGE_DRIVER: postgres
-      DATABASE_URL: "host=db port=5432 user=${POSTGRES_USER:-task1} password=${POSTGRES_PASSWORD:-task1_password} dbname=${POSTGRES_DB:-task1} sslmode=disable"
+      DATABASE_URL: "host=db port=5432 user=${POSTGRES_USER:-task1} password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required} dbname=${POSTGRES_DB:-task1} sslmode=disable"
       MAX_UPLOAD_SIZE_MB: "20"
       SEARCH_RESULT_LIMIT: "1000"
       DB_MAX_CONNS: "10"
       DB_MIN_CONNS: "1"
       DB_CONNECT_TIMEOUT_SECONDS: "10"
       DB_QUERY_TIMEOUT_SECONDS: "5"
+      DB_MIGRATION_TIMEOUT_SECONDS: "60"
+      DB_MAX_CONN_IDLE_TIME_SECONDS: "1800"
+      DB_MAX_CONN_LIFETIME_SECONDS: "3600"
+      DB_HEALTH_CHECK_SECONDS: "30"
     ports:
       - "${HOST_PORT:-8080}:8080"
     depends_on:
       db:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+
+  migrate:
+    image: task1-app:local
+    pull_policy: never
+    command: ["./server", "migrate"]
+    restart: "no"
+    environment:
+      DATABASE_URL: "host=db port=5432 user=${POSTGRES_USER:-task1} password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required} dbname=${POSTGRES_DB:-task1} sslmode=disable"
+      DB_MIGRATION_TIMEOUT_SECONDS: "60"
+    depends_on:
+      db:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    security_opt:
+      - no-new-privileges:true
 
   db:
     image: postgres:16-alpine
@@ -24,11 +52,11 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-task1}
       POSTGRES_USER: ${POSTGRES_USER:-task1}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-task1_password}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U task1 -d task1"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 10s
       timeout: 5s
       retries: 5

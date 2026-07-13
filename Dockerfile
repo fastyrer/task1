@@ -24,9 +24,8 @@ RUN apk add --no-cache ca-certificates \
 	&& adduser -S -G app app
 
 COPY --from=builder /out/server ./server
-COPY --from=builder /src/frontend ./frontend
 
-RUN chown -R app:app /app
+RUN chown app:app /app/server
 
 ENV PORT=8080
 EXPOSE 8080

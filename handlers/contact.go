@@ -33,7 +33,7 @@ func RegisterContactRoutes(mux *http.ServeMux, store storage.FileStore, contacts
 
 // fixRowsRequest – запрос на исправление невалидных строк
 type fixRowsRequest struct {
-	FileID string               `json:"fileId"`
+	FileID string                 `json:"fileId"`
 	Rows   []services.FixRowInput `json:"rows"`
 }
 
@@ -101,9 +101,9 @@ type saveRequest struct {
 
 // saveResponse – ответ на сохранение
 type saveResponse struct {
-	Saved      int                   `json:"saved"` // Сколько сохранено
-	Skipped    int                   `json:"skipped"` // Сколько пропущено
-	Conflicts  []models.ConflictInfo `json:"conflicts,omitempty"` // конфликты 
+	Saved     int                   `json:"saved"`               // Сколько сохранено
+	Skipped   int                   `json:"skipped"`             // Сколько пропущено
+	Conflicts []models.ConflictInfo `json:"conflicts,omitempty"` // конфликты
 	// с существующими контактами
 }
 
@@ -217,9 +217,13 @@ func (h *ContactHandler) Resolve(w http.ResponseWriter, r *http.Request) {
 
 	var incoming models.Contact
 	var found bool
-	for _, row := range fd.Rows {
+	for index, row := range fd.Rows {
 		if row[phoneColumn] == req.Phone {
 			incoming = services.RowToContact(row, req.Phone, fd.ID)
+			incoming.SourceRow = index + 1
+			if index < len(fd.RowNumbers) && fd.RowNumbers[index] > 0 {
+				incoming.SourceRow = fd.RowNumbers[index]
+			}
 			found = true
 			break
 		}
@@ -293,7 +297,7 @@ func (h *ContactHandler) ResolveAll(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resolved := 0
-	for _, row := range fd.Rows {
+	for index, row := range fd.Rows {
 		phone := row[phoneColumn]
 		if phone == "" {
 			continue
@@ -308,6 +312,10 @@ func (h *ContactHandler) ResolveAll(w http.ResponseWriter, r *http.Request) {
 		}
 
 		incoming := services.RowToContact(row, phone, fd.ID)
+		incoming.SourceRow = index + 1
+		if index < len(fd.RowNumbers) && fd.RowNumbers[index] > 0 {
+			incoming.SourceRow = fd.RowNumbers[index]
+		}
 
 		if services.ContactsEqual(existing, incoming) {
 			continue
