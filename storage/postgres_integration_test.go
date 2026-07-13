@@ -14,6 +14,8 @@ import (
 	"task1/models"
 )
 
+// TestPostgresStorageRoundTrip проверяет полный сценарий на реальном PostgreSQL:
+// миграцию, файл и строки, поиск, UNIQUE-телефон, replace и аудит.
 func TestPostgresStorageRoundTrip(t *testing.T) {
 	databaseURL := strings.TrimSpace(os.Getenv("TEST_DATABASE_URL"))
 	if databaseURL == "" {
@@ -143,6 +145,8 @@ func TestPostgresStorageRoundTrip(t *testing.T) {
 	}
 }
 
+// assertTestDatabase не даёт интеграционному тесту случайно подключиться к production-базе.
+// Имя тестовой БД обязано содержать "test".
 func assertTestDatabase(t *testing.T, databaseURL string) {
 	t.Helper()
 	config, err := pgxpool.ParseConfig(databaseURL)

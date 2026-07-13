@@ -1,3 +1,5 @@
+// postgres_storage.go - подключение к PostgreSQL, настройка пула,
+// таймаутов и отдельный запуск миграций.
 package storage
 
 import (
@@ -13,11 +15,20 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// PostgresStorage - единственная runtime-реализация Store.
+// pool переиспользует соединения, queryTimeout ограничивает CRUD-операции.
 type PostgresStorage struct {
 	pool         *pgxpool.Pool
 	queryTimeout time.Duration
 }
 
+// NewPostgresStorage - создаёт готовое PostgreSQL-хранилище.
+//
+// Порядок инициализации:
+//  1. Разбирает DATABASE_URL и применяет настройки пула.
+//  2. Ограничивает подключение таймаутом.
+//  3. Проверяет реальную связь с БД через Ping.
+//  4. Сверяет версию схемы с миграциями в бинарном файле.
 func NewPostgresStorage(ctx context.Context, databaseURL string) (*PostgresStorage, error) {
 	databaseURL = strings.TrimSpace(databaseURL)
 	if databaseURL == "" {
@@ -58,8 +69,9 @@ func NewPostgresStorage(ctx context.Context, databaseURL string) (*PostgresStora
 	return store, nil
 }
 
-// MigratePostgres applies embedded, versioned migrations and exits without
-// creating the application store. Production can use a dedicated DB role.
+// MigratePostgres - применяет встроенные версионированные миграции.
+// Для мигратора создаётся отдельный пул из одного соединения.
+// В production это позволяет запускать DDL от отдельной роли БД.
 func MigratePostgres(ctx context.Context, databaseURL string) error {
 	databaseURL = strings.TrimSpace(databaseURL)
 	if databaseURL == "" {
@@ -95,16 +107,19 @@ func MigratePostgres(ctx context.Context, databaseURL string) error {
 	return nil
 }
 
+// Ping - проверяет, что пул может выполнить запрос к PostgreSQL.
 func (s *PostgresStorage) Ping(ctx context.Context) error {
 	return s.pool.Ping(ctx)
 }
 
+// Close - корректно закрывает все соединения пула при остановке.
 func (s *PostgresStorage) Close() {
 	if s != nil && s.pool != nil {
 		s.pool.Close()
 	}
 }
 
+// withTimeout - создаёт контекст с единым таймаутом для операций хранилища.
 func (s *PostgresStorage) withTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
 	if s.queryTimeout <= 0 {
 		return context.WithCancel(ctx)
@@ -112,6 +127,7 @@ func (s *PostgresStorage) withTimeout(ctx context.Context) (context.Context, con
 	return context.WithTimeout(ctx, s.queryTimeout)
 }
 
+// applyPoolEnv - применяет к пулу лимиты соединений и времени из env.
 func applyPoolEnv(config *pgxpool.Config) {
 	config.MaxConns = int32(envPositiveInt("DB_MAX_CONNS", 10))
 	config.MinConns = int32(envInt("DB_MIN_CONNS", 0))
@@ -123,6 +139,7 @@ func applyPoolEnv(config *pgxpool.Config) {
 	config.HealthCheckPeriod = envDuration("DB_HEALTH_CHECK_SECONDS", 30*time.Second)
 }
 
+// envPositiveInt - читает строго положительное целое или возвращает fallback.
 func envPositiveInt(name string, fallback int) int {
 	value := envInt(name, fallback)
 	if value <= 0 {
@@ -131,6 +148,7 @@ func envPositiveInt(name string, fallback int) int {
 	return value
 }
 
+// envInt - безопасно читает неотрицательное целое из окружения.
 func envInt(name string, fallback int) int {
 	value := strings.TrimSpace(os.Getenv(name))
 	if value == "" {
@@ -144,6 +162,7 @@ func envInt(name string, fallback int) int {
 	return parsed
 }
 
+// envDuration - преобразует число секунд из env в time.Duration.
 func envDuration(name string, fallback time.Duration) time.Duration {
 	value := strings.TrimSpace(os.Getenv(name))
 	if value == "" {
@@ -157,6 +176,7 @@ func envDuration(name string, fallback time.Duration) time.Duration {
 	return time.Duration(parsed) * time.Second
 }
 
+// generateID - генерирует криптографически случайный UUID v4 без внешней библиотеки.
 func generateID() (string, error) {
 	buffer := make([]byte, 16)
 	if _, err := rand.Read(buffer); err != nil {

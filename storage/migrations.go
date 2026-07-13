@@ -1,3 +1,5 @@
+// migrations.go - запуск встроенных SQL-миграций и проверка
+// совместимости схемы БД с текущим бинарным файлом.
 package storage
 
 import (
@@ -12,12 +14,26 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// migrationLockID - стабильный ключ PostgreSQL advisory lock для этого проекта.
+// Он не даёт двум экземплярам мигратора менять схему одновременно.
 const migrationLockID int64 = 7420198463521
 
+// migrationFS содержит .up.sql-файлы внутри Go-бинарника.
+//
 //go:embed migrations/*.up.sql
 var migrationFS embed.FS
 
+// runMigrations - применяет ещё не выполненные миграции по возрастанию версии.
+//
+// Алгоритм:
+//  1. Находит и сортирует встроенные .up.sql-файлы.
+//  2. Открывает общую транзакцию и берёт advisory lock.
+//  3. Создаёт таблицу schema_migrations, если её ещё нет.
+//  4. Пропускает уже зафиксированные версии.
+//  5. Выполняет SQL и записывает версию в schema_migrations.
+//  6. Коммитит всю серию; при ошибке defer выполнит rollback.
 func runMigrations(ctx context.Context, pool *pgxpool.Pool) error {
+	// Запросы объявлены рядом с логикой метода, чтобы их было видно при чтении.
 	const lockMigrationsQuery = `SELECT pg_advisory_xact_lock($1)`
 	const createMigrationsTableQuery = `
 		CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -95,6 +111,7 @@ func runMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 	return nil
 }
 
+// migrationVersion - извлекает числовую версию из имени вида 000001_name.up.sql.
 func migrationVersion(name string) (int64, error) {
 	prefix, _, ok := strings.Cut(name, "_")
 	if !ok {
@@ -108,6 +125,8 @@ func migrationVersion(name string) (int64, error) {
 	return version, nil
 }
 
+// verifyMigrationVersion - сравнивает максимальную версию в БД с версией бинарника.
+// Приложение не стартует как с неприменённой, так и с более новой схемой.
 func verifyMigrationVersion(ctx context.Context, pool *pgxpool.Pool) error {
 	const currentMigrationQuery = `
 		SELECT COALESCE(max(version), 0)

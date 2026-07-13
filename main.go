@@ -33,6 +33,7 @@ var frontendHTML []byte
 
 func main() {
 	ctx := context.Background()
+	// Режим migrate не запускает HTTP-сервер: он применяет схему и сразу завершается.
 	if len(os.Args) == 2 && os.Args[1] == "migrate" {
 		if err := storage.MigrateFromEnv(ctx); err != nil {
 			log.Fatal(err)
@@ -88,8 +89,8 @@ func main() {
 	}
 }
 
-// registerFrontend serves the embedded frontend independently of the process
-// working directory and runtime filesystem.
+// registerFrontend - отдаёт встроенный index.html независимо от рабочей директории.
+// Благодаря go:embed фронтенд находится внутри одного Go-бинарника.
 func registerFrontend(mux *http.ServeMux) {
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" || r.Method != http.MethodGet {

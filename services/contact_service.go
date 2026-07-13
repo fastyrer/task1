@@ -81,7 +81,8 @@ func ProcessContacts(ctx context.Context, store storage.ContactStore, data model
 			}
 		}
 
-		// 6. Создание объекта контакта из строки
+		// 6. Создание объекта контакта из строки.
+		// Для аудита берём исходный номер, а не индекс в Go-slice.
 		rowNumber := i + 1
 		if i < len(data.RowNumbers) && data.RowNumbers[i] > 0 {
 			rowNumber = data.RowNumbers[i]
@@ -99,6 +100,7 @@ func ProcessContacts(ctx context.Context, store storage.ContactStore, data model
 			return nil, fmt.Errorf("save contact: %w", err)
 		}
 
+		// SaveContact сообщил о UNIQUE-конфликте: загружаем текущие данные для сравнения.
 		existing, exists, err := store.GetContactByPhone(ctx, phone)
 		if err != nil {
 			return nil, fmt.Errorf("load conflicting contact: %w", err)
@@ -372,6 +374,7 @@ func FixAndSaveRow(ctx context.Context, store storage.ContactStore, row FixRowIn
 
 	// 3. Сохранение контакта или формирование ошибки/конфликта
 	contact := RowToContact(values, phone, fileID)
+	// Номер исходной строки попадёт в contact_sources вместе с контактом.
 	contact.SourceRow = row.RowNumber
 	existing, exists, err := store.GetContactByPhone(ctx, phone)
 	if err != nil {
@@ -395,6 +398,8 @@ func FixAndSaveRow(ctx context.Context, store storage.ContactStore, row FixRowIn
 	}
 
 	if _, err := store.SaveContact(ctx, contact); err != nil {
+		// Между предварительным SELECT и INSERT другой запрос мог успеть создать тот же телефон.
+		// В этом случае повторяем операцию уже как разрешение конфликта.
 		if errors.Is(err, storage.ErrContactAlreadyExists) {
 			if resolveErr := store.ResolveConflict(ctx, phone, models.ConflictActionReplace, contact); resolveErr == nil {
 				return nil

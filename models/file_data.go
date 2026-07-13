@@ -49,15 +49,15 @@ type InvalidRow struct {
 	Errors []ProcessingWarning `json:"errors"`
 }
 
-// StoredFileRow is a row returned by storage-level file search.
+// StoredFileRow - строка, найденная PostgreSQL-поиском внутри загруженного файла.
 type StoredFileRow struct {
-	Row    int               `json:"row"`
-	Values map[string]string `json:"values"`
+	Row    int               `json:"row"`    // Номер строки в исходном CSV/XLS/XLSX.
+	Values map[string]string `json:"values"` // Полный набор ячеек найденной строки.
 }
 
-// FileSearchResult contains rows matched inside one uploaded file.
+// FileSearchResult - внутренний результат поиска: заголовки, найденные строки и их полное количество.
 type FileSearchResult struct {
-	Headers []string
-	Rows    []StoredFileRow
-	Total   int
+	Headers []string        // Заголовки нужны обработчику для поиска совпавших ячеек.
+	Rows    []StoredFileRow // Результаты, уже ограниченные переданным LIMIT.
+	Total   int             // Полное число совпадений до LIMIT.
 }

@@ -1,6 +1,6 @@
+// Package storage определяет интерфейсы и PostgreSQL-реализацию
+// хранилища файлов, строк и контактов.
 package storage
-
-// Package storage определяет интерфейсы для работы с хранилищами данных
 
 import (
 	"context"
@@ -11,10 +11,13 @@ import (
 	"task1/models"
 )
 
-// FileStore - операции с файлами
+// FileStore - операции с метаданными файла, его строками и поиском.
 type FileStore interface {
+	// SaveFileData сохраняет файл и все его строки одной транзакцией.
 	SaveFileData(ctx context.Context, data models.FileData) (string, error)
+	// GetFileData восстанавливает FileData из метаданных и таблицы строк.
 	GetFileData(ctx context.Context, fileID string) (models.FileData, bool, error)
+	// SearchFileRows ищет подстроку внутри строк средствами PostgreSQL.
 	SearchFileRows(ctx context.Context, fileID, query string, limit int) (models.FileSearchResult, bool, error)
 }
 
@@ -37,12 +40,13 @@ type ContactStore interface {
 	ResolveConflict(ctx context.Context, phone string, action models.ConflictAction, incoming models.Contact) error
 }
 
-// HealthStore contains the database readiness operation used by /api/health.
+// HealthStore - минимальный контракт проверки доступности БД для /api/health.
 type HealthStore interface {
 	Ping(ctx context.Context) error
 }
 
-// Store is the complete PostgreSQL-backed application storage contract.
+// Store - полный контракт хранилища, который нужен main.go.
+// Единственная runtime-реализация этого интерфейса - PostgresStorage.
 type Store interface {
 	FileStore
 	ContactStore
@@ -50,7 +54,8 @@ type Store interface {
 	Close()
 }
 
-// NewFromEnv creates the only supported storage implementation: PostgreSQL.
+// NewFromEnv - создаёт PostgreSQL-хранилище из DATABASE_URL.
+// In-memory fallback нет: ошибка конфигурации должна остановить запуск.
 func NewFromEnv(ctx context.Context) (Store, error) {
 	databaseURL, err := databaseURLFromEnv()
 	if err != nil {
@@ -59,7 +64,8 @@ func NewFromEnv(ctx context.Context) (Store, error) {
 	return NewPostgresStorage(ctx, databaseURL)
 }
 
-// MigrateFromEnv runs versioned PostgreSQL migrations using DATABASE_URL.
+// MigrateFromEnv - запускает версионированные миграции из DATABASE_URL.
+// Эта функция вызывается отдельным режимом "server migrate".
 func MigrateFromEnv(ctx context.Context) error {
 	databaseURL, err := databaseURLFromEnv()
 	if err != nil {
@@ -68,6 +74,7 @@ func MigrateFromEnv(ctx context.Context) error {
 	return MigratePostgres(ctx, databaseURL)
 }
 
+// databaseURLFromEnv - читает и проверяет обязательную строку подключения.
 func databaseURLFromEnv() (string, error) {
 	databaseURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
 	if databaseURL == "" {

@@ -2,6 +2,7 @@ package storage
 
 import "testing"
 
+// TestMigrationVersion проверяет разбор версии и отказ на неверных именах миграций.
 func TestMigrationVersion(t *testing.T) {
 	tests := []struct {
 		name    string

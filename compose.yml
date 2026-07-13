@@ -1,13 +1,16 @@
 services:
+  # app запускает HTTP-сервер только после healthy-статуса БД и успешных миграций.
   app:
     build: .
     image: task1-app:local
     restart: unless-stopped
     environment:
       PORT: "8080"
+      # Внутри Compose приложение обращается к PostgreSQL по имени сервиса db.
       DATABASE_URL: "host=db port=5432 user=${POSTGRES_USER:-task1} password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required} dbname=${POSTGRES_DB:-task1} sslmode=disable"
       MAX_UPLOAD_SIZE_MB: "20"
       SEARCH_RESULT_LIMIT: "1000"
+      # Размер пула и таймауты можно менять без пересборки Docker-образа.
       DB_MAX_CONNS: "10"
       DB_MIN_CONNS: "1"
       DB_CONNECT_TIMEOUT_SECONDS: "10"
@@ -17,24 +20,28 @@ services:
       DB_MAX_CONN_LIFETIME_SECONDS: "3600"
       DB_HEALTH_CHECK_SECONDS: "30"
     ports:
+      # HOST_PORT меняет только внешний порт; внутри контейнера сервер всегда слушает 8080.
       - "${HOST_PORT:-8080}:8080"
     depends_on:
       db:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
+    # Файловая система контейнера только для чтения; временные файлы разрешены только в /tmp.
     read_only: true
     tmpfs:
       - /tmp:size=64m,mode=1777
     security_opt:
       - no-new-privileges:true
 
+  # migrate выполняет "server migrate" один раз и завершается с кодом 0.
   migrate:
     image: task1-app:local
     pull_policy: never
     command: ["./server", "migrate"]
     restart: "no"
     environment:
+      # В production здесь можно указать отдельную роль БД с правами на DDL.
       DATABASE_URL: "host=db port=5432 user=${POSTGRES_USER:-task1} password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required} dbname=${POSTGRES_DB:-task1} sslmode=disable"
       DB_MIGRATION_TIMEOUT_SECONDS: "60"
     depends_on:
@@ -46,10 +53,12 @@ services:
     security_opt:
       - no-new-privileges:true
 
+  # db хранит данные в именованном volume; порт PostgreSQL на хост не публикуется.
   db:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
+      # Пароль не имеет слабого значения по умолчанию и обязан прийти из .env/окружения.
       POSTGRES_DB: ${POSTGRES_DB:-task1}
       POSTGRES_USER: ${POSTGRES_USER:-task1}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
@@ -62,4 +71,5 @@ services:
       retries: 5
 
 volumes:
+  # Volume переживает docker compose down; удаляется только при down -v.
   postgres_data:
