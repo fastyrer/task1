@@ -84,9 +84,9 @@ func (h *UploadHandler) Upload(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseMultipartForm(uploadLimit); err != nil {
 		var maxBytesError *http.MaxBytesError
 		if errors.As(err, &maxBytesError) {
-			writeJSONError(w, http.StatusRequestEntityTooLarge, fmt.Sprintf(services.ErrorFileExcessiveSize + strconv.FormatInt(uploadLimit, 10)))
+			writeJSONError(w, http.StatusRequestEntityTooLarge, fmt.Sprintf(services.ErrorFileExcessiveSize+strconv.FormatInt(uploadLimit, 10)))
 			return
-		} // !!!
+		}
 		writeJSONError(w, http.StatusBadRequest, services.ErrorFileNotOpened)
 		return
 	}
@@ -114,7 +114,7 @@ func (h *UploadHandler) Upload(w http.ResponseWriter, r *http.Request) {
 		SheetName: r.FormValue("sheet"),
 	})
 	if err != nil {
-		writeJSONError(w, http.StatusBadRequest, userMessage(err))
+		writeJSONError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -175,7 +175,6 @@ func addMIMEWarning(data *models.FileData) {
 	if isExpectedMIME(data.Format, mimeType) {
 		return
 	}
-	// ???
 	data.Warnings = append(data.Warnings, models.ProcessingWarning{
 		Message: fmt.Sprintf("MIME-тип %s не соответствует формату %s.", data.MIMEType, strings.ToUpper(data.Format)),
 	})
@@ -195,17 +194,6 @@ func isExpectedMIME(format string, mimeType string) bool {
 	}
 }
 
-func formatUploadSize(size int64) string {
-	if size < 1024 {
-		return fmt.Sprintf("%d Б", size)
-	}
-	if size < 1<<20 {
-		return fmt.Sprintf("%.1f КБ", float64(size)/1024)
-	}
-
-	return fmt.Sprintf("%.1f МБ", float64(size)/(1<<20))
-}
-
 func previewRows(rows []map[string]string) []map[string]string {
 	limit := previewLimit
 	if len(rows) < limit {
@@ -213,26 +201,6 @@ func previewRows(rows []map[string]string) []map[string]string {
 	}
 
 	return rows[:limit]
-}
-
-// userMessage выводит сообщение об ошибке для пользователя
-// err – одна из возможных ошибок
-func userMessage(err error) string {
-	switch {
-	case errors.Is(err, services.ErrUnsupportedFormat),
-		errors.Is(err, services.ErrEmptyFile),
-		errors.Is(err, services.ErrNoHeaders),
-		errors.Is(err, services.ErrNoDataRows),
-		errors.Is(err, services.ErrInvalidCSV),
-		errors.Is(err, services.ErrInvalidExcel),
-		errors.Is(err, services.ErrReadFile),
-		errors.Is(err, services.ErrFileTypeMismatch),
-		errors.Is(err, services.ErrInvalidEncoding),
-		errors.Is(err, services.ErrSheetNotFound):
-		return err.Error()
-	default:
-		return err.Error()
-	}
 }
 
 // writeJSON устанавливает заголовок Content-Type, HTTP-статус, кодирует payload

@@ -195,7 +195,7 @@ func (h *ContactHandler) Resolve(w http.ResponseWriter, r *http.Request) {
 	switch req.Action {
 	case models.ConflictActionSkip, models.ConflictActionReplace, models.ConflictActionMerge:
 	default:
-		writeJSONError(w, http.StatusBadRequest, services.ErrUnsupportedFormat.Error())
+		writeJSONError(w, http.StatusBadRequest, services.ErrorUnsupportedAction)
 		return
 	}
 
@@ -209,7 +209,7 @@ func (h *ContactHandler) Resolve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	phoneColumn := findPhoneColumn(fd.Headers)
+	phoneColumn := utils.DetectPhoneColumn(fd.Headers)
 	if phoneColumn == "" {
 		writeJSONError(w, http.StatusBadRequest, services.ErrorPhoneColNotFound)
 		return
@@ -291,7 +291,7 @@ func (h *ContactHandler) ResolveAll(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	phoneColumn := findPhoneColumn(fd.Headers)
+	phoneColumn := utils.DetectPhoneColumn(fd.Headers)
 	if phoneColumn == "" {
 		writeJSONError(w, http.StatusBadRequest, services.ErrorPhoneColNotFound)
 		return
@@ -306,7 +306,8 @@ func (h *ContactHandler) ResolveAll(w http.ResponseWriter, r *http.Request) {
 
 		existing, exists, err := h.contacts.GetContactByPhone(r.Context(), phone)
 		if err != nil {
-			continue
+			writeJSONError(w, http.StatusInternalServerError, services.ErrorFileNotOpened)
+			return
 		}
 		if !exists {
 			continue
@@ -334,16 +335,4 @@ func (h *ContactHandler) ResolveAll(w http.ResponseWriter, r *http.Request) {
 		"resolved": resolved,
 		"action":   req.Action,
 	})
-}
-
-// findPhoneColumn – находит название колонки с телефоном среди заголовков.
-// Дублирует utils.DetectPhoneColumn, но без создания зависимостей.
-// Используется в Resolve и ResolveAll как локальная утилита.
-func findPhoneColumn(headers []string) string {
-	for _, h := range headers {
-		if utils.ClassifyHeader(h) == utils.ColumnPhone {
-			return h
-		}
-	}
-	return ""
 }

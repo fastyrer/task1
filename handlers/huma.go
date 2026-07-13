@@ -17,11 +17,11 @@ import (
 )
 
 type apiHolder struct {
-	store    storage.FileStore
+	store    storage.Store
 	contacts storage.ContactStore
 }
 
-func RegisterHumaRoutes(api huma.API, store storage.FileStore, contacts storage.ContactStore) {
+func RegisterHumaRoutes(api huma.API, store storage.Store, contacts storage.ContactStore) {
 	h := &apiHolder{store: store, contacts: contacts}
 
 	huma.Register(api, huma.Operation{
@@ -137,7 +137,7 @@ type healthOutput struct {
 
 func (h *apiHolder) health(ctx context.Context, input *struct{}) (*healthOutput, error) {
 	status := "ok"
-	driver := h.store.Driver()
+	driver := "postgres"
 
 	pingCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
@@ -190,7 +190,7 @@ func (h *apiHolder) upload(ctx context.Context, input *uploadInput) (*uploadOutp
 		SheetName: form.Sheet,
 	})
 	if err != nil {
-		return nil, huma.Error400BadRequest(userMessage(err))
+		return nil, huma.Error400BadRequest(err.Error())
 	}
 
 	data.OriginalFilename = form.File.Filename
@@ -240,16 +240,15 @@ type searchOutput struct {
 
 func (h *apiHolder) search(ctx context.Context, input *searchInput) (*searchOutput, error) {
 	query := strings.TrimSpace(input.Body.Query)
-	fd, ok, err := h.store.GetFileData(ctx, input.Body.FileID)
+	limit := searchLimit(input.Body.Limit)
+	result, ok, err := h.store.SearchFileRows(ctx, input.Body.FileID, query, limit)
 	if err != nil {
-		return nil, huma.Error500InternalServerError("Не удалось прочитать данные файла.")
+		return nil, huma.Error500InternalServerError("Не удалось выполнить поиск.")
 	}
 	if !ok {
 		return nil, huma.Error404NotFound("Файл не найден. Загрузите файл снова.")
 	}
-
-	limit := searchLimit(input.Body.Limit)
-	sr := searchFileData(fd, query, limit)
+	sr := searchStoredRows(result, query, limit)
 	return &searchOutput{Body: sr}, nil
 }
 
@@ -408,7 +407,7 @@ func (h *apiHolder) resolve(ctx context.Context, input *resolveInput) (*resolveO
 		return nil, huma.Error404NotFound("Файл не найден.")
 	}
 
-	phoneColumn := findPhoneColumn(fd.Headers)
+	phoneColumn := utils.DetectPhoneColumn(fd.Headers)
 	if phoneColumn == "" {
 		return nil, huma.Error400BadRequest("Не найдена колонка с телефоном.")
 	}
@@ -463,7 +462,7 @@ func (h *apiHolder) resolveAll(ctx context.Context, input *resolveAllInput) (*re
 		return nil, huma.Error404NotFound("Файл не найден.")
 	}
 
-	phoneColumn := findPhoneColumn(fd.Headers)
+	phoneColumn := utils.DetectPhoneColumn(fd.Headers)
 	if phoneColumn == "" {
 		return nil, huma.Error400BadRequest("Не найдена колонка с телефоном.")
 	}
@@ -476,7 +475,10 @@ func (h *apiHolder) resolveAll(ctx context.Context, input *resolveAllInput) (*re
 			continue
 		}
 		existing, exists, err := h.contacts.GetContactByPhone(ctx, phone)
-		if err != nil || !exists {
+		if err != nil {
+			return nil, huma.Error500InternalServerError("Не удалось проверить контакт.")
+		}
+		if !exists {
 			continue
 		}
 		incoming := services.RowToContact(row, phone, fd.ID)

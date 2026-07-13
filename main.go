@@ -28,7 +28,7 @@ import (
 	"task1/storage"
 )
 
-//go:embed index.html
+//go:embed frontend/index.html
 var frontendHTML []byte
 
 func main() {

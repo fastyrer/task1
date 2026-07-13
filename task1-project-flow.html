@@ -1,0 +1,1466 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src 'unsafe-inline' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Task1 Project Flow</title>
+<style>:root{color-scheme:light dark;background:light-dark(rgb(255 255 255), rgb(24 24 24))}html,body{margin:0}body{box-sizing:border-box;padding:1rem;background:inherit}iframe{display:block;width:100%;max-width:736px;height:calc(100vh - 2rem);margin:0 auto;border:0}</style>
+</head>
+<body>
+<iframe sandbox="allow-scripts" referrerpolicy="no-referrer" title="Task1 Project Flow" srcdoc="&lt;!doctype html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+&lt;meta charset=&quot;utf-8&quot;&gt;
+&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+&lt;meta name=&quot;referrer&quot; content=&quot;no-referrer&quot;&gt;
+&lt;meta http-equiv=&quot;Content-Security-Policy&quot; content=&quot;default-src &#x27;none&#x27;; script-src &#x27;unsafe-inline&#x27; &#x27;unsafe-eval&#x27; &#x27;wasm-unsafe-eval&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src &#x27;unsafe-inline&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src &#x27;none&#x27;; object-src &#x27;none&#x27;; base-uri &#x27;none&#x27;; form-action &#x27;none&#x27;&quot;&gt;
+&lt;title&gt;Task1 Project Flow&lt;/title&gt;
+&lt;style&gt;:root {
+  color-scheme: light dark;
+  background-color: var(--background) !important;
+
+  /* Agent-facing contract; keep in sync with SKILL.md. */
+  --background: light-dark(rgb(255 255 255), rgb(24 24 24));
+  --foreground: light-dark(rgb(26 28 31), rgb(255 255 255));
+  --card: color-mix(in oklab, var(--foreground) 5%, transparent);
+  --card-foreground: var(--foreground);
+  --popover: light-dark(rgb(255 255 255), rgb(45 45 45));
+  --popover-foreground: var(--foreground);
+  --primary: light-dark(rgb(51 156 255), rgb(131 195 255));
+  --primary-foreground: light-dark(rgb(255 255 255), rgb(13 13 13));
+  --secondary: light-dark(rgb(255 255 255 / 96%), rgb(54 54 54 / 96%));
+  --secondary-foreground: var(--foreground);
+  --muted: color-mix(in srgb, var(--foreground) 10%, transparent);
+  --muted-foreground: light-dark(
+    rgb(26 28 31 / 49.4%),
+    rgb(255 255 255 / 49.8%)
+  );
+  --accent: light-dark(rgb(229 242 255), rgb(13 39 63));
+  --accent-foreground: var(--primary);
+  --destructive: light-dark(rgb(226 85 7), rgb(255 133 73));
+  --border: light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%));
+  --input: light-dark(
+    rgb(26 28 31 / 11.8%),
+    color-mix(in oklab, rgb(0 0 0) 10%, transparent)
+  );
+  --ring: light-dark(rgb(51 156 255), rgb(131 195 255 / 76%));
+  --font-size-base: 14px;
+  --viz-series-1: var(--primary);
+  --viz-series-2: light-dark(rgb(243 136 59), rgb(245 154 86));
+  --viz-series-3: light-dark(rgb(93 201 119), rgb(116 213 139));
+  --viz-series-4: light-dark(rgb(235 119 177), rgb(240 143 192));
+  --viz-series-5: light-dark(rgb(155 121 236), rgb(170 145 239));
+  --viz-series-6: light-dark(rgb(58 185 177), rgb(90 203 194));
+
+  /* Internal implementation variables; not part of the agent contract. */
+  --font-sans: -apple-system, system-ui, &quot;Segoe UI&quot;, sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, &quot;SF Mono&quot;, Menlo, Consolas, &quot;Liberation Mono&quot;,
+    monospace;
+  --font-size-normal: max(11px, var(--font-size-base));
+  --font-size-tooltip: calc(var(--font-size-base) - 1px);
+  --font-size-small: max(11px, calc(var(--font-size-base) - 2px));
+  --font-size-h1: calc(var(--font-size-normal) * 1.7142857143);
+  --font-size-h2: calc(var(--font-size-normal) * 1.4285714286);
+  --font-size-h3: calc(var(--font-size-normal) * 1.2857142857);
+  --font-weight-normal: 430;
+  --font-weight-medium: 500;
+  --line-height-normal: calc(var(--font-size-normal) * 1.5);
+  --line-height-tooltip: calc(var(--font-size-tooltip) * 1.4285714286);
+  --line-height-small: calc(var(--font-size-small) + 4px);
+  --radius: 12.5px;
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-2xl: calc(var(--radius) * 1.6);
+  --radius-full: 9999px;
+  --shadow-sm: 0 1px 2px -1px rgb(0 0 0 / 8%);
+  --checkmark-image: url(&quot;data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 17 17&#x27;%3E%3Cpath d=&#x27;M12.8961 3.64101C13.1297 3.41418 13.4984 3.37523 13.7779 3.56581C14.0571 3.75635 14.1554 4.11331 14.0299 4.41347L13.9615 4.53847L7.71151 13.7045C7.59411 13.8767 7.4063 13.9877 7.19881 14.0072C6.99136 14.0267 6.78564 13.9533 6.63826 13.806L2.88826 10.056L2.79842 9.9457C2.6192 9.67407 2.64927 9.30496 2.88826 9.06581C3.12738 8.82669 3.49647 8.79676 3.76815 8.97597L3.8785 9.06581L7.03084 12.2182L12.8053 3.74941L12.8961 3.64101Z&#x27;/%3E%3C/svg%3E&quot;);
+
+  /* Legacy aliases; not part of the current agent contract. */
+  --viz-bg: transparent;
+  --viz-panel: var(--card);
+  --viz-border: var(--border);
+  --viz-text: var(--foreground);
+  --viz-muted: var(--muted-foreground);
+  --viz-accent: var(--primary);
+  --viz-accent-text: var(--primary-foreground);
+  --viz-accent-bg: var(--accent);
+  --viz-font-size: var(--font-size-base);
+  --viz-warning: var(--destructive);
+  --color-background-primary: var(--background);
+  --color-text-primary: var(--foreground);
+  --color-border-secondary: var(--border);
+}
+
+:root[data-theme=&quot;light&quot;] {
+  color-scheme: light;
+}
+
+:root[data-theme=&quot;dark&quot;] {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html &gt; body {
+  margin: 0;
+  padding: 5px;
+  color: var(--foreground);
+  background: transparent !important;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-normal);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--line-height-normal);
+}
+
+a {
+  color: color-mix(in srgb, var(--viz-accent) 80%, var(--viz-text) 20%);
+  cursor: pointer;
+  font-weight: var(--viz-font-weight-medium);
+  text-decoration: none;
+  text-underline-offset: 2px;
+}
+
+a:is(:hover, :focus-visible) {
+  text-decoration-line: underline;
+  text-decoration-style: dashed;
+  text-decoration-thickness: 0.5px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p {
+  margin-block: 0;
+}
+
+h1 {
+  font-size: var(--font-size-h1);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h2 {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h3,
+h4,
+h5,
+h6 {
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.3;
+}
+
+b,
+strong,
+th {
+  font-weight: var(--font-weight-medium);
+}
+
+code:not(pre code) {
+  display: inline;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  corner-shape: superellipse(1.5);
+  background: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  overflow-wrap: anywhere;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  word-break: break-word;
+}
+
+#widget {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  background: transparent !important;
+}
+
+.card {
+  min-width: 0;
+  padding: 12px;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  border-radius: var(--radius-2xl);
+  corner-shape: superellipse(1.5);
+  color: var(--card-foreground);
+  background: var(--card);
+}
+
+#widget &gt; :not(.card) {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.tooltip {
+  position: fixed;
+  z-index: 50;
+  top: 0;
+  left: 0;
+  width: max-content;
+  max-width: min(
+    20rem,
+    var(--tooltip-available-width, calc(100vw - 10px)),
+    calc(100vw - 10px)
+  );
+  max-height: min(
+    var(--tooltip-available-height, calc(100vh - 10px)),
+    calc(100vh - 10px)
+  );
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--popover-foreground);
+  background: var(--popover);
+  box-shadow: none;
+  font-size: var(--font-size-tooltip);
+  line-height: var(--line-height-tooltip);
+  overflow-wrap: break-word;
+  white-space: normal;
+  pointer-events: none;
+  user-select: none;
+}
+
+.viz-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(max(180px, 24%), 1fr));
+  gap: 10px;
+}
+
+.viz-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.viz-stat-value {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+.viz-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.viz-badge {
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  color: var(--accent-foreground);
+  background: var(--accent);
+  font-weight: var(--font-weight-medium);
+}
+
+small,
+.text-small,
+.viz-badge {
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-small);
+}
+
+.text-muted {
+  color: var(--muted-foreground);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.viz-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.viz-controls &gt; .form-label {
+  display: grid;
+  min-width: min(100%, 260px);
+  flex: 1 1 280px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 2px 12px;
+  margin-bottom: 0;
+}
+
+.viz-controls &gt; .form-label &gt; :is(.form-control, .form-range, .form-select) {
+  grid-column: 1 / -1;
+}
+
+.btn,
+.form-check-input,
+.form-control,
+.form-range,
+.form-select {
+  font: inherit;
+}
+
+.btn {
+  appearance: button;
+  display: inline-flex;
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0 8px;
+  -webkit-app-region: no-drag;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: var(--cursor-interaction, pointer);
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+.btn:is(.btn-block, .viz-tile) {
+  inline-size: 100%;
+}
+
+.btn.viz-tile {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+a.btn {
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.btn-primary {
+  border-color: transparent;
+  color: var(--primary-foreground);
+  background: var(--foreground);
+  background-clip: padding-box;
+}
+
+.btn-primary .text-muted {
+  color: color-mix(in srgb, var(--primary-foreground) 50%, transparent);
+}
+
+.btn-primary:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 80%, transparent);
+  background-clip: padding-box;
+}
+
+.btn-ghost {
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.btn-ghost:not(:disabled):hover {
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+[data-lucide] {
+  stroke-width: 1.6;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--foreground);
+}
+
+.form-control {
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  padding: 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--foreground);
+  background: var(--secondary);
+}
+
+.form-control::placeholder {
+  color: var(--muted-foreground);
+}
+
+.form-control[type=&quot;file&quot;] {
+  padding: 0;
+  overflow: hidden;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control[type=&quot;file&quot;]::file-selector-button {
+  min-height: 26px;
+  margin-right: 8px;
+  padding: 0 8px;
+  border: 0;
+  border-right: 1px solid var(--input);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: inherit;
+  font: inherit;
+}
+
+.form-control[type=&quot;file&quot;]:not(:disabled):hover::file-selector-button {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-control-color[type=&quot;color&quot;] {
+  width: 40px;
+  height: 28px;
+  padding: 3px;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch {
+  border: 0;
+  border-radius: calc(var(--radius-lg) - 4px);
+  corner-shape: superellipse(1.5);
+}
+
+textarea.form-control {
+  height: auto;
+  min-height: 72px;
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.form-control:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-control:disabled,
+.form-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.form-select {
+  appearance: none;
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  margin: 0;
+  padding: 0 32px 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--foreground);
+  background-color: var(--secondary);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted-foreground) 50%),
+    linear-gradient(135deg, var(--muted-foreground) 50%, transparent 50%);
+  background-position:
+    calc(100% - 14px) 50%,
+    calc(100% - 10px) 50%;
+  background-repeat: no-repeat;
+  background-size: 4px 4px;
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-select:not(:disabled):hover {
+  background-color: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-select:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-check {
+  display: flex;
+  min-height: 20px;
+  align-items: center;
+  gap: 6px;
+}
+
+.form-check-input {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  margin: 0;
+  border: 1px solid var(--input);
+  color: var(--primary-foreground);
+  background-color: transparent;
+  cursor: var(--cursor-interaction, default);
+  transition:
+    background-color 150ms,
+    border-color 150ms,
+    box-shadow 150ms;
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;] {
+  border-color: var(--input);
+  border-radius: var(--radius-sm);
+  corner-shape: superellipse(1.5);
+  background-color: var(--secondary);
+  box-shadow: var(--shadow-sm);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input:not(:disabled):not(:checked):hover {
+  background-color: var(--card);
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;]:checked {
+  border-color: var(--primary);
+  background-color: var(--primary);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input[type=&quot;checkbox&quot;]:checked::before {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--primary-foreground);
+  content: &quot;&quot;;
+  mask: var(--checkmark-image) center / 12px 12px no-repeat;
+}
+
+.form-check-input[type=&quot;radio&quot;] {
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-full);
+}
+
+.form-check-input[type=&quot;radio&quot;]:checked {
+  border: 2px solid var(--primary);
+  background:
+    radial-gradient(circle, var(--primary-foreground) 0 2.5px, transparent 3px),
+    var(--primary);
+}
+
+.form-check:not(.form-switch) .form-check-input:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+}
+
+.form-switch .form-check-input:disabled,
+.form-switch .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.form-check-label {
+  color: var(--foreground);
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-switch .form-check-input {
+  position: relative;
+  width: 32px;
+  height: 20px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+  box-shadow: none;
+  transition: background-color 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border: 1px solid light-dark(var(--primary-foreground), var(--foreground));
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+  box-shadow: var(--shadow-sm);
+  content: &quot;&quot;;
+  transform: translate(2px, -50%);
+  transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input:checked {
+  background: var(--primary);
+}
+
+.form-switch .form-check-input:checked::before {
+  transform: translate(14px, -50%);
+}
+
+.form-switch .form-check-input:focus-visible {
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.form-range {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 28px;
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  outline: none;
+  border: 0;
+  accent-color: var(--primary);
+  background: linear-gradient(
+      color-mix(in srgb, var(--foreground) 7%, transparent),
+      color-mix(in srgb, var(--foreground) 7%, transparent)
+    )
+    center / 100% 2px no-repeat;
+}
+
+.form-range::-webkit-slider-runnable-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-webkit-slider-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range::-moz-range-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-moz-range-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.btn:not(.btn-primary, .viz-tile):is(
+    [aria-pressed=&quot;true&quot;],
+    [aria-selected=&quot;true&quot;],
+    .is-selected
+  ) {
+  border-color: var(--primary);
+  color: var(--primary-foreground);
+  background: var(--primary);
+}
+
+.btn.viz-tile:is([aria-pressed=&quot;true&quot;], [aria-selected=&quot;true&quot;], .is-selected) {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+#widget &gt; svg {
+  width: 100%;
+}
+
+.text-warning,
+.text-destructive {
+  color: var(--destructive);
+}
+
+html&gt;body{padding:0}&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;div id=&quot;task1-flow-map&quot;&gt;
+  &lt;style&gt;
+    #task1-flow-map {
+      --tf-layer: var(--viz-series-1);
+      color: var(--foreground);
+      display: grid;
+      gap: 16px;
+    }
+
+    #task1-flow-map .tf-controls {
+      display: grid;
+      grid-template-columns: minmax(220px, 1fr) auto;
+      gap: 12px;
+      align-items: end;
+    }
+
+    #task1-flow-map .tf-controls label {
+      display: grid;
+      gap: 6px;
+    }
+
+    #task1-flow-map .tf-count,
+    #task1-flow-map .tf-note,
+    #task1-flow-map .tf-file,
+    #task1-flow-map .tf-label {
+      color: var(--muted-foreground);
+    }
+
+    #task1-flow-map .tf-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 16px;
+    }
+
+    #task1-flow-map .tf-legend-item,
+    #task1-flow-map .tf-layer-name {
+      display: inline-flex;
+      gap: 7px;
+      align-items: center;
+    }
+
+    #task1-flow-map .tf-swatch {
+      width: 10px;
+      height: 10px;
+      background: var(--tf-color);
+      flex: 0 0 auto;
+    }
+
+    #task1-flow-map .tf-header {
+      display: grid;
+      gap: 4px;
+    }
+
+    #task1-flow-map .tf-flow {
+      display: grid;
+      gap: 0;
+    }
+
+    #task1-flow-map .tf-step {
+      --tf-layer: var(--viz-series-1);
+      display: grid;
+      grid-template-columns: 42px minmax(140px, 0.8fr) minmax(150px, 1fr) minmax(170px, 1.15fr) minmax(150px, 1fr);
+      gap: 12px;
+      align-items: start;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    #task1-flow-map .tf-step-number {
+      display: grid;
+      place-items: center;
+      width: 32px;
+      height: 32px;
+      border: 2px solid var(--tf-layer);
+      color: var(--foreground);
+      font-weight: 500;
+    }
+
+    #task1-flow-map .tf-step-main,
+    #task1-flow-map .tf-cell {
+      display: grid;
+      gap: 4px;
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+
+    #task1-flow-map .tf-title {
+      font-weight: 500;
+    }
+
+    #task1-flow-map .tf-layer-name .tf-swatch {
+      background: var(--tf-layer);
+    }
+
+    #task1-flow-map .tf-cell code,
+    #task1-flow-map .tf-file code {
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+
+    #task1-flow-map .tf-arrow {
+      display: grid;
+      grid-template-columns: 42px 1fr;
+      min-height: 22px;
+      color: var(--muted-foreground);
+    }
+
+    #task1-flow-map .tf-arrow-mark {
+      text-align: center;
+      font-weight: 500;
+    }
+
+    #task1-flow-map .tf-arrow-text {
+      align-self: center;
+      overflow-wrap: anywhere;
+    }
+
+    #task1-flow-map .tf-empty {
+      color: var(--muted-foreground);
+    }
+
+    @media (max-width: 720px) {
+      #task1-flow-map .tf-controls {
+        grid-template-columns: 1fr;
+      }
+
+      #task1-flow-map .tf-step {
+        grid-template-columns: 38px 1fr;
+      }
+
+      #task1-flow-map .tf-step-number {
+        grid-row: 1 / span 4;
+      }
+
+      #task1-flow-map .tf-cell {
+        grid-column: 2;
+      }
+    }
+  &lt;/style&gt;
+
+  &lt;div class=&quot;tf-controls&quot;&gt;
+    &lt;label&gt;
+      &lt;span class=&quot;tf-label&quot;&gt;Раздел проекта&lt;/span&gt;
+      &lt;select class=&quot;input&quot; id=&quot;task1-flow-select&quot; aria-label=&quot;Выберите раздел проекта&quot;&gt;&lt;/select&gt;
+    &lt;/label&gt;
+    &lt;div class=&quot;tf-count&quot; id=&quot;task1-flow-count&quot;&gt;&lt;/div&gt;
+  &lt;/div&gt;
+
+  &lt;div class=&quot;tf-legend&quot; id=&quot;task1-flow-legend&quot; aria-label=&quot;Слои проекта&quot;&gt;&lt;/div&gt;
+
+  &lt;div class=&quot;tf-header&quot;&gt;
+    &lt;h3 id=&quot;task1-flow-title&quot;&gt;&lt;/h3&gt;
+    &lt;div class=&quot;tf-note&quot; id=&quot;task1-flow-note&quot;&gt;&lt;/div&gt;
+  &lt;/div&gt;
+
+  &lt;div class=&quot;tf-flow&quot; id=&quot;task1-flow-content&quot; aria-live=&quot;polite&quot;&gt;&lt;/div&gt;
+
+  &lt;script&gt;
+    (() =&gt; {
+      const root = document.getElementById(&quot;task1-flow-map&quot;);
+      const select = root.querySelector(&quot;#task1-flow-select&quot;);
+      const count = root.querySelector(&quot;#task1-flow-count&quot;);
+      const title = root.querySelector(&quot;#task1-flow-title&quot;);
+      const note = root.querySelector(&quot;#task1-flow-note&quot;);
+      const content = root.querySelector(&quot;#task1-flow-content&quot;);
+      const legend = root.querySelector(&quot;#task1-flow-legend&quot;);
+
+      const layers = {
+        &quot;Пользователь&quot;: &quot;var(--viz-series-1)&quot;,
+        &quot;Frontend&quot;: &quot;var(--viz-series-2)&quot;,
+        &quot;Handler&quot;: &quot;var(--viz-series-3)&quot;,
+        &quot;Service&quot;: &quot;var(--viz-series-4)&quot;,
+        &quot;Utils&quot;: &quot;var(--viz-series-5)&quot;,
+        &quot;Storage&quot;: &quot;var(--viz-series-6)&quot;,
+        &quot;PostgreSQL&quot;: &quot;var(--primary)&quot;,
+        &quot;Docker&quot;: &quot;var(--muted-foreground)&quot;,
+        &quot;Model&quot;: &quot;var(--foreground)&quot;
+      };
+
+      const flows = [
+        {
+          title: &quot;Общая архитектура и направление данных&quot;,
+          note: &quot;Каждый слой принимает результат предыдущего слоя и возвращает данные обратно по той же цепочке.&quot;,
+          steps: [
+            { layer: &quot;Пользователь&quot;, title: &quot;Действие в браузере&quot;, file: &quot;index.html&quot;, input: &quot;Файл, поисковая строка, шаблон, исправления или решение конфликта.&quot;, action: &quot;Нажимает кнопку или редактирует ячейки.&quot;, output: &quot;Событие JavaScript с пользовательскими данными.&quot;, link: &quot;JavaScript формирует FormData или JSON.&quot; },
+            { layer: &quot;Frontend&quot;, title: &quot;Состояние текущей загрузки&quot;, file: &quot;index.html: currentFileId, currentHeaders, detectedPhoneColumn&quot;, input: &quot;Ответ /api/upload и последующие действия пользователя.&quot;, action: &quot;Хранит только состояние открытой страницы и вызывает fetch.&quot;, output: &quot;HTTP-запрос в один из /api/* маршрутов.&quot;, link: &quot;Запрос попадает в http.ServeMux.&quot; },
+            { layer: &quot;Handler&quot;, title: &quot;HTTP-граница&quot;, file: &quot;handlers/*.go&quot;, input: &quot;Метод, заголовки, multipart или JSON body, request context.&quot;, action: &quot;Проверяет метод и вход, вызывает service/storage, выбирает HTTP status.&quot;, output: &quot;Типизированные Go-данные или JSON/CSV ответ.&quot;, link: &quot;Бизнес-данные передаются в services.&quot; },
+            { layer: &quot;Service&quot;, title: &quot;Бизнес-логика&quot;, file: &quot;services/*.go&quot;, input: &quot;FileData, строки, контакты, шаблоны и параметры парсинга.&quot;, action: &quot;Парсит, нормализует, валидирует, сравнивает и формирует конфликты.&quot;, output: &quot;FileData, Contact, ProcessingResult, уведомления или ошибка.&quot;, link: &quot;Чистые операции делегируются utils, сохранение делегируется storage.&quot; },
+            { layer: &quot;Utils&quot;, title: &quot;Чистые утилиты&quot;, file: &quot;utils/*.go&quot;, input: &quot;Байты, строки, заголовки, ячейки, номера и листы Excel.&quot;, action: &quot;Определяет сигнатуры, кодировку, тип колонки, нормализует значения.&quot;, output: &quot;Преобразованное значение и признак корректности.&quot;, link: &quot;Результат возвращается service/handler без состояния и БД.&quot; },
+            { layer: &quot;Storage&quot;, title: &quot;Граница PostgreSQL&quot;, file: &quot;storage/postgres_*.go&quot;, input: &quot;FileData, Contact, fileId, phone, query, action, context.&quot;, action: &quot;Выполняет локальные SQL-константы, транзакции, COPY и Scan.&quot;, output: &quot;Модели Go, ID, found-флаг или доменная ошибка.&quot;, link: &quot;Параметризованные запросы отправляются через pgxpool.&quot; },
+            { layer: &quot;PostgreSQL&quot;, title: &quot;Постоянное состояние&quot;, file: &quot;uploaded_files, file_rows, contacts, contact_sources, contact_versions&quot;, input: &quot;SQL и параметры $1...$N.&quot;, action: &quot;Проверяет UNIQUE/CHECK/FK, индексы и фиксирует транзакции.&quot;, output: &quot;Строки SELECT, timestamps, conflict/no rows или изменённые записи.&quot;, link: &quot;Ответ поднимается обратно: storage -&gt; service -&gt; handler -&gt; frontend.&quot; },
+            { layer: &quot;Frontend&quot;, title: &quot;Отображение результата&quot;, file: &quot;index.html: render* functions&quot;, input: &quot;JSON, CSV Blob или HTTP error.&quot;, action: &quot;Строит таблицы, статистику, подсветку, конфликты и сообщения.&quot;, output: &quot;Пользователь видит результат; следующий запрос использует currentFileId.&quot;, link: &quot;Новый пользовательский шаг начинает следующую цепочку.&quot; }
+          ]
+        },
+        {
+          title: &quot;Запуск Docker, миграции и HTTP-сервер&quot;,
+          note: &quot;HTTP-приложение запускается только после healthy PostgreSQL и успешного одноразового мигратора.&quot;,
+          steps: [
+            { layer: &quot;Пользователь&quot;, title: &quot;Команда запуска&quot;, file: &quot;terminal&quot;, input: &quot;docker compose up --build; .env с POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD, HOST_PORT.&quot;, action: &quot;Просит Compose собрать образ и создать сервисы.&quot;, output: &quot;Конфигурация app, migrate, db и volume.&quot;, link: &quot;Compose сначала запускает db.&quot; },
+            { layer: &quot;Docker&quot;, title: &quot;Сервис db&quot;, file: &quot;compose.yml: db&quot;, input: &quot;POSTGRES_* и volume postgres_data.&quot;, action: &quot;Запускает postgres:16-alpine; внутренний порт 5432 не публикуется на хост.&quot;, output: &quot;Работающий PostgreSQL с постоянным каталогом данных.&quot;, link: &quot;Healthcheck вызывает pg_isready.&quot; },
+            { layer: &quot;PostgreSQL&quot;, title: &quot;Healthcheck базы&quot;, file: &quot;compose.yml: db.healthcheck&quot;, input: &quot;POSTGRES_USER и POSTGRES_DB.&quot;, action: &quot;Проверяет готовность принимать соединения.&quot;, output: &quot;healthy или unhealthy.&quot;, link: &quot;healthy разрешает старт migrate.&quot; },
+            { layer: &quot;Docker&quot;, title: &quot;Сервис migrate&quot;, file: &quot;compose.yml: migrate&quot;, input: &quot;Тот же image и DATABASE_URL; command ./server migrate.&quot;, action: &quot;Запускает бинарник в одноразовом режиме с read_only и tmpfs.&quot;, output: &quot;Аргументы процесса: [server, migrate].&quot;, link: &quot;main.go выбирает ветку миграции.&quot; },
+            { layer: &quot;Service&quot;, title: &quot;Ветка main: migrate&quot;, file: &quot;main.go -&gt; storage.MigrateFromEnv&quot;, input: &quot;context.Background, os.Args, DATABASE_URL.&quot;, action: &quot;Не создаёт HTTP-сервер; передаёт URL в MigratePostgres.&quot;, output: &quot;Ошибка или управление мигратору.&quot;, link: &quot;Создаётся отдельный pgx pool из одного соединения.&quot; },
+            { layer: &quot;Storage&quot;, title: &quot;runMigrations&quot;, file: &quot;storage/migrations.go&quot;, input: &quot;Embedded migrations/*.up.sql, migration timeout, pool.&quot;, action: &quot;BEGIN -&gt; advisory lock -&gt; schema_migrations -&gt; проверка версий -&gt; Exec SQL -&gt; запись версии -&gt; COMMIT.&quot;, output: &quot;Актуальная схема или rollback при любой ошибке.&quot;, link: &quot;Контейнер migrate завершается с кодом 0 только после commit.&quot; },
+            { layer: &quot;Docker&quot;, title: &quot;Условие запуска app&quot;, file: &quot;compose.yml: app.depends_on&quot;, input: &quot;db=healthy и migrate=service_completed_successfully.&quot;, action: &quot;Разрешает запуск HTTP-контейнера.&quot;, output: &quot;Процесс ./server с PORT=8080 и DATABASE_URL.&quot;, link: &quot;main.go идёт по обычной ветке.&quot; },
+            { layer: &quot;Storage&quot;, title: &quot;NewFromEnv и NewPostgresStorage&quot;, file: &quot;storage/store.go, postgres_storage.go&quot;, input: &quot;DATABASE_URL и DB_* настройки пула.&quot;, action: &quot;ParseConfig -&gt; pool -&gt; Ping -&gt; verifyMigrationVersion.&quot;, output: &quot;Store или фатальная ошибка запуска.&quot;, link: &quot;Готовый store передаётся во все handlers.&quot; },
+            { layer: &quot;Handler&quot;, title: &quot;Регистрация маршрутов&quot;, file: &quot;main.go&quot;, input: &quot;http.NewServeMux и один PostgresStorage.&quot;, action: &quot;Регистрирует health, upload, preview/export, search, contacts/fix и GET /.&quot;, output: &quot;Handler с интерфейсами FileStore, ContactStore, HealthStore.&quot;, link: &quot;http.ListenAndServe оборачивается withCORS.&quot; },
+            { layer: &quot;Frontend&quot;, title: &quot;Встроенный интерфейс&quot;, file: &quot;main.go: go:embed index.html&quot;, input: &quot;GET /.&quot;, action: &quot;http.ServeContent отдаёт HTML прямо из Go-бинарника.&quot;, output: &quot;Страница приложения в браузере.&quot;, link: &quot;Все дальнейшие запросы идут на тот же origin /api/*.&quot; }
+          ]
+        },
+        {
+          title: &quot;HTTP-загрузка файла&quot;,
+          note: &quot;Загрузка сохраняет весь разобранный файл, включая невалидные строки; контакты создаются только отдельной кнопкой позже.&quot;,
+          steps: [
+            { layer: &quot;Пользователь&quot;, title: &quot;Выбор файла&quot;, file: &quot;index.html&quot;, input: &quot;CSV, XLS или XLSX; необязательное имя листа Excel.&quot;, action: &quot;Выбирает файл и нажимает Загрузить.&quot;, output: &quot;File object и строка sheet.&quot;, link: &quot;Frontend собирает multipart/form-data.&quot; },
+            { layer: &quot;Frontend&quot;, title: &quot;Формирование FormData&quot;, file: &quot;index.html: uploadButton listener&quot;, input: &quot;fileInput.files[0], sheetInput.value.&quot;, action: &quot;append(file), при наличии append(sheet); fetch POST без ручного Content-Type.&quot;, output: &quot;POST /api/upload с multipart body.&quot;, link: &quot;Запрос принимает UploadHandler.Upload.&quot; },
+            { layer: &quot;Handler&quot;, title: &quot;Проверка HTTP и лимита&quot;, file: &quot;handlers/upload.go: Upload&quot;, input: &quot;http.Request, MAX_UPLOAD_SIZE_BYTES/MB.&quot;, action: &quot;Разрешает POST/OPTIONS; MaxBytesReader; ParseMultipartForm.&quot;, output: &quot;Разобранная multipart-форма или 405/413/400.&quot;, link: &quot;Из формы читаются file и sheet.&quot; },
+            { layer: &quot;Handler&quot;, title: &quot;Извлечение файла&quot;, file: &quot;handlers/upload.go: r.FormFile&quot;, input: &quot;Поле file и его multipart.FileHeader.&quot;, action: &quot;Проверяет наличие и header.Size &gt; 0; defer file.Close.&quot;, output: &quot;multipart.File, filename, size, browser MIME.&quot;, link: &quot;Файл передаётся ParseByFilenameWithOptions.&quot; },
+            { layer: &quot;Service&quot;, title: &quot;Чтение и определение формата&quot;, file: &quot;services/file_parser.go&quot;, input: &quot;multipart.File, filename, ParseOptions{SheetName}.&quot;, action: &quot;io.ReadAll; проверка пустоты; расширение сверяется с XLS/XLSX сигнатурой.&quot;, output: &quot;content []byte и format csv/xls/xlsx либо пользовательская ошибка.&quot;, link: &quot;CSV и Excel расходятся по разным парсерам.&quot; },
+            { layer: &quot;Service&quot;, title: &quot;Парсинг содержимого&quot;, file: &quot;services/csv_parser.go или excel_parser.go&quot;, input: &quot;Байты файла и выбранный лист.&quot;, action: &quot;Получает последовательность parsedRecord{Number, Values}.&quot;, output: &quot;Сырые строки с исходными номерами.&quot;, link: &quot;Все форматы сходятся в recordsToFileData.&quot; },
+            { layer: &quot;Service&quot;, title: &quot;Общая обработка строк&quot;, file: &quot;recordsToFileData&quot;, input: &quot;[]parsedRecord.&quot;, action: &quot;Находит заголовки, пропускает пустые строки, строит map header-&gt;value, валидирует.&quot;, output: &quot;models.FileData с Rows, RowNumbers, InvalidRows, Warnings, Stats.&quot;, link: &quot;Handler добавляет HTTP-метаданные файла.&quot; },
+            { layer: &quot;Handler&quot;, title: &quot;Дополнение метаданных&quot;, file: &quot;handlers/upload.go&quot;, input: &quot;FileData и multipart.FileHeader.&quot;, action: &quot;Записывает originalFilename, size, MIMEType; сравнивает MIME с определённым форматом.&quot;, output: &quot;Полный FileData для постоянного сохранения.&quot;, link: &quot;Вызывает FileStore.SaveFileData.&quot; },
+            { layer: &quot;Storage&quot;, title: &quot;Сохранение файла&quot;, file: &quot;storage/postgres_files.go: SaveFileData&quot;, input: &quot;FileData и request context.&quot;, action: &quot;Генерирует fileId; транзакционно сохраняет metadata и каждую строку.&quot;, output: &quot;fileId или ошибка с rollback.&quot;, link: &quot;Handler формирует ограниченный ответ для frontend.&quot; },
+            { layer: &quot;Handler&quot;, title: &quot;uploadResponse&quot;, file: &quot;handlers/upload.go&quot;, input: &quot;Сохранённый FileData и fileId.&quot;, action: &quot;Берёт первые 10 строк; определяет телефонную колонку.&quot;, output: &quot;JSON: fileId, metadata, headers, previewRows, stats, warnings, invalidRows, detectedPhoneColumn.&quot;, link: &quot;Frontend вызывает renderResult.&quot; },
+            { layer: &quot;Frontend&quot;, title: &quot;Состояние открытого файла&quot;, file: &quot;index.html: renderResult&quot;, input: &quot;uploadResponse JSON.&quot;, action: &quot;Сохраняет currentFileId/currentHeaders/detectedPhoneColumn и строит таблицы.&quot;, output: &quot;Доступны поиск, шаблоны, исправление и сохранение контактов.&quot;, link: &quot;Следующие запросы ссылаются на файл только через fileId.&quot; }
+          ]
+        },
+        {
+          title: &quot;Разбор CSV от байтов до FileData&quot;,
+          note: &quot;CSV полностью декодируется в UTF-8, после чего все строки проходят общий конвейер заголовков и валидации.&quot;,
+          steps: [
+            { layer: &quot;Service&quot;, title: &quot;parseCSVContent&quot;, file: &quot;services/csv_parser.go&quot;, input: &quot;content []byte.&quot;, action: &quot;Запускает декодирование, определение разделителя и csv.Reader.&quot;, output: &quot;[]parsedRecord или ErrInvalidCSV.&quot;, link: &quot;Первый этап: DecodeCSVContent.&quot; },
+            { layer: &quot;Utils&quot;, title: &quot;Проверка кодировки&quot;, file: &quot;utils/encoding.go: DecodeCSVContent&quot;, input: &quot;Сырые байты.&quot;, action: &quot;LooksBinary; UTF-8 BOM; utf8.Valid; иначе Windows-1251 decoder.&quot;, output: &quot;UTF-8 string + имя кодировки или ErrInvalidEncoding.&quot;, link: &quot;Текст передаётся определителю разделителя.&quot; },
+            { layer: &quot;Utils&quot;, title: &quot;Определение разделителя&quot;, file: &quot;utils/csv.go: DetectCSVDelimiter&quot;, input: &quot;До 10 первых непустых строк.&quot;, action: &quot;Сравнивает &#x27;,&#x27;, &#x27;;&#x27;, tab, &#x27;|&#x27;; оценивает число и стабильность полей.&quot;, output: &quot;rune выбранного разделителя.&quot;, link: &quot;Разделитель устанавливается в csv.Reader.Comma.&quot; },
+            { layer: &quot;Service&quot;, title: &quot;Чтение CSV-записей&quot;, file: &quot;services/csv_parser.go&quot;, input: &quot;UTF-8 текст и delimiter.&quot;, action: &quot;FieldsPerRecord=-1; TrimLeadingSpace=true; читает до io.EOF.&quot;, output: &quot;parsedRecord{Number: физическая строка, Values: []string}.&quot;, link: &quot;Записи идут в recordsToFileData.&quot; },
+            { layer: &quot;Service&quot;, title: &quot;Поиск строки заголовков&quot;, file: &quot;services/header_detector.go&quot;, input: &quot;Первые до 25 parsedRecord.&quot;, action: &quot;normalizeHeaders; score по числу полей, известным названиям, числам и наличию данных ниже.&quot;, output: &quot;headerIndex, очищенные headers, warnings о строках до заголовка.&quot;, link: &quot;Записи ниже заголовка становятся строками данных.&quot; },
+            { layer: &quot;Utils&quot;, title: &quot;Преобразование строки&quot;, file: &quot;utils/rows.go&quot;, input: &quot;headers и Values строки.&quot;, action: &quot;TrimTrailingEmptyCells; IsEmptyRecord; RecordToMap; лишние/недостающие поля дают warnings.&quot;, output: &quot;parsedDataRow{Number, map[header]value}.&quot;, link: &quot;Каждая непустая строка идёт в validateRows.&quot; },
+            { layer: &quot;Service&quot;, title: &quot;Валидация и нормализация&quot;, file: &quot;services/row_validator.go&quot;, input: &quot;headers и []parsedDataRow.&quot;, action: &quot;ClassifyHeader; CleanCell; NormalizePhone/Email/Percent; IsSupportedDate; duplicateWarning.&quot;, output: &quot;Изменённые нормализованные Rows, InvalidRows и Warnings.&quot;, link: &quot;RefreshStats считает итоговые показатели.&quot; },
+            { layer: &quot;Model&quot;, title: &quot;Итог CSV&quot;, file: &quot;models.FileData&quot;, input: &quot;Заголовки, строки, исходные номера, ошибки и encoding.&quot;, action: &quot;Объединяет данные парсинга в один контракт между слоями.&quot;, output: &quot;FileData{Encoding, HeaderRow, Headers, Rows, RowNumbers, Stats, Warnings, InvalidRows}.&quot;, link: &quot;Возвращается UploadHandler.&quot; }
+          ]
+        },
+        {
+          title: &quot;Разбор XLS/XLSX от байтов до FileData&quot;,
+          note: &quot;Оба Excel-формата приводятся к тем же parsedRecord и FileData, что и CSV.&quot;,
+          steps: [
+            { layer: &quot;Utils&quot;, title: &quot;Проверка сигнатуры&quot;, file: &quot;utils/file_signature.go&quot;, input: &quot;content []byte.&quot;, action: &quot;IsXLSX проверяет ZIP signature; IsXLS проверяет OLE signature.&quot;, output: &quot;Точный формат xls/xlsx или ErrInvalidExcel/TypeMismatch.&quot;, link: &quot;Выбирается библиотека для чтения.&quot; },
+            { layer: &quot;Service&quot;, title: &quot;Открытие рабочей книги&quot;, file: &quot;services/excel_parser.go&quot;, input: &quot;bytes.Reader и ParseOptions{SheetName}.&quot;, action: &quot;XLSX: excelize.OpenReader; XLS: xls.OpenReader.&quot;, output: &quot;Workbook и список имён листов.&quot;, link: &quot;Выбирается указанный или первый успешно разобранный лист.&quot; },
+            { layer: &quot;Service&quot;, title: &quot;Выбор листа&quot;, file: &quot;parseXLSX / parseXLS&quot;, input: &quot;options.SheetName и sheet list.&quot;, action: &quot;Если имя задано, проверяет существование; иначе перебирает листы до первого корректного.&quot;, output: &quot;Конкретный sheet или ErrSheetNotFound/первичная ошибка.&quot;, link: &quot;Из листа читаются [][]string.&quot; },
+            { layer: &quot;Utils&quot;, title: &quot;Объединённые ячейки XLSX&quot;, file: &quot;utils/excel.go: FillMergedCells&quot;, input: &quot;Workbook, sheetName, rows.&quot;, action: &quot;Находит merge ranges и копирует значение верхней левой ячейки в диапазон.&quot;, output: &quot;Заполненные rows и mergedCount.&quot;, link: &quot;mergedCount становится общим warning.&quot; },
+            { layer: &quot;Service&quot;, title: &quot;Строки XLS&quot;, file: &quot;parseXLSSheet&quot;, input: &quot;xls.WorkSheet.&quot;, action: &quot;Читает каждую физическую строку и каждую колонку по MaxCol.&quot;, output: &quot;[][]string с сохранённым порядком.&quot;, link: &quot;Оба формата идут в rowsToFileData.&quot; },
+            { layer: &quot;Service&quot;, title: &quot;rowsToFileData&quot;, file: &quot;services/file_parser.go&quot;, input: &quot;[][]string.&quot;, action: &quot;Назначает Number=i+1 и вызывает recordsToFileData.&quot;, output: &quot;Общий FileData после поиска заголовков и валидации.&quot;, link: &quot;Добавляются SheetName, Sheets и warning объединённых ячеек.&quot; },
+            { layer: &quot;Model&quot;, title: &quot;Итог Excel&quot;, file: &quot;models.FileData&quot;, input: &quot;Общие данные строк и Excel metadata.&quot;, action: &quot;Хранит выбранный лист, список листов и нормализованные строки.&quot;, output: &quot;FileData{Format, SheetName, Sheets, Headers, Rows, RowNumbers, InvalidRows...}.&quot;, link: &quot;Возвращается UploadHandler.&quot; }
+          ]
+        },
+        {
+          title: &quot;Сохранение и восстановление загруженного файла&quot;,
+          note: &quot;Метаданные и строки разделены, но SaveFileData меняет их одной транзакцией.&quot;,
+          steps: [
+            { layer: &quot;Storage&quot;, title: &quot;Подготовка SaveFileData&quot;, file: &quot;storage/postgres_files.go&quot;, input: &quot;FileData; ID может быть пустым.&quot;, action: &quot;Генерирует UUID; кодирует Sheets, Headers, Stats, Warnings в JSON.&quot;, output: &quot;fileId и JSONB-параметры.&quot;, link: &quot;prepareFileRows подготавливает массовую вставку.&quot; },
+            { layer: &quot;Storage&quot;, title: &quot;prepareFileRows&quot;, file: &quot;storage/postgres_files.go&quot;, input: &quot;Rows, RowNumbers, InvalidRows, Headers.&quot;, action: &quot;Для каждой строки строит position, source row, values JSON, is_valid, errors JSON, search_text.&quot;, output: &quot;[][]any для pgx.CopyFrom.&quot;, link: &quot;Начинается транзакция.&quot; },
+            { layer: &quot;PostgreSQL&quot;, title: &quot;UPSERT uploaded_files&quot;, file: &quot;SaveFileData: upsertFileQuery&quot;, input: &quot;15 параметров metadata.&quot;, action: &quot;INSERT; при том же id обновляет metadata через EXCLUDED.&quot;, output: &quot;Одна родительская запись файла.&quot;, link: &quot;Старые строки этого fileId удаляются внутри той же транзакции.&quot; },
+            { layer: &quot;PostgreSQL&quot;, title: &quot;Замена file_rows&quot;, file: &quot;SaveFileData&quot;, input: &quot;fileId и подготовленные copy rows.&quot;, action: &quot;DELETE WHERE file_id=$1; затем COPY в file_rows.&quot;, output: &quot;Полный актуальный набор строк файла.&quot;, link: &quot;COMMIT делает metadata и rows видимыми одновременно.&quot; },
+            { layer: &quot;Storage&quot;, title: &quot;GetFileData: metadata&quot;, file: &quot;storage/postgres_files.go&quot;, input: &quot;fileId.&quot;, action: &quot;SELECT uploaded_files; pgx.ErrNoRows превращает в found=false.&quot;, output: &quot;Основа FileData и JSONB blobs.&quot;, link: &quot;JSON декодируется в Sheets/Headers/Stats/Warnings.&quot; },
+            { layer: &quot;Storage&quot;, title: &quot;GetFileData: строки&quot;, file: &quot;storage/postgres_files.go&quot;, input: &quot;Тот же fileId.&quot;, action: &quot;SELECT file_rows ORDER BY position; восстанавливает Rows и RowNumbers.&quot;, output: &quot;Полный порядок исходного файла.&quot;, link: &quot;is_valid=false дополнительно восстанавливает InvalidRows.&quot; },
+            { layer: &quot;Model&quot;, title: &quot;Восстановленный FileData&quot;, file: &quot;models/file_data.go&quot;, input: &quot;Metadata + все file_rows.&quot;, action: &quot;Служит единым объектом для notifications, contacts и fix.&quot;, output: &quot;FileData, found=true, error=nil.&quot;, link: &quot;Возвращается вызывающему handler.&quot; }
+          ]
+        },
+        {
+          title: &quot;Поиск по всему загруженному файлу&quot;,
+          note: &quot;PostgreSQL выбирает строки, Go определяет совпавшие колонки, frontend подсвечивает конкретные фрагменты.&quot;,
+          steps: [
+            { layer: &quot;Пользователь&quot;, title: &quot;Ввод подстроки&quot;, file: &quot;index.html&quot;, input: &quot;Например +79, Иван или 50%.&quot;, action: &quot;Вводит текст; frontend ждёт 300 мс или Enter.&quot;, output: &quot;query string.&quot;, link: &quot;runSearch проверяет currentFileId и непустой query.&quot; },
+            { layer: &quot;Frontend&quot;, title: &quot;POST /api/search&quot;, file: &quot;index.html: runSearch&quot;, input: &quot;currentFileId и query.&quot;, action: &quot;JSON.stringify({fileId, query}); searchSequence отбрасывает устаревшие ответы.&quot;, output: &quot;JSON body.&quot;, link: &quot;SearchHandler принимает запрос.&quot; },
+            { layer: &quot;Handler&quot;, title: &quot;SearchHandler.Search&quot;, file: &quot;handlers/search.go&quot;, input: &quot;fileId, query, optional limit.&quot;, action: &quot;Проверяет POST, JSON и непустую строку; ограничивает limit через SEARCH_RESULT_LIMIT.&quot;, output: &quot;Нормализованные query и limit.&quot;, link: &quot;Вызывает FileStore.SearchFileRows.&quot; },
+            { layer: &quot;PostgreSQL&quot;, title: &quot;Проверка файла&quot;, file: &quot;getSearchHeadersQuery&quot;, input: &quot;fileId.&quot;, action: &quot;SELECT headers FROM uploaded_files.&quot;, output: &quot;Headers JSONB или no rows.&quot;, link: &quot;Storage возвращает found=false для неизвестного файла.&quot; },
+            { layer: &quot;Storage&quot;, title: &quot;Экранирование LIKE&quot;, file: &quot;escapeLikePattern&quot;, input: &quot;TrimSpace(query).&quot;, action: &quot;Экранирует backslash, %, _ и добавляет % по краям.&quot;, output: &quot;Безопасный literal pattern для ILIKE.&quot;, link: &quot;Pattern передаётся параметром $2, не склеивается с SQL.&quot; },
+            { layer: &quot;PostgreSQL&quot;, title: &quot;Поиск строк&quot;, file: &quot;searchFileRowsQuery&quot;, input: &quot;fileId, pattern, limit.&quot;, action: &quot;search_text ILIKE $2 ESCAPE backslash; count(*) OVER(); ORDER BY position; LIMIT $3.&quot;, output: &quot;row_number, values JSONB, полный total.&quot;, link: &quot;GIN pg_trgm ускоряет substring search.&quot; },
+            { layer: &quot;Handler&quot;, title: &quot;Подготовка совпадений&quot;, file: &quot;searchStoredRows -&gt; rowMatches&quot;, input: &quot;FileSearchResult и исходный query.&quot;, action: &quot;Для каждой найденной строки проверяет каждую колонку через strings.Contains.&quot;, output: &quot;searchResponse с Matches, TotalMatches, Returned, Truncated.&quot;, link: &quot;JSON возвращается frontend.&quot; },
+            { layer: &quot;Frontend&quot;, title: &quot;Подсветка&quot;, file: &quot;renderSearchResults -&gt; appendHighlightedText&quot;, input: &quot;rows, headers, query, totalMatches.&quot;, action: &quot;Строит таблицу; совпавшие части помещает в mark.&quot;, output: &quot;Пользователь видит все найденные строки и выделенный текст.&quot;, link: &quot;Новый ввод запускает следующую последовательность поиска.&quot; }
+          ]
+        },
+        {
+          title: &quot;Предпросмотр и экспорт уведомлений&quot;,
+          note: &quot;Оба маршрута используют одну generate-функцию; различается только формат HTTP-ответа.&quot;,
+          steps: [
+            { layer: &quot;Пользователь&quot;, title: &quot;Шаблон сообщения&quot;, file: &quot;index.html&quot;, input: &quot;Текст и теги вида {{Имя}}; телефонная колонка определена при upload.&quot;, action: &quot;Выбирает Предпросмотр или Скачать CSV.&quot;, output: &quot;template и действие.&quot;, link: &quot;Frontend формирует одинаковый JSON для двух маршрутов.&quot; },
+            { layer: &quot;Frontend&quot;, title: &quot;Запрос уведомлений&quot;, file: &quot;handlePreview / handleExport&quot;, input: &quot;currentFileId, detectedPhoneColumn, template.&quot;, action: &quot;POST /api/preview или /api/export.&quot;, output: &quot;previewRequest JSON.&quot;, link: &quot;NotificationHandler читает запрос.&quot; },
+            { layer: &quot;Handler&quot;, title: &quot;Загрузка FileData&quot;, file: &quot;handlers/notification.go&quot;, input: &quot;previewRequest.FileID.&quot;, action: &quot;FileStore.GetFileData восстанавливает metadata, Rows, RowNumbers и InvalidRows.&quot;, output: &quot;FileData или 404/500.&quot;, link: &quot;FileData и request идут в generate.&quot; },
+            { layer: &quot;Service&quot;, title: &quot;Проверка шаблона&quot;, file: &quot;services/template.go&quot;, input: &quot;Template и FileData.Headers.&quot;, action: &quot;ParsePlaceholders; удаляет дубликаты; ValidateUnknownPlaceholders.&quot;, output: &quot;Список валидных имён колонок или 400.&quot;, link: &quot;Handler строит set невалидных номеров строк.&quot; },
+            { layer: &quot;Handler&quot;, title: &quot;Фильтрация строк&quot;, file: &quot;NotificationHandler.generate&quot;, input: &quot;Rows, RowNumbers, InvalidRows, phoneColumn.&quot;, action: &quot;Пропускает пустой телефон и invalid row; увеличивает skipped.&quot;, output: &quot;Только строки, пригодные для уведомления.&quot;, link: &quot;Для каждой строки вызывается GenerateText.&quot; },
+            { layer: &quot;Service&quot;, title: &quot;Подстановка значений&quot;, file: &quot;GenerateText&quot;, input: &quot;Template и map[header]value одной строки.&quot;, action: &quot;Заменяет каждый {{header}} значением row[header], отсутствующее значение становится пустым.&quot;, output: &quot;notificationItem{Phone, Text, Row}.&quot;, link: &quot;Все элементы собираются в previewResponse.&quot; },
+            { layer: &quot;Handler&quot;, title: &quot;Ветка preview&quot;, file: &quot;NotificationHandler.Preview&quot;, input: &quot;previewResponse.&quot;, action: &quot;writeJSON со статусом 200.&quot;, output: &quot;{notifications:[...], skipped:N}.&quot;, link: &quot;Frontend строит таблицу уведомлений.&quot; },
+            { layer: &quot;Handler&quot;, title: &quot;Ветка export&quot;, file: &quot;NotificationHandler.Export&quot;, input: &quot;Тот же previewResponse.&quot;, action: &quot;Пишет UTF-8 BOM; csv.Writer: Телефон, Сообщение; Content-Disposition attachment.&quot;, output: &quot;notifications.csv.&quot;, link: &quot;Frontend получает Blob и инициирует скачивание.&quot; }
+          ]
+        },
+        {
+          title: &quot;Сохранение контактов и обнаружение конфликтов&quot;,
+          note: &quot;Телефон является уникальным ключом; решение о новом контакте принимает атомарный INSERT, а не предварительный SELECT.&quot;,
+          steps: [
+            { layer: &quot;Пользователь&quot;, title: &quot;Сохранить данные в БД&quot;, file: &quot;index.html&quot;, input: &quot;Уже загруженный файл.&quot;, action: &quot;Нажимает кнопку сохранения.&quot;, output: &quot;currentFileId.&quot;, link: &quot;Frontend отправляет только идентификатор файла.&quot; },
+            { layer: &quot;Frontend&quot;, title: &quot;POST /api/contacts/save&quot;, file: &quot;index.html: saveButton listener&quot;, input: &quot;{fileId: currentFileId}.&quot;, action: &quot;Отправляет JSON и ждёт saved/skipped/conflicts.&quot;, output: &quot;saveRequest JSON.&quot;, link: &quot;ContactHandler.Save читает запрос.&quot; },
+            { layer: &quot;Handler&quot;, title: &quot;Получение файла&quot;, file: &quot;handlers/contact.go: Save&quot;, input: &quot;fileId.&quot;, action: &quot;GetFileData; DetectPhoneColumn по Headers.&quot;, output: &quot;FileData и имя телефонной колонки или ошибка.&quot;, link: &quot;Вызывает services.ProcessContacts.&quot; },
+            { layer: &quot;Service&quot;, title: &quot;Подготовка ProcessContacts&quot;, file: &quot;services/contact_service.go&quot;, input: &quot;FileData, phoneColumn, ContactStore.&quot;, action: &quot;Строит invalidSet по исходным номерам строк.&quot;, output: &quot;Пустой ProcessingResult и set невалидных строк.&quot;, link: &quot;Начинается проход по data.Rows.&quot; },
+            { layer: &quot;Service&quot;, title: &quot;Фильтрация строки&quot;, file: &quot;ProcessContacts loop&quot;, input: &quot;row, index, RowNumbers, invalidSet.&quot;, action: &quot;Пропускает пустой телефон и invalid row; определяет source row.&quot;, output: &quot;Валидная строка с телефоном или increment skipped.&quot;, link: &quot;RowToContact преобразует строку.&quot; },
+            { layer: &quot;Service&quot;, title: &quot;RowToContact&quot;, file: &quot;services/contact_service.go&quot;, input: &quot;map header-&gt;value, phone, fileId.&quot;, action: &quot;Телефон отдельно; email/name/discount в поля; остальные колонки в Contact.Data; SourceRow задаётся вызывающим кодом.&quot;, output: &quot;models.Contact.&quot;, link: &quot;ContactStore.SaveContact пытается атомарную вставку.&quot; },
+            { layer: &quot;Storage&quot;, title: &quot;Транзакция SaveContact&quot;, file: &quot;storage/postgres_contacts.go&quot;, input: &quot;Contact и context с query timeout.&quot;, action: &quot;UUID; JSON data; BEGIN; INSERT INTO contacts ON CONFLICT(phone) DO NOTHING RETURNING timestamps.&quot;, output: &quot;Новая строка или pgx.ErrNoRows -&gt; ErrContactAlreadyExists.&quot;, link: &quot;Новый контакт и конфликт расходятся по разным веткам.&quot; },
+            { layer: &quot;PostgreSQL&quot;, title: &quot;Ветка нового контакта&quot;, file: &quot;contacts, contact_versions, contact_sources&quot;, input: &quot;Contact, event=created, fileId, sourceRow.&quot;, action: &quot;В одной транзакции пишет текущее состояние, неизменяемую версию и источник.&quot;, output: &quot;COMMIT и contactId.&quot;, link: &quot;ProcessContacts увеличивает saved.&quot; },
+            { layer: &quot;Storage&quot;, title: &quot;Ветка уникального телефона&quot;, file: &quot;GetContactByPhone&quot;, input: &quot;Contact.Phone.&quot;, action: &quot;SELECT contacts и последний contact_source через LATERAL.&quot;, output: &quot;Existing Contact.&quot;, link: &quot;Service сравнивает existing и incoming.&quot; },
+            { layer: &quot;Service&quot;, title: &quot;ContactsEqual&quot;, file: &quot;services/contact_service.go&quot;, input: &quot;Existing и Incoming.&quot;, action: &quot;Сравнивает phone/email/name/discount, длину и каждое поле Data.&quot;, output: &quot;true: skipped; false: конфликт.&quot;, link: &quot;Разные данные идут в detectConflict.&quot; },
+            { layer: &quot;Service&quot;, title: &quot;ConflictInfo&quot;, file: &quot;detectConflict&quot;, input: &quot;Номер строки, existing, incoming.&quot;, action: &quot;Строит maps, список отличающихся полей и действия skip/replace/merge.&quot;, output: &quot;ConflictInfo{Row, Phone, Existing, Incoming, Differences, Actions}.&quot;, link: &quot;Handler собирает все результаты.&quot; },
+            { layer: &quot;Handler&quot;, title: &quot;saveResponse&quot;, file: &quot;handlers/contact.go&quot;, input: &quot;ProcessingResult.&quot;, action: &quot;Перекладывает счётчики и конфликты в HTTP JSON.&quot;, output: &quot;{saved, skipped, conflicts}.&quot;, link: &quot;Frontend показывает статистику и карточки конфликтов.&quot; }
+          ]
+        },
+        {
+          title: &quot;Разрешение одного или всех конфликтов&quot;,
+          note: &quot;FOR UPDATE и одна транзакция защищают контакт от параллельного replace/merge.&quot;,
+          steps: [
+            { layer: &quot;Пользователь&quot;, title: &quot;Выбор решения&quot;, file: &quot;index.html&quot;, input: &quot;Конфликт и действие skip, replace или merge.&quot;, action: &quot;Нажимает действие у одной карточки или Применить ко всем.&quot;, output: &quot;phone/action или только action для всего файла.&quot;, link: &quot;Frontend добавляет currentFileId.&quot; },
+            { layer: &quot;Frontend&quot;, title: &quot;HTTP-запрос решения&quot;, file: &quot;resolveConflict / resolveAllConflicts&quot;, input: &quot;Один: {fileId, phone, action}; все: {fileId, action}.&quot;, action: &quot;POST /api/contacts/resolve или /resolve-all.&quot;, output: &quot;ResolveRequest или BatchResolveRequest.&quot;, link: &quot;ContactHandler проверяет action.&quot; },
+            { layer: &quot;Handler&quot;, title: &quot;Восстановление входящей строки&quot;, file: &quot;ContactHandler.Resolve&quot;, input: &quot;fileId и phone.&quot;, action: &quot;GetFileData; находит phone column и строку с нужным телефоном; RowToContact; сохраняет SourceRow.&quot;, output: &quot;Incoming Contact из конкретной строки файла.&quot;, link: &quot;Для resolve-all этот шаг повторяется для каждой существующей отличающейся строки.&quot; },
+            { layer: &quot;Storage&quot;, title: &quot;Начало ResolveConflict&quot;, file: &quot;storage/postgres_contacts.go&quot;, input: &quot;phone, action, Incoming Contact.&quot;, action: &quot;BEGIN; SELECT contacts WHERE phone=$1 FOR UPDATE.&quot;, output: &quot;Заблокированный Existing Contact или ErrContactNotFound.&quot;, link: &quot;Проверяется идемпотентность события.&quot; },
+            { layer: &quot;PostgreSQL&quot;, title: &quot;Проверка повторного решения&quot;, file: &quot;contact_sources&quot;, input: &quot;contactId, fileId, sourceRow, eventAction.&quot;, action: &quot;SELECT EXISTS для той же комбинации.&quot;, output: &quot;alreadyApplied true/false.&quot;, link: &quot;true сразу commit; false применяет action.&quot; },
+            { layer: &quot;Storage&quot;, title: &quot;Действие skip&quot;, file: &quot;ResolveConflict&quot;, input: &quot;Incoming и ContactEventSkipped.&quot;, action: &quot;Не меняет contacts; записывает только contact_sources.&quot;, output: &quot;Аудит решения пропустить.&quot;, link: &quot;Переходит к COMMIT.&quot; },
+            { layer: &quot;Storage&quot;, title: &quot;Действие replace&quot;, file: &quot;updateResolvedContact&quot;, input: &quot;Incoming целиком.&quot;, action: &quot;UPDATE contacts всеми входящими полями.&quot;, output: &quot;Новый updated_at и состояние контакта.&quot;, link: &quot;Записывает contact_versions и contact_sources.&quot; },
+            { layer: &quot;Storage&quot;, title: &quot;Действие merge&quot;, file: &quot;mergeContact -&gt; updateResolvedContact&quot;, input: &quot;Incoming и Existing.&quot;, action: &quot;Пустые поля Incoming дополняет Existing; непустые входящие имеют приоритет; UPDATE contacts.&quot;, output: &quot;Объединённое состояние.&quot;, link: &quot;Записывает contact_versions и contact_sources.&quot; },
+            { layer: &quot;PostgreSQL&quot;, title: &quot;Фиксация&quot;, file: &quot;contacts + contact_versions + contact_sources&quot;, input: &quot;Все изменения текущей транзакции.&quot;, action: &quot;COMMIT или полный rollback при любой ошибке.&quot;, output: &quot;Атомарный результат решения.&quot;, link: &quot;Handler возвращает status ok/resolved count.&quot; },
+            { layer: &quot;Frontend&quot;, title: &quot;Обновление конфликтов&quot;, file: &quot;index.html&quot;, input: &quot;{status, phone, action} или {resolved, action}.&quot;, action: &quot;Помечает карточку решённой; для batch скрывает все действия.&quot;, output: &quot;Актуальное состояние интерфейса.&quot;, link: &quot;Повторный тот же запрос безопасен благодаря contact_sources.&quot; }
+          ]
+        },
+        {
+          title: &quot;Исправление невалидных строк&quot;,
+          note: &quot;Исправление не переписывает исходную file_rows; оно повторно проверяет пользовательские значения и сохраняет корректный контакт.&quot;,
+          steps: [
+            { layer: &quot;Пользователь&quot;, title: &quot;Редактирование таблицы ошибок&quot;, file: &quot;index.html&quot;, input: &quot;InvalidRows из uploadResponse.&quot;, action: &quot;Меняет contenteditable ячейки и нажимает Применить исправления.&quot;, output: &quot;Изменённые тексты ячеек.&quot;, link: &quot;Frontend собирает номера строк и значения.&quot; },
+            { layer: &quot;Frontend&quot;, title: &quot;POST /api/rows/fix&quot;, file: &quot;index.html: fixButton listener&quot;, input: &quot;currentFileId и DOM-строки.&quot;, action: &quot;Строит rows:[{rowNumber, values:{header:value}}].&quot;, output: &quot;fixRowsRequest JSON.&quot;, link: &quot;ContactHandler.FixRows получает запрос.&quot; },
+            { layer: &quot;Handler&quot;, title: &quot;Контекст файла&quot;, file: &quot;handlers/contact.go: FixRows&quot;, input: &quot;fileId и rows.&quot;, action: &quot;GetFileData; DetectPhoneColumn; для каждой строки вызывает FixAndSaveRow.&quot;, output: &quot;Headers, phoneColumn, fileId и одна FixRowInput.&quot;, link: &quot;Service повторно очищает значения.&quot; },
+            { layer: &quot;Service&quot;, title: &quot;Очистка и классификация&quot;, file: &quot;FixAndSaveRow&quot;, input: &quot;row.Values и headers.&quot;, action: &quot;CleanCell; ClassifyHeader для каждой ячейки.&quot;, output: &quot;Очищенная map values.&quot;, link: &quot;Типизированные поля нормализуются.&quot; },
+            { layer: &quot;Utils&quot;, title: &quot;Повторная валидация&quot;, file: &quot;utils/normalizers.go&quot;, input: &quot;Телефон, email, скидка и дата.&quot;, action: &quot;NormalizePhone, NormalizeEmail, NormalizePercent, IsSupportedDate.&quot;, output: &quot;Нормализованные значения или ProcessingWarning с row/column/message.&quot;, link: &quot;Ошибки немедленно возвращаются как FixRowError.&quot; },
+            { layer: &quot;Service&quot;, title: &quot;Создание исправленного контакта&quot;, file: &quot;FixAndSaveRow -&gt; RowToContact&quot;, input: &quot;Корректные values, phone, fileId, rowNumber.&quot;, action: &quot;Создаёт Contact и задаёт SourceRow.&quot;, output: &quot;Incoming Contact.&quot;, link: &quot;Сначала проверяет существующий телефон.&quot; },
+            { layer: &quot;Storage&quot;, title: &quot;Существующий телефон&quot;, file: &quot;GetContactByPhone -&gt; ResolveConflict replace&quot;, input: &quot;Phone и Incoming.&quot;, action: &quot;Если данные равны, ничего не меняет; если отличаются, выполняет атомарный replace.&quot;, output: &quot;Успех или ошибка сохранения.&quot;, link: &quot;Для нового телефона вызывается SaveContact.&quot; },
+            { layer: &quot;Storage&quot;, title: &quot;Новый телефон и защита от гонки&quot;, file: &quot;SaveContact&quot;, input: &quot;Incoming Contact.&quot;, action: &quot;INSERT ON CONFLICT; если другой запрос успел вставить телефон, повторяет как ResolveConflict replace.&quot;, output: &quot;Сохранённый контакт или FixRowError.&quot;, link: &quot;Handler увеличивает fixed или добавляет failed.&quot; },
+            { layer: &quot;Handler&quot;, title: &quot;FixRowResult&quot;, file: &quot;handlers/contact.go&quot;, input: &quot;Результаты всех FixAndSaveRow.&quot;, action: &quot;Считает fixed; собирает failed[{rowNumber, errors}].&quot;, output: &quot;JSON {fixed, failed}.&quot;, link: &quot;Frontend удаляет успешные строки и оставляет неуспешные с ошибками.&quot; }
+          ]
+        },
+        {
+          title: &quot;Таблицы PostgreSQL и связи данных&quot;,
+          note: &quot;Файл, его строки, актуальный контакт, происхождение и история разделены по разным обязанностям.&quot;,
+          steps: [
+            { layer: &quot;PostgreSQL&quot;, title: &quot;schema_migrations&quot;, file: &quot;storage/migrations.go&quot;, input: &quot;version, name, applied_at.&quot;, action: &quot;Фиксирует уже применённые up-миграции.&quot;, output: &quot;runMigrations пропускает выполненные версии; app сверяет max(version).&quot;, link: &quot;Управляет совместимостью бинарника и схемы.&quot; },
+            { layer: &quot;PostgreSQL&quot;, title: &quot;uploaded_files&quot;, file: &quot;000001_postgres_storage.up.sql&quot;, input: &quot;Одна запись на fileId.&quot;, action: &quot;Хранит filename, size, MIME, format, encoding, sheet, headers, stats, warnings, timestamps.&quot;, output: &quot;Родитель metadata для file_rows и источников.&quot;, link: &quot;ON DELETE CASCADE удаляет только file_rows; контакты не принадлежат файлу.&quot; },
+            { layer: &quot;PostgreSQL&quot;, title: &quot;file_rows&quot;, file: &quot;000001_postgres_storage.up.sql&quot;, input: &quot;file_id, position, row_number, values, is_valid, errors, search_text.&quot;, action: &quot;Хранит полную строку и её исходную позицию; UNIQUE(file_id, position).&quot;, output: &quot;GetFileData и SearchFileRows.&quot;, link: &quot;GIN(search_text gin_trgm_ops) ускоряет ILIKE.&quot; },
+            { layer: &quot;PostgreSQL&quot;, title: &quot;contacts&quot;, file: &quot;000001_postgres_storage.up.sql&quot;, input: &quot;id, phone, email, name, discount, data.&quot;, action: &quot;Хранит только текущее состояние; UNIQUE(phone); CHECK телефона, скидки и JSON object.&quot;, output: &quot;Источник истины для актуального контакта.&quot;, link: &quot;История вынесена в contact_versions.&quot; },
+            { layer: &quot;PostgreSQL&quot;, title: &quot;contact_sources&quot;, file: &quot;000001_postgres_storage.up.sql&quot;, input: &quot;contact_id, file_id, row_number, action, incoming.&quot;, action: &quot;Связывает контакт с каждой исходной строкой и решением created/skipped/replaced/merged.&quot;, output: &quot;Происхождение и идемпотентность конфликтов.&quot;, link: &quot;FK contact -&gt; RESTRICT; file -&gt; SET NULL для сохранения аудита.&quot; },
+            { layer: &quot;PostgreSQL&quot;, title: &quot;contact_versions&quot;, file: &quot;000001_postgres_storage.up.sql&quot;, input: &quot;Снимок полей контакта, file_id, action, created_at.&quot;, action: &quot;Добавляет неизменяемую версию при created/updated/replaced/merged/fixed.&quot;, output: &quot;Полная история изменения контакта.&quot;, link: &quot;Не заменяет contacts, а объясняет его прошлые состояния.&quot; },
+            { layer: &quot;PostgreSQL&quot;, title: &quot;updated_at triggers&quot;, file: &quot;set_updated_at()&quot;, input: &quot;UPDATE uploaded_files или contacts.&quot;, action: &quot;BEFORE UPDATE назначает NEW.updated_at=now().&quot;, output: &quot;Время последнего изменения без ручной установки в каждом SQL.&quot;, link: &quot;RETURNING updated_at отдаёт значение обратно Go-коду.&quot; },
+            { layer: &quot;PostgreSQL&quot;, title: &quot;postgres_data&quot;, file: &quot;compose.yml volume&quot;, input: &quot;Физические файлы кластера PostgreSQL.&quot;, action: &quot;Переживает docker compose down.&quot;, output: &quot;Данные сохраняются между перезапусками.&quot;, link: &quot;Удаляется только явной командой down -v.&quot; }
+          ]
+        },
+        {
+          title: &quot;Healthcheck, ошибки, контексты и таймауты&quot;,
+          note: &quot;Ошибки поднимаются снизу вверх, а request context и таймауты ограничивают зависшие операции.&quot;,
+          steps: [
+            { layer: &quot;Frontend&quot;, title: &quot;HTTP request&quot;, file: &quot;index.html fetch&quot;, input: &quot;Действие пользователя.&quot;, action: &quot;Отправляет запрос; при network error показывает сообщение о соединении.&quot;, output: &quot;Request context на сервере живёт до завершения/отмены HTTP.&quot;, link: &quot;Handler передаёт r.Context дальше.&quot; },
+            { layer: &quot;Handler&quot;, title: &quot;Проверка входа&quot;, file: &quot;handlers/*.go&quot;, input: &quot;Method, body, обязательные поля.&quot;, action: &quot;Ошибки пользователя превращает в 400/404/405/413; storage failures обычно в 500/503.&quot;, output: &quot;Либо вызов следующего слоя, либо errorResponse{error}.&quot;, link: &quot;Context передаётся service/storage без Background.&quot; },
+            { layer: &quot;Storage&quot;, title: &quot;Query timeout&quot;, file: &quot;PostgresStorage.withTimeout&quot;, input: &quot;Request context и DB_QUERY_TIMEOUT_SECONDS.&quot;, action: &quot;context.WithTimeout ограничивает весь SQL/transaction вызов.&quot;, output: &quot;Успех или context deadline exceeded.&quot;, link: &quot;defer cancel освобождает timer.&quot; },
+            { layer: &quot;Storage&quot;, title: &quot;Транзакционный rollback&quot;, file: &quot;postgres_files.go, postgres_contacts.go&quot;, input: &quot;tx после Begin.&quot;, action: &quot;defer tx.Rollback; успешный путь явно вызывает Commit.&quot;, output: &quot;При раннем return частичные изменения не сохраняются.&quot;, link: &quot;Ошибка оборачивается fmt.Errorf с названием операции.&quot; },
+            { layer: &quot;Handler&quot;, title: &quot;GET /api/health&quot;, file: &quot;handlers/health.go&quot;, input: &quot;HTTP request без body.&quot;, action: &quot;Создаёт отдельный timeout 2 секунды и вызывает HealthStore.Ping.&quot;, output: &quot;200 {status:ok, storage:postgres} или 503 degraded.&quot;, link: &quot;Dockerfile HEALTHCHECK вызывает этот маршрут.&quot; },
+            { layer: &quot;Docker&quot;, title: &quot;Контейнерный health&quot;, file: &quot;Dockerfile&quot;, input: &quot;wget http://127.0.0.1:8080/api/health.&quot;, action: &quot;Проверяет одновременно HTTP-процесс и соединение с PostgreSQL.&quot;, output: &quot;healthy/unhealthy для app container.&quot;, link: &quot;Состояние видно через docker compose ps.&quot; }
+          ]
+        }
+      ];
+
+      Object.entries(layers).forEach(([name, color]) =&gt; {
+        const item = document.createElement(&quot;span&quot;);
+        item.className = &quot;tf-legend-item&quot;;
+        item.style.setProperty(&quot;--tf-color&quot;, color);
+
+        const swatch = document.createElement(&quot;span&quot;);
+        swatch.className = &quot;tf-swatch&quot;;
+
+        const label = document.createElement(&quot;span&quot;);
+        label.textContent = name;
+
+        item.append(swatch, label);
+        legend.appendChild(item);
+      });
+
+      flows.forEach((flow, index) =&gt; {
+        const option = document.createElement(&quot;option&quot;);
+        option.value = String(index);
+        option.textContent = flow.title;
+        select.appendChild(option);
+      });
+
+      function cell(label, value) {
+        const wrapper = document.createElement(&quot;div&quot;);
+        wrapper.className = &quot;tf-cell&quot;;
+
+        const caption = document.createElement(&quot;span&quot;);
+        caption.className = &quot;tf-label&quot;;
+        caption.textContent = label;
+
+        const body = document.createElement(&quot;span&quot;);
+        body.textContent = value;
+
+        wrapper.append(caption, body);
+        return wrapper;
+      }
+
+      function renderFlow(index) {
+        const flow = flows[index];
+        title.textContent = flow.title;
+        note.textContent = flow.note;
+        count.textContent = `${flow.steps.length} блоков`;
+        content.replaceChildren();
+
+        flow.steps.forEach((step, stepIndex) =&gt; {
+          const layerColor = layers[step.layer] || &quot;var(--foreground)&quot;;
+          const row = document.createElement(&quot;section&quot;);
+          row.className = &quot;tf-step&quot;;
+          row.style.setProperty(&quot;--tf-layer&quot;, layerColor);
+
+          const number = document.createElement(&quot;span&quot;);
+          number.className = &quot;tf-step-number&quot;;
+          number.textContent = String(stepIndex + 1);
+
+          const main = document.createElement(&quot;div&quot;);
+          main.className = &quot;tf-step-main&quot;;
+
+          const layerName = document.createElement(&quot;span&quot;);
+          layerName.className = &quot;tf-layer-name tf-label&quot;;
+          const layerSwatch = document.createElement(&quot;span&quot;);
+          layerSwatch.className = &quot;tf-swatch&quot;;
+          const layerText = document.createElement(&quot;span&quot;);
+          layerText.textContent = step.layer;
+          layerName.append(layerSwatch, layerText);
+
+          const stepTitle = document.createElement(&quot;span&quot;);
+          stepTitle.className = &quot;tf-title&quot;;
+          stepTitle.textContent = step.title;
+
+          const file = document.createElement(&quot;span&quot;);
+          file.className = &quot;tf-file&quot;;
+          const code = document.createElement(&quot;code&quot;);
+          code.textContent = step.file;
+          file.appendChild(code);
+
+          main.append(layerName, stepTitle, file);
+          row.append(number, main, cell(&quot;Принимает&quot;, step.input), cell(&quot;Что делает&quot;, step.action), cell(&quot;Передаёт дальше&quot;, step.output));
+          content.appendChild(row);
+
+          if (stepIndex &lt; flow.steps.length - 1) {
+            const arrow = document.createElement(&quot;div&quot;);
+            arrow.className = &quot;tf-arrow&quot;;
+            const mark = document.createElement(&quot;span&quot;);
+            mark.className = &quot;tf-arrow-mark&quot;;
+            mark.textContent = &quot;↓&quot;;
+            const arrowText = document.createElement(&quot;span&quot;);
+            arrowText.className = &quot;tf-arrow-text&quot;;
+            arrowText.textContent = step.link;
+            arrow.append(mark, arrowText);
+            content.appendChild(arrow);
+          }
+        });
+      }
+
+      select.addEventListener(&quot;change&quot;, () =&gt; renderFlow(Number(select.value)));
+      renderFlow(0);
+    })();
+  &lt;/script&gt;
+&lt;/div&gt;
+
+&lt;script src=&quot;https://unpkg.com/@floating-ui/core@1.7.3/dist/floating-ui.core.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script src=&quot;https://unpkg.com/@floating-ui/dom@1.7.4/dist/floating-ui.dom.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  if (window.FloatingUIDOM == null) {
+    return;
+  }
+  const { autoUpdate, computePosition, flip, offset, shift, size } =
+    window.FloatingUIDOM;
+  const tooltipPlacements = new Set([&quot;top&quot;, &quot;right&quot;, &quot;bottom&quot;, &quot;left&quot;]);
+  const tooltipId = `codex-visualization-tooltip-${
+    window.crypto?.randomUUID?.() ?? Date.now().toString(36)
+  }`;
+  const tooltipGap = 5;
+  const hoverDelay = 700;
+  const skipDelay = 300;
+  let activeTrigger = null;
+  let pendingTrigger = null;
+  let tooltip = null;
+  let openTimeout = null;
+  let autoUpdateCleanup = null;
+  let positionRequest = 0;
+  let skipDelayUntil = 0;
+
+  const getTrigger = (target) =&gt;
+    target?.nodeType === Node.ELEMENT_NODE
+      ? target.closest(&quot;[data-tooltip]&quot;)
+      : null;
+  const containsTarget = (trigger, target) =&gt;
+    target?.nodeType != null &amp;&amp; trigger.contains(target);
+  const getContent = (trigger) =&gt;
+    trigger.getAttribute(&quot;data-tooltip&quot;)?.trim() ?? &quot;&quot;;
+  const getPlacement = (trigger) =&gt; {
+    const placement = trigger.getAttribute(&quot;data-tooltip-placement&quot;);
+    return tooltipPlacements.has(placement) ? placement : &quot;top&quot;;
+  };
+  const getTooltip = () =&gt; {
+    if (tooltip == null) {
+      tooltip = document.createElement(&quot;div&quot;);
+      tooltip.id = tooltipId;
+      tooltip.className = &quot;tooltip&quot;;
+      tooltip.setAttribute(&quot;role&quot;, &quot;tooltip&quot;);
+    }
+    return tooltip;
+  };
+  const setDescribedBy = (trigger, described) =&gt; {
+    const ids = new Set(
+      (trigger.getAttribute(&quot;aria-describedby&quot;) ?? &quot;&quot;)
+        .split(/\s+/)
+        .filter(Boolean),
+    );
+    if (described) {
+      ids.add(tooltipId);
+    } else {
+      ids.delete(tooltipId);
+    }
+    if (ids.size === 0) {
+      trigger.removeAttribute(&quot;aria-describedby&quot;);
+    } else {
+      trigger.setAttribute(&quot;aria-describedby&quot;, [...ids].join(&quot; &quot;));
+    }
+  };
+  const clearOpenTimeout = () =&gt; {
+    if (openTimeout != null) {
+      window.clearTimeout(openTimeout);
+      openTimeout = null;
+    }
+    pendingTrigger = null;
+  };
+  const closeTooltip = (activateSkipDelay = true) =&gt; {
+    clearOpenTimeout();
+    positionRequest += 1;
+    autoUpdateCleanup?.();
+    autoUpdateCleanup = null;
+    if (activeTrigger == null) {
+      return;
+    }
+    setDescribedBy(activeTrigger, false);
+    activeTrigger = null;
+    tooltip?.remove();
+    if (activateSkipDelay) {
+      skipDelayUntil = Date.now() + skipDelay;
+    }
+  };
+  const updatePosition = (trigger, floating) =&gt; {
+    const request = ++positionRequest;
+    void computePosition(trigger, floating, {
+      middleware: [
+        offset(tooltipGap),
+        flip({ padding: tooltipGap }),
+        shift({ padding: tooltipGap }),
+        size({
+          padding: tooltipGap,
+          apply({ availableHeight, availableWidth, elements }) {
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-width&quot;,
+              `${Math.max(0, availableWidth)}px`,
+            );
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-height&quot;,
+              `${Math.max(0, availableHeight)}px`,
+            );
+          },
+        }),
+      ],
+      placement: getPlacement(trigger),
+      strategy: &quot;fixed&quot;,
+    })
+      .then(({ x, y }) =&gt; {
+        if (activeTrigger !== trigger || request !== positionRequest) {
+          return;
+        }
+        const scale = window.devicePixelRatio || 1;
+        floating.style.transform = `translate(${Math.round(x * scale) / scale}px, ${Math.round(y * scale) / scale}px)`;
+        floating.style.visibility = &quot;visible&quot;;
+      })
+      .catch(() =&gt; {
+        if (activeTrigger === trigger &amp;&amp; request === positionRequest) {
+          closeTooltip(false);
+        }
+      });
+  };
+  const openTooltip = (trigger) =&gt; {
+    const content = getContent(trigger);
+    if (!trigger.isConnected || content.length === 0) {
+      return;
+    }
+    clearOpenTimeout();
+    if (activeTrigger === trigger) {
+      return;
+    }
+    closeTooltip();
+    const floating = getTooltip();
+    floating.textContent = content;
+    floating.style.visibility = &quot;hidden&quot;;
+    floating.style.transform = &quot;translate(0, 0)&quot;;
+    document.body.appendChild(floating);
+    activeTrigger = trigger;
+    setDescribedBy(trigger, true);
+    autoUpdateCleanup = autoUpdate(trigger, floating, () =&gt; {
+      updatePosition(trigger, floating);
+    });
+  };
+  const requestOpen = (trigger, immediate = false) =&gt; {
+    if (
+      getContent(trigger).length === 0 ||
+      activeTrigger === trigger ||
+      pendingTrigger === trigger
+    ) {
+      return;
+    }
+    clearOpenTimeout();
+    pendingTrigger = trigger;
+    const delay =
+      immediate || activeTrigger != null || Date.now() &lt; skipDelayUntil
+        ? 0
+        : hoverDelay;
+    if (delay === 0) {
+      openTooltip(trigger);
+      return;
+    }
+    openTimeout = window.setTimeout(() =&gt; {
+      openTimeout = null;
+      pendingTrigger = null;
+      openTooltip(trigger);
+    }, delay);
+  };
+  const handlePointerOpen = (event) =&gt; {
+    if (event.pointerType === &quot;touch&quot;) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    requestOpen(trigger);
+  };
+  const handleLeave = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const handleFocusIn = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (trigger?.matches(&quot;:focus-visible&quot;)) {
+      requestOpen(trigger, true);
+    }
+  };
+  const handleKeyDown = (event) =&gt; {
+    if (event.key === &quot;Escape&quot;) {
+      closeTooltip();
+    }
+  };
+  const handleContextMenu = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const destroy = () =&gt; {
+    closeTooltip(false);
+    document.removeEventListener(&quot;pointerover&quot;, handlePointerOpen);
+    document.removeEventListener(&quot;pointerout&quot;, handleLeave);
+    document.removeEventListener(&quot;focusin&quot;, handleFocusIn);
+    document.removeEventListener(&quot;focusout&quot;, handleLeave);
+    document.removeEventListener(&quot;keydown&quot;, handleKeyDown);
+    document.removeEventListener(&quot;contextmenu&quot;, handleContextMenu);
+    tooltip = null;
+  };
+
+  document.addEventListener(&quot;pointerover&quot;, handlePointerOpen);
+  document.addEventListener(&quot;pointerout&quot;, handleLeave);
+  document.addEventListener(&quot;focusin&quot;, handleFocusIn);
+  document.addEventListener(&quot;focusout&quot;, handleLeave);
+  document.addEventListener(&quot;keydown&quot;, handleKeyDown);
+  document.addEventListener(&quot;contextmenu&quot;, handleContextMenu);
+  window.addEventListener(&quot;pagehide&quot;, destroy, { once: true });
+})();
+&lt;/script&gt;
+&lt;script id=&quot;codex-visualization-lucide&quot; async src=&quot;https://unpkg.com/lucide@1.17.0/dist/umd/lucide.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  const initialize = () =&gt; {
+    globalThis.lucide?.createIcons({ attrs: { width: 16, height: 16 } });
+  };
+  if (globalThis.lucide != null) {
+    initialize();
+    return;
+  }
+  document
+    .getElementById(&quot;codex-visualization-lucide&quot;)
+    ?.addEventListener(&quot;load&quot;, initialize, { once: true });
+})();
+&lt;/script&gt;
+
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe>
+</body>
+</html>

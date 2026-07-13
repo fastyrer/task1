@@ -27,16 +27,10 @@ type ContactStore interface {
 	// SaveContact – создание и сохранение нового контакта
 	SaveContact(ctx context.Context, contact models.Contact) (string, error)
 
-	// GetContactByPhone – поиск контакта по телефону (телефон является уникальным ключом)
+	// GetContactByPhone – поиск контакта по телефону (телефон является уникальным ключом)
 	GetContactByPhone(ctx context.Context, phone string) (models.Contact, bool, error)
 
-	// ListContactsByFileID – все контакты из одного файла
-	ListContactsByFileID(ctx context.Context, fileID string) ([]models.Contact, error)
-
-	// UpdateContact – обновление уже существующего контакта
-	UpdateContact(ctx context.Context, contact models.Contact) error
-
-	// ResolveConflict – применить действие к конфликту
+	// ResolveConflict – применить действие к конфликту
 	ResolveConflict(ctx context.Context, phone string, action models.ConflictAction, incoming models.Contact) error
 }
 
