@@ -1,5 +1,5 @@
 # Первый этап собирает Go-бинарник и не попадает в финальный образ.
-FROM golang:1.22-alpine AS builder
+FROM golang:1.23-alpine AS builder
 
 WORKDIR /src
 
@@ -8,13 +8,12 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 # В сборку попадают только файлы, нужные приложению.
-COPY main.go index.html ./
+COPY main.go ./
 COPY handlers ./handlers
 COPY models ./models
 COPY services ./services
 COPY storage ./storage
 COPY utils ./utils
-COPY main.go ./main.go
 COPY frontend ./frontend
 
 # CGO отключён для статического Linux-бинарника; -s -w уменьшают его размер.
