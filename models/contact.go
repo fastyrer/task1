@@ -16,9 +16,22 @@ type Contact struct {
 	Discount  string            `json:"discount,omitempty"`
 	Data      map[string]string `json:"data,omitempty"`
 	FileID    string            `json:"fileId"`
+	SourceRow int               `json:"-"`
 	CreatedAt time.Time         `json:"createdAt"`
 	UpdatedAt time.Time         `json:"updatedAt"`
 }
+
+type ContactEventAction string
+
+const (
+	ContactEventCreated  ContactEventAction = "created"
+	ContactEventUpdated  ContactEventAction = "updated"
+	ContactEventMatched  ContactEventAction = "matched"
+	ContactEventSkipped  ContactEventAction = "skipped"
+	ContactEventReplaced ContactEventAction = "replaced"
+	ContactEventMerged   ContactEventAction = "merged"
+	ContactEventFixed    ContactEventAction = "fixed"
+)
 
 type ConflictAction string // Тип для действия при конфликте (псевдоним)
 
@@ -32,25 +45,25 @@ const (
 
 // Информация об одном конфликте
 type ConflictInfo struct {
-	Row        int               `json:"row"`
-	Phone      string            `json:"phone"`
-	Existing   map[string]string `json:"existing"` // То, что уже лежит в базе
-	Incoming   map[string]string `json:"incoming"`	// То, что прислал фронт
-	Differences []string         `json:"differences"` // Отличные поля
-	Actions    []ConflictAction  `json:"actions"`
+	Row         int               `json:"row"`
+	Phone       string            `json:"phone"`
+	Existing    map[string]string `json:"existing"`    // То, что уже лежит в базе
+	Incoming    map[string]string `json:"incoming"`    // То, что прислал фронт
+	Differences []string          `json:"differences"` // Отличные поля
+	Actions     []ConflictAction  `json:"actions"`
 }
 
 // Запросы на разрешение
 
 // ResolveRequest разрешает конфликт для одного телефона
 type ResolveRequest struct {
-	FileID string        `json:"fileId"`
-	Phone  string        `json:"phone"`
+	FileID string         `json:"fileId"`
+	Phone  string         `json:"phone"`
 	Action ConflictAction `json:"action"`
 }
 
 // BatchResolveRequest разрешает все конфликты в одном файле за один раз
 type BatchResolveRequest struct {
-	FileID string        `json:"fileId"`
+	FileID string         `json:"fileId"`
 	Action ConflictAction `json:"action"`
 }

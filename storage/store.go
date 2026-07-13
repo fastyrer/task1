@@ -15,9 +15,7 @@ import (
 type FileStore interface {
 	SaveFileData(ctx context.Context, data models.FileData) (string, error)
 	GetFileData(ctx context.Context, fileID string) (models.FileData, bool, error)
-	Ping(ctx context.Context) error
-	Close()
-	Driver() string
+	SearchFileRows(ctx context.Context, fileID, query string, limit int) (models.FileSearchResult, bool, error)
 }
 
 // ContactStore – операции с контактами
@@ -37,41 +35,43 @@ type ContactStore interface {
 
 	// ResolveConflict – применить действие к конфликту
 	ResolveConflict(ctx context.Context, phone string, action models.ConflictAction, incoming models.Contact) error
-
-	Close()
-	Driver() string
 }
 
-// CombinedStore – объединение интерфейсов
-type CombinedStore interface {
+// HealthStore contains the database readiness operation used by /api/health.
+type HealthStore interface {
+	Ping(ctx context.Context) error
+}
+
+// Store is the complete PostgreSQL-backed application storage contract.
+type Store interface {
 	FileStore
 	ContactStore
+	HealthStore
+	Close()
 }
 
-// NewFromEnv – создает хранилище исходя из драйвера в .env. Реализует CombinedStorage
-func NewFromEnv(ctx context.Context) (CombinedStore, error) {
-	driver := strings.ToLower(strings.TrimSpace(os.Getenv("STORAGE_DRIVER")))
+// NewFromEnv creates the only supported storage implementation: PostgreSQL.
+func NewFromEnv(ctx context.Context) (Store, error) {
+	databaseURL, err := databaseURLFromEnv()
+	if err != nil {
+		return nil, err
+	}
+	return NewPostgresStorage(ctx, databaseURL)
+}
+
+// MigrateFromEnv runs versioned PostgreSQL migrations using DATABASE_URL.
+func MigrateFromEnv(ctx context.Context) error {
+	databaseURL, err := databaseURLFromEnv()
+	if err != nil {
+		return err
+	}
+	return MigratePostgres(ctx, databaseURL)
+}
+
+func databaseURLFromEnv() (string, error) {
 	databaseURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
-
-	// Если драйвер не задан в окружении
-	if driver == "" {
-		if databaseURL != "" {
-			driver = "postgres"
-		} else {
-			driver = "memory"
-		}
+	if databaseURL == "" {
+		return "", fmt.Errorf("DATABASE_URL is required")
 	}
-
-	// По драйверу создается нужная реализация
-	switch driver {
-	case "memory", "in-memory":
-		return NewMemoryStorage(), nil
-	case "postgres", "postgresql":
-		if databaseURL == "" {
-			return nil, fmt.Errorf("DATABASE_URL is required when STORAGE_DRIVER=%s", driver)
-		}
-		return NewPostgresStorage(ctx, databaseURL)
-	default:
-		return nil, fmt.Errorf("unsupported STORAGE_DRIVER %q", driver)
-	}
+	return databaseURL, nil
 }

@@ -24,7 +24,7 @@ type SearchHandler struct {
 	store storage.FileStore
 }
 
-// searchRequest – данные запроса 
+// searchRequest – данные запроса
 type searchRequest struct {
 	FileID string `json:"fileId"`
 	Query  string `json:"query"`
@@ -40,7 +40,7 @@ type searchMatch struct {
 // searchRow – строка с результатом поиска
 type searchRow struct {
 	Row     int               `json:"row"`
-	Values  map[string]string `json:"values"` // Все строка целиком
+	Values  map[string]string `json:"values"`  // Все строка целиком
 	Matches []searchMatch     `json:"matches"` // Массив совпадений (какие колонки совпали у данной строки)
 }
 
@@ -48,11 +48,11 @@ type searchRow struct {
 type searchResponse struct {
 	Query        string      `json:"query"`
 	Headers      []string    `json:"headers"`
-	Rows         []searchRow `json:"rows"`	
+	Rows         []searchRow `json:"rows"`
 	TotalMatches int         `json:"totalMatches"` // Сколько всего совпадений
-	Returned     int         `json:"returned"`	// Сколько вернули строк
-	Limit        int         `json:"limit"`	
-	Truncated    bool        `json:"truncated"`	// Обрезали ли количество
+	Returned     int         `json:"returned"`     // Сколько вернули строк
+	Limit        int         `json:"limit"`
+	Truncated    bool        `json:"truncated"` // Обрезали ли количество
 }
 
 // RegisterSearchRoutes – регистрация обработчиков для поисковых запросов
@@ -62,12 +62,12 @@ func RegisterSearchRoutes(mux *http.ServeMux, store storage.FileStore) {
 }
 
 // Search:
-    // 1. Обработка CORS (preflight)
-    // 2. Проверка HTTP-метода
-    // 3. Парсинг JSON-запроса
-    // 4. Валидация данных
-    // 5. Получение данных из хранилища
-    // 6. Поиск и формирование ответа
+// 1. Обработка CORS (preflight)
+// 2. Проверка HTTP-метода
+// 3. Парсинг JSON-запроса
+// 4. Валидация данных
+// 5. Получение данных из хранилища
+// 6. Поиск и формирование ответа
 func (h *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 
 	// 1. Проверка CORS
@@ -97,7 +97,8 @@ func (h *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 5. Получение данных из хранилища
-	data, ok, err := h.store.GetFileData(r.Context(), req.FileID)
+	limit := searchLimit(req.Limit)
+	result, ok, err := h.store.SearchFileRows(r.Context(), req.FileID, query, limit)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, services.ErrorFileNotOpened)
 		return
@@ -108,42 +109,29 @@ func (h *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 6. Поиск и формирование ответа
-	resp := searchFileData(data, query, searchLimit(req.Limit))
+	resp := searchStoredRows(result, query, limit)
 	writeJSON(w, http.StatusOK, resp)
 }
 
-// searchFileData – основная функция поиска
-func searchFileData(data models.FileData, query string, limit int) searchResponse {
+func searchStoredRows(result models.FileSearchResult, query string, limit int) searchResponse {
 	normalizedQuery := strings.ToLower(query)
-	rows := make([]searchRow, 0)
-	totalMatches := 0
-
-	for index, row := range data.Rows {
-		matches := rowMatches(data.Headers, row, normalizedQuery)
-		if len(matches) == 0 {
-			continue
-		}
-
-		totalMatches++
-		if len(rows) >= limit {
-			continue
-		}
-
+	rows := make([]searchRow, 0, len(result.Rows))
+	for _, storedRow := range result.Rows {
 		rows = append(rows, searchRow{
-			Row:     index + 1,
-			Values:  row,
-			Matches: matches,
+			Row:     storedRow.Row,
+			Values:  storedRow.Values,
+			Matches: rowMatches(result.Headers, storedRow.Values, normalizedQuery),
 		})
 	}
 
 	return searchResponse{
 		Query:        query,
-		Headers:      data.Headers,
+		Headers:      result.Headers,
 		Rows:         rows,
-		TotalMatches: totalMatches,
+		TotalMatches: result.Total,
 		Returned:     len(rows),
 		Limit:        limit,
-		Truncated:    totalMatches > len(rows),
+		Truncated:    result.Total > len(rows),
 	}
 }
 

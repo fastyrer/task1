@@ -1,32 +1,44 @@
 // main.go – точка входа в приложение.
 //
-// Создаёт хранилище (через STORAGE_DRIVER из окружения), регистрирует
+// Подключается к PostgreSQL через DATABASE_URL, регистрирует
 // все HTTP-маршруты, оборачивает в CORS-мидлвару и запускает HTTP-сервер.
 //
 // Порядок инициализации:
 //  1. context.Background() – корневой контекст для всего приложения
-//  2. storage.NewFromEnv(ctx) – выбор драйвера (memory / postgres)
+//  2. storage.NewFromEnv(ctx) – подключение к уже мигрированной PostgreSQL
 //  3. http.NewServeMux() – мультиплексор маршрутов
 //  4. Register*Routes – регистрация всех обработчиков
-//  5. registerFrontend(mux) – раздача статики (frontend/index.html)
+//  5. registerFrontend(mux) – раздача встроенного index.html
 //  6. http.ListenAndServe(addr, withCORS(mux)) – запуск сервера
 package main
 
 import (
+	"bytes"
 	"context"
+	_ "embed"
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
+	"time"
 
 	"task1/handlers"
 	"task1/storage"
 )
 
+//go:embed index.html
+var frontendHTML []byte
+
 func main() {
 	ctx := context.Background()
+	if len(os.Args) == 2 && os.Args[1] == "migrate" {
+		if err := storage.MigrateFromEnv(ctx); err != nil {
+			log.Fatal(err)
+		}
+		log.Print("postgres migrations applied")
+		return
+	}
 
-	// Создание хранилища: память или PostgreSQL (зависит от STORAGE_DRIVER)
+	// PostgreSQL обязателен; миграции выполняются отдельной командой.
 	store, err := storage.NewFromEnv(ctx)
 	if err != nil {
 		log.Fatal(err) // выход, если не удалось подключиться к БД
@@ -36,12 +48,12 @@ func main() {
 	mux := http.NewServeMux()
 
 	// Регистрация всех эндпоинтов
-	handlers.RegisterHealthRoutes(mux, store)       // GET /api/health
-	handlers.RegisterUploadRoutes(mux, store)       // POST /api/upload
-	handlers.RegisterNotificationRoutes(mux, store) // POST /api/preview, /api/export
-	handlers.RegisterSearchRoutes(mux, store)       // POST /api/search
+	handlers.RegisterHealthRoutes(mux, store)         // GET /api/health
+	handlers.RegisterUploadRoutes(mux, store)         // POST /api/upload
+	handlers.RegisterNotificationRoutes(mux, store)   // POST /api/preview, /api/export
+	handlers.RegisterSearchRoutes(mux, store)         // POST /api/search
 	handlers.RegisterContactRoutes(mux, store, store) // POST /api/contacts/*, /api/rows/fix
-	registerFrontend(mux)                            // GET / → frontend/index.html
+	registerFrontend(mux)                             // GET / → frontend/index.html
 
 	// Порт из окружения или 8080 по умолчанию
 	port := os.Getenv("PORT")
@@ -50,7 +62,7 @@ func main() {
 	}
 
 	addr := ":" + port
-	log.Printf("storage driver: %s", store.Driver())
+	log.Printf("storage driver: postgres")
 	log.Printf("server started at http://localhost%s", addr)
 
 	// Запуск HTTP-сервера с CORS-обёрткой
@@ -59,42 +71,24 @@ func main() {
 	}
 }
 
-// registerFrontend подключает раздачу статических файлов фронтенда.
-//
-// Ищет папку frontend/ в текущей директории или на уровень выше
-// (чтобы работало и из корня проекта, и из папки backend/).
-// Если папка не найдена – все запросы на / возвращают 404.
+// registerFrontend serves the embedded frontend independently of the process
+// working directory and runtime filesystem.
 func registerFrontend(mux *http.ServeMux) {
-	frontendDir := findFrontendDir()
-	if frontendDir == "" {
-		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/" || r.Method != http.MethodGet {
 			http.NotFound(w, r)
-		})
-		return
-	}
-
-	fileServer := http.FileServer(http.Dir(frontendDir))
-	mux.Handle("/", fileServer)
-}
-
-// findFrontendDir ищет существующую директорию с фронтендом.
-//
-// Сначала проверяет "frontend" в текущей папке (запуск из корня),
-// затем "../frontend" (запуск из папки backend/).
-func findFrontendDir() string {
-	candidates := []string{
-		"frontend",
-		filepath.Join("..", "frontend"),
-	}
-
-	for _, candidate := range candidates {
-		info, err := os.Stat(candidate)
-		if err == nil && info.IsDir() {
-			return candidate
+			return
 		}
-	}
 
-	return ""
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		http.ServeContent(
+			w,
+			r,
+			"index.html",
+			time.Time{},
+			bytes.NewReader(frontendHTML),
+		)
+	})
 }
 
 // withCORS оборачивает http.Handler, добавляя CORS-заголовки.

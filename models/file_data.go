@@ -48,3 +48,16 @@ type InvalidRow struct {
 	Values map[string]string   `json:"values"`
 	Errors []ProcessingWarning `json:"errors"`
 }
+
+// StoredFileRow is a row returned by storage-level file search.
+type StoredFileRow struct {
+	Row    int               `json:"row"`
+	Values map[string]string `json:"values"`
+}
+
+// FileSearchResult contains rows matched inside one uploaded file.
+type FileSearchResult struct {
+	Headers []string
+	Rows    []StoredFileRow
+	Total   int
+}

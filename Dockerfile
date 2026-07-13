@@ -5,10 +5,14 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 
-COPY backend ./backend
-COPY frontend ./frontend
+COPY main.go index.html ./
+COPY handlers ./handlers
+COPY models ./models
+COPY services ./services
+COPY storage ./storage
+COPY utils ./utils
 
-RUN CGO_ENABLED=0 GOOS=linux go build -o /out/server ./backend
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/server .
 
 FROM alpine:3.20
 
@@ -19,9 +23,8 @@ RUN apk add --no-cache ca-certificates \
 	&& adduser -S -G app app
 
 COPY --from=builder /out/server ./server
-COPY --from=builder /src/frontend ./frontend
 
-RUN chown -R app:app /app
+RUN chown app:app /app/server
 
 ENV PORT=8080
 EXPOSE 8080

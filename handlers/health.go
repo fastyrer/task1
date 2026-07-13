@@ -19,18 +19,18 @@ import (
 // HealthHandler – обработчик проверки здоровья сервиса.
 // Содержит ссылку на хранилище для вызова Ping().
 type HealthHandler struct {
-	store storage.FileStore
+	store storage.HealthStore
 }
 
 // healthResponse – формат ответа для GET /api/health.
 type healthResponse struct {
 	Status  string `json:"status"`
-	Storage string `json:"storage"` // memory или postgres
+	Storage string `json:"storage"` // всегда postgres
 	Error   string `json:"error,omitempty"`
 }
 
 // RegisterHealthRoutes – регистрация маршрута на "/api/health"
-func RegisterHealthRoutes(mux *http.ServeMux, store storage.FileStore) {
+func RegisterHealthRoutes(mux *http.ServeMux, store storage.HealthStore) {
 	handler := &HealthHandler{store: store}
 	mux.HandleFunc("/api/health", handler.Health)
 }
@@ -42,7 +42,7 @@ func RegisterHealthRoutes(mux *http.ServeMux, store storage.FileStore) {
 //  2. Проверка метода: только GET, иначе 405.
 //  3. Создание контекста с таймаутом 2 секунды, чтобы Ping не висел вечно.
 //  4. Вызов Ping(ctx) у хранилища:
-//     – nil → {"status":"ok","storage":"memory|postgres"} (200)
+//     – nil → {"status":"ok","storage":"postgres"} (200)
 //     – ошибка → {"status":"degraded","storage":"...","error":"storage unavailable"} (503)
 //  5. cancel() откладывается через defer – гарантированно очищает ресурсы
 //     контекста при любом выходе из функции.
@@ -66,7 +66,7 @@ func (h *HealthHandler) Health(w http.ResponseWriter, r *http.Request) {
 	// 4. Формирование payload
 	payload := healthResponse{
 		Status:  "ok",
-		Storage: h.store.Driver(),
+		Storage: "postgres",
 	}
 
 	// 5. Ping хранилища

@@ -1,248 +1,202 @@
 # Загрузка клиентских данных
 
-Веб-приложение для загрузки CSV/XLS/XLSX, чтения заголовков, preview первых строк, валидации данных и генерации уведомлений по шаблону.
+Go-приложение для загрузки CSV/XLS/XLSX, проверки строк, поиска по содержимому,
+сохранения контактов и генерации уведомлений по шаблону.
 
-В production-режиме данные сохраняются в PostgreSQL. Для локальных unit-тестов и разработки без `DATABASE_URL` доступен in-memory storage.
+PostgreSQL является обязательным хранилищем. In-memory режима нет.
 
-## Структура
+## Структура проекта
 
 ```text
-backend/
-  main.go
-  handlers/
-    health.go
-    upload.go
-    search.go
-    notification.go
-  services/
-    file_parser.go
-    csv_parser.go
-    excel_parser.go
-    header_detector.go
-    row_validator.go
-    template.go
-  storage/
-    store.go
-    memory_storage.go
-    postgres_storage.go
-  models/
-    file_data.go
-  utils/
-    columns.go
-    csv.go
-    encoding.go
-    excel.go
-    file_signature.go
-    normalizers.go
-    rows.go
-frontend/
-  index.html
-compose.yml
-Dockerfile
+.
+├── main.go                         # запуск HTTP-сервера и режим migrate
+├── index.html                      # встроенный frontend
+├── handlers/                       # HTTP-обработчики
+├── models/                         # общие структуры данных
+├── services/                       # парсинг и бизнес-логика
+├── storage/
+│   ├── store.go                    # интерфейсы хранилища
+│   ├── postgres_storage.go         # соединение и пул PostgreSQL
+│   ├── postgres_files.go           # файлы, строки и поиск
+│   ├── postgres_contacts.go        # контакты, конфликты и аудит
+│   ├── migrations.go               # запуск версионированных миграций
+│   └── migrations/                 # SQL up/down миграции
+├── utils/                          # чистые вспомогательные функции
+├── Dockerfile
+└── compose.yml
 ```
+
+SQL-запросы CRUD объявляются локальными константами в начале соответствующих
+методов repository. При чтении функции сразу виден полный запрос и его параметры.
+DDL не хранится строкой в Go: схема вынесена в SQL-миграции.
 
 ## Запуск через Docker Compose
 
-Создать локальный `.env`:
+Создайте локальный `.env`:
 
 ```bash
 cp .env.example .env
 ```
 
-Перед production-запуском поменяйте `POSTGRES_PASSWORD` в `.env`.
+Обязательно замените `POSTGRES_PASSWORD`.
 
 ```bash
 docker compose up --build
 ```
 
-После запуска:
+Приложение откроется по адресу:
 
 ```text
 http://localhost:8080
 ```
 
-Compose поднимает:
+Если порт занят:
 
-- `app` — Go-приложение;
-- `db` — PostgreSQL 16 с volume `postgres_data`;
-- healthcheck БД и приложения.
+```bash
+HOST_PORT=18082 docker compose up --build
+```
 
-Остановить:
+Compose запускает три сервиса:
+
+- `db` — PostgreSQL 16 с постоянным volume;
+- `migrate` — применяет ещё не выполненные SQL-миграции и завершается;
+- `app` — запускается только после успешных миграций и healthcheck БД.
+
+Остановка без удаления данных:
 
 ```bash
 docker compose down
 ```
 
-Остановить и удалить данные PostgreSQL:
+Удаление контейнеров вместе с локальными данными PostgreSQL:
 
 ```bash
 docker compose down -v
 ```
 
-## Отдельная сборка Docker
+Последнюю команду нельзя использовать для production-базы.
+
+## Запуск без Compose
+
+Сначала применяются миграции:
 
 ```bash
-docker build -t task1 .
-docker run --rm -p 8080:8080 \
-  -e STORAGE_DRIVER=postgres \
-  -e DATABASE_URL='postgres://task1:task1_password@host.docker.internal:5432/task1?sslmode=disable' \
-  task1
+DATABASE_URL='postgres://user:password@localhost:5432/task1?sslmode=disable' \
+  go run . migrate
 ```
 
-Если `DATABASE_URL` не задан, приложение использует memory storage. Это удобно для быстрой локальной проверки, но данные будут потеряны после рестарта контейнера.
+После этого запускается сервер:
 
-## Конфигурация
+```bash
+DATABASE_URL='postgres://user:password@localhost:5432/task1?sslmode=disable' \
+  go run .
+```
 
-| Переменная | Значение по умолчанию | Описание |
+Без `DATABASE_URL` приложение завершится с ошибкой.
+
+## Модель хранения
+
+### `uploaded_files`
+
+Метаданные загрузки: имя, формат, кодировка, лист Excel, заголовки, статистика и
+предупреждения. Старый JSONB `payload`, если он существовал до миграции,
+сохраняется только для обратной совместимости и больше не используется новыми
+записями.
+
+### `file_rows`
+
+Каждая строка файла хранится отдельно вместе с исходным номером строки,
+признаком валидности, ошибками и подготовленным `search_text`. Поиск выполняется
+PostgreSQL с trigram-индексом, поэтому сервер не загружает весь файл для поиска.
+
+### `contacts`
+
+Актуальное состояние контакта. Номер телефона уникален и является ключом
+дедупликации. Контакт не принадлежит одному конкретному файлу.
+
+### `contact_sources`
+
+Связывает контакт с файлом и исходной строкой. Здесь фиксируется результат
+импорта: `created`, `skipped`, `replaced`, `merged` и другие допустимые действия.
+
+### `contact_versions`
+
+Неизменяемая история состояний контакта. Обновление контакта, источник изменения
+и версия записываются внутри одной транзакции.
+
+## Миграции
+
+Миграции находятся в `storage/migrations` и встраиваются в бинарник через
+`go:embed`. Применённые версии записываются в `schema_migrations`.
+
+Перед выполнением используется PostgreSQL advisory lock: два одновременно
+запущенных мигратора не смогут изменять схему параллельно. Каждая серия миграций
+выполняется транзакционно.
+
+При старте HTTP-приложение сравнивает версию БД с версией встроенных миграций.
+Если миграции не применены или база новее бинарника, запуск завершается с ошибкой.
+
+Для production рекомендуется запускать `server migrate` отдельной учётной
+записью с DDL-правами. HTTP-приложению достаточно прав на чтение и изменение
+рабочих таблиц.
+
+## Основные переменные окружения
+
+| Переменная | По умолчанию | Назначение |
 | --- | --- | --- |
-| `HOST_PORT` | `8080` | HTTP-порт на хосте для Docker Compose |
-| `PORT` | `8080` | HTTP-порт внутри контейнера |
-| `STORAGE_DRIVER` | `postgres` при наличии `DATABASE_URL`, иначе `memory` | Тип хранилища: `postgres` или `memory` |
-| `DATABASE_URL` | собирается в `compose.yml` из `POSTGRES_*` | PostgreSQL connection string |
-| `MAX_UPLOAD_SIZE_MB` | `20` | Максимальный размер загружаемого файла |
-| `MAX_UPLOAD_SIZE_BYTES` | пусто | Точный лимит размера; имеет приоритет над `MAX_UPLOAD_SIZE_MB` |
-| `SEARCH_RESULT_LIMIT` | `1000` | Максимум строк, возвращаемых одним поисковым запросом |
-| `DB_MAX_CONNS` | `10` | Максимум соединений в пуле PostgreSQL |
-| `DB_MIN_CONNS` | `0` | Минимум соединений в пуле PostgreSQL |
-| `DB_CONNECT_TIMEOUT_SECONDS` | `10` | Таймаут подключения к PostgreSQL |
-| `DB_QUERY_TIMEOUT_SECONDS` | `5` | Таймаут запросов к PostgreSQL |
-| `DB_HEALTH_CHECK_SECONDS` | `30` | Период фоновой проверки соединений |
-| `DB_MAX_CONN_LIFETIME_SECONDS` | `3600` | Максимальное время жизни соединения |
+| `DATABASE_URL` | нет | Обязательная строка подключения PostgreSQL |
+| `HOST_PORT` | `8080` | Порт приложения на хосте в Compose |
+| `PORT` | `8080` | Порт HTTP-сервера внутри контейнера |
+| `MAX_UPLOAD_SIZE_MB` | `20` | Максимальный размер файла |
+| `MAX_UPLOAD_SIZE_BYTES` | нет | Точный лимит, имеет приоритет над MB |
+| `SEARCH_RESULT_LIMIT` | `1000` | Максимум результатов поиска |
+| `DB_MAX_CONNS` | `10` | Максимум соединений пула |
+| `DB_MIN_CONNS` | `0` | Минимум соединений пула |
+| `DB_CONNECT_TIMEOUT_SECONDS` | `10` | Таймаут подключения |
+| `DB_QUERY_TIMEOUT_SECONDS` | `5` | Таймаут CRUD-запросов |
+| `DB_MIGRATION_TIMEOUT_SECONDS` | `60` | Таймаут миграций |
+| `DB_MAX_CONN_IDLE_TIME_SECONDS` | `1800` | Максимальный простой соединения |
+| `DB_MAX_CONN_LIFETIME_SECONDS` | `3600` | Максимальная жизнь соединения |
+| `DB_HEALTH_CHECK_SECONDS` | `30` | Период проверки соединений пула |
 
 ## API
 
-### Health
-
-```http
-GET /api/health
-```
-
-Успешный ответ:
-
-```json
-{
-  "status": "ok",
-  "storage": "postgres"
-}
-```
-
-### Загрузка файла
-
-```http
-POST /api/upload
-Content-Type: multipart/form-data
-```
-
-Поля формы:
-
-- `file` — CSV/XLS/XLSX-файл;
-- `sheet` — опциональное имя или номер листа Excel.
-
-Успешный ответ:
-
-```json
-{
-  "fileId": "abc123",
-  "headers": ["Телефон", "Имя", "Скидка"],
-  "previewRows": [
-    {
-      "Телефон": "+79990001122",
-      "Имя": "Анна",
-      "Скидка": "15"
-    }
-  ],
-  "stats": {
-    "rowCount": 1,
-    "columnCount": 3,
-    "validRowCount": 1,
-    "invalidRowCount": 0,
-    "emptyRowCount": 0,
-    "skippedRowCount": 0,
-    "warningCount": 0
-  }
-}
-```
-
-### Поиск по загруженному файлу
-
-```http
-POST /api/search
-Content-Type: application/json
-```
-
-```json
-{
-  "fileId": "abc123",
-  "query": "+79",
-  "limit": 1000
-}
-```
-
-Ответ:
-
-```json
-{
-  "query": "+79",
-  "headers": ["Телефон", "Имя", "Скидка"],
-  "rows": [
-    {
-      "row": 1,
-      "values": {
-        "Телефон": "+79990001122",
-        "Имя": "Анна",
-        "Скидка": "15"
-      },
-      "matches": [
-        {
-          "column": "Телефон",
-          "value": "+79990001122"
-        }
-      ]
-    }
-  ],
-  "totalMatches": 1,
-  "returned": 1,
-  "limit": 1000,
-  "truncated": false
-}
-```
-
-Поиск регистронезависимый и проходит по всем колонкам всех сохраненных строк файла. Если найденных строк больше `SEARCH_RESULT_LIMIT`, API возвращает первые строки и `truncated: true`.
-
-### Preview уведомлений
-
-```http
-POST /api/preview
-Content-Type: application/json
-```
-
-```json
-{
-  "fileId": "abc123",
-  "phoneColumn": "Телефон",
-  "template": "Привет, {{Имя}}! Ваша скидка {{Скидка}}%"
-}
-```
-
-### Экспорт уведомлений
-
-```http
-POST /api/export
-Content-Type: application/json
-```
-
-Тело запроса такое же, как у `/api/preview`. Ответ — CSV-файл `notifications.csv` в UTF-8.
+| Метод | Маршрут | Назначение |
+| --- | --- | --- |
+| `GET` | `/api/health` | Проверка приложения и PostgreSQL |
+| `POST` | `/api/upload` | Загрузка и разбор CSV/XLS/XLSX |
+| `POST` | `/api/search` | Поиск подстроки по строкам файла |
+| `POST` | `/api/preview` | Предпросмотр уведомлений |
+| `POST` | `/api/export` | Экспорт уведомлений в CSV |
+| `POST` | `/api/contacts/save` | Сохранение валидных контактов |
+| `POST` | `/api/contacts/resolve` | Разрешение одного конфликта |
+| `POST` | `/api/contacts/resolve-all` | Массовое разрешение конфликтов |
+| `POST` | `/api/rows/fix` | Проверка и сохранение исправленных строк |
 
 ## Проверка
 
-Если Go установлен локально:
+Все Go-тесты:
 
 ```bash
 go test ./...
 ```
 
-Если Go локально не установлен:
+Интеграционный тест PostgreSQL запускается только при наличии отдельной тестовой
+БД. Её имя обязательно должно содержать `test`:
 
 ```bash
-docker run --rm -v "$PWD":/src -w /src golang:1.22-alpine go test ./...
+TEST_DATABASE_URL='postgres://user:password@localhost:5432/task1_test?sslmode=disable' \
+  go test ./storage -run TestPostgresStorageRoundTrip -v
 ```
+
+Тест проверяет миграции, построчное хранение, сохранение номеров строк и ошибок,
+поиск специальных символов, уникальность телефона, разрешение конфликта и аудит.
+
+## Production
+
+- Используйте длинный уникальный пароль без значения по умолчанию.
+- Для внешней PostgreSQL включайте TLS (`sslmode=verify-full`).
+- Не публикуйте порт PostgreSQL в интернет.
+- Разделяйте роли мигратора и HTTP-приложения.
+- Настройте автоматические резервные копии и регулярно проверяйте восстановление.
+- Перед обновлением сначала применяйте миграции, затем запускайте новую версию app.
