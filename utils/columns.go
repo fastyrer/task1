@@ -22,22 +22,11 @@ const (
 )
 
 // ClassifyHeader определяет назначение колонки по её заголовку.
-//
-// Принцип работы:
-//  1. Приводит заголовок к единому виду через HeaderKey (lowercase, ё→е, clean).
-//  2. Проверяет по ключевым словам – содержит "телефон" или "phone" → телефон,
-//     содержит "email" или "почта" → email, и т.д.
-//  3. Если ни одно условие не подошло – ColumnGeneric.
-//
-// Примеры:
-//
-//	ClassifyHeader("Телефон")       → ColumnPhone
-//	ClassifyHeader("E-MAIL")        → ColumnEmail
-//	ClassifyHeader("Скидка (%)")    → ColumnDiscount
-//	ClassifyHeader("Дата рождения") → ColumnDate
-//	ClassifyHeader("Город")         → ColumnGeneric
 func ClassifyHeader(header string) ColumnKind {
+	// 1. Приведение заголовка к единому виду
 	key := HeaderKey(header)
+
+	// 2. Определение типа колонки
 	switch {
 	case strings.Contains(key, "телефон"), key == "phone", strings.Contains(key, "mobile"):
 		return ColumnPhone
