@@ -57,6 +57,8 @@ func main() {
 	registerFrontend(mux)                             // GET / → frontend/index.html
 
 	// Порт из окружения или 8080 по умолчанию
+
+	//ток из окружения сделать !!!!!!!!!!!
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
