@@ -160,12 +160,8 @@ func RowToContact(row map[string]string, phone, fileID string) models.Contact {
 // 1. Нормализация имени колонки
 // 2. Сопоставление с известными вариантами имени
 func isNameLikeField(header string) bool {
-	// 1. Нормализация имени колонки
-	key := utils.HeaderKey(header)
-
-	// 2. Сопоставление с известными вариантами имени
-	switch key {
-	case "имя", "фио", "name", "first name", "last name", "client", "клиент":
+	switch header {
+	case "Имя", "Фамилия", "ФИО", "Name", "First name", "Last name", "Client", "Клиент":
 		return true
 	default:
 		return false
