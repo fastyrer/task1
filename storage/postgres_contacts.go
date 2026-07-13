@@ -1,3 +1,5 @@
+// postgres_contacts.go - CRUD контактов, дедупликация по телефону,
+// разрешение конфликтов, источники и история изменений.
 package storage
 
 import (
@@ -12,10 +14,19 @@ import (
 	"task1/models"
 )
 
+// rowScanner - общий минимальный интерфейс для pgx.Row и pgx.Rows.
+// Благодаря ему одна функция scanContact читает как одну, так и много строк.
 type rowScanner interface {
 	Scan(dest ...any) error
 }
 
+// SaveContact - создаёт новый контакт.
+//
+// Алгоритм:
+//  1. Генерирует ID и кодирует дополнительные поля в JSONB.
+//  2. Вставляет контакт через ON CONFLICT (phone) DO NOTHING.
+//  3. Если телефон уже есть, возвращает ErrContactAlreadyExists.
+//  4. В той же транзакции пишет первую версию и связь с файлом-источником.
 func (s *PostgresStorage) SaveContact(ctx context.Context, contact models.Contact) (string, error) {
 	const insertContactQuery = `
 		INSERT INTO contacts (id, phone, email, name, discount, data)
@@ -79,6 +90,8 @@ func (s *PostgresStorage) SaveContact(ctx context.Context, contact models.Contac
 	return contact.ID, nil
 }
 
+// GetContactByPhone - возвращает актуальное состояние контакта по уникальному телефону.
+// LATERAL-подзапрос добавляет к ответу последний файл и номер строки-источника.
 func (s *PostgresStorage) GetContactByPhone(ctx context.Context, phone string) (models.Contact, bool, error) {
 	const getContactByPhoneQuery = `
 		SELECT
@@ -116,6 +129,8 @@ func (s *PostgresStorage) GetContactByPhone(ctx context.Context, phone string) (
 	return contact, true, nil
 }
 
+// ListContactsByFileID - возвращает контакты, которые встречались в конкретном файле.
+// DISTINCT ON не даёт одному контакту попасть в результат дважды.
 func (s *PostgresStorage) ListContactsByFileID(ctx context.Context, fileID string) ([]models.Contact, error) {
 	const listContactsByFileQuery = `
 		SELECT DISTINCT ON (c.id)
@@ -158,6 +173,8 @@ func (s *PostgresStorage) ListContactsByFileID(ctx context.Context, fileID strin
 	return contacts, nil
 }
 
+// UpdateContact - обновляет текущие данные контакта по ID.
+// Новое состояние и запись contact_versions фиксируются одной транзакцией.
 func (s *PostgresStorage) UpdateContact(ctx context.Context, contact models.Contact) error {
 	const updateContactQuery = `
 		UPDATE contacts
@@ -207,6 +224,13 @@ func (s *PostgresStorage) UpdateContact(ctx context.Context, contact models.Cont
 	return nil
 }
 
+// ResolveConflict - атомарно применяет skip, replace или merge к конфликту телефона.
+//
+// Алгоритм:
+//  1. SELECT ... FOR UPDATE блокирует контакт до конца транзакции.
+//  2. Проверка contact_sources делает повторный запрос идемпотентным.
+//  3. skip записывает только решение, replace заменяет данные, merge дополняет пустые поля.
+//  4. Версия, источник и контакт изменяются в одной транзакции.
 func (s *PostgresStorage) ResolveConflict(ctx context.Context, phone string, action models.ConflictAction, incoming models.Contact) error {
 	const lockContactByPhoneQuery = `
 		SELECT id, phone, email, name, discount, data, created_at, updated_at
@@ -288,6 +312,8 @@ func (s *PostgresStorage) ResolveConflict(ctx context.Context, phone string, act
 	return nil
 }
 
+// scanContact - считывает контакт вместе с последним файлом-источником.
+// Порядок Scan должен точно совпадать с SELECT в вызывающем методе.
 func scanContact(row rowScanner) (models.Contact, error) {
 	var contact models.Contact
 	var dataJSON []byte
@@ -311,6 +337,7 @@ func scanContact(row rowScanner) (models.Contact, error) {
 	return contact, nil
 }
 
+// scanCoreContact - считывает только поля contacts без данных об источнике.
 func scanCoreContact(row rowScanner) (models.Contact, error) {
 	var contact models.Contact
 	var dataJSON []byte
@@ -332,6 +359,8 @@ func scanCoreContact(row rowScanner) (models.Contact, error) {
 	return contact, nil
 }
 
+// updateResolvedContact - обновляет контакт при replace/merge и добавляет аудит.
+// Транзакция передаётся снаружи, поэтому helper не может случайно закоммитить часть операции.
 func updateResolvedContact(ctx context.Context, tx pgx.Tx, contact *models.Contact, action models.ContactEventAction) error {
 	const updateResolvedContactQuery = `
 		UPDATE contacts
@@ -369,6 +398,7 @@ func updateResolvedContact(ctx context.Context, tx pgx.Tx, contact *models.Conta
 	return nil
 }
 
+// saveContactVersionTx - сохраняет неизменяемый снимок контакта в contact_versions.
 func saveContactVersionTx(ctx context.Context, tx pgx.Tx, contact models.Contact, action models.ContactEventAction) error {
 	const insertContactVersionQuery = `
 		INSERT INTO contact_versions (
@@ -397,6 +427,8 @@ func saveContactVersionTx(ctx context.Context, tx pgx.Tx, contact models.Contact
 	return nil
 }
 
+// saveContactSourceTx - фиксирует, из какого файла и строки пришёл контакт.
+// ON CONFLICT защищает от повторной записи одного и того же события.
 func saveContactSourceTx(ctx context.Context, tx pgx.Tx, contact models.Contact, action models.ContactEventAction) error {
 	const insertContactSourceQuery = `
 		INSERT INTO contact_sources (contact_id, file_id, row_number, action, incoming)
@@ -424,6 +456,7 @@ func saveContactSourceTx(ctx context.Context, tx pgx.Tx, contact models.Contact,
 	return nil
 }
 
+// marshalContactData - кодирует дополнительные поля контакта в JSON-объект.
 func marshalContactData(data map[string]string) ([]byte, error) {
 	if data == nil {
 		data = map[string]string{}
@@ -435,6 +468,7 @@ func marshalContactData(data map[string]string) ([]byte, error) {
 	return encoded, nil
 }
 
+// marshalContactSnapshot - формирует JSON-снимок входящей строки для contact_sources.
 func marshalContactSnapshot(contact models.Contact) ([]byte, error) {
 	snapshot := map[string]any{
 		"phone":     contact.Phone,
@@ -452,6 +486,8 @@ func marshalContactSnapshot(contact models.Contact) ([]byte, error) {
 	return encoded, nil
 }
 
+// mergeContact - дополняет пустые поля incoming значениями existing.
+// Непустые входящие значения имеют приоритет.
 func mergeContact(incoming *models.Contact, existing models.Contact) {
 	if incoming.Name == "" {
 		incoming.Name = existing.Name
@@ -472,6 +508,7 @@ func mergeContact(incoming *models.Contact, existing models.Contact) {
 	}
 }
 
+// eventActionForConflict - преобразует действие API в типизированное событие аудита.
 func eventActionForConflict(action models.ConflictAction) (models.ContactEventAction, error) {
 	switch action {
 	case models.ConflictActionSkip:

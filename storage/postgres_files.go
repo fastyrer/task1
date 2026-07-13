@@ -1,3 +1,5 @@
+// postgres_files.go - хранение метаданных загруженного файла,
+// его строк и поиск по содержимому средствами PostgreSQL.
 package storage
 
 import (
@@ -12,6 +14,14 @@ import (
 	"task1/models"
 )
 
+// SaveFileData - сохраняет файл и все его строки атомарно.
+//
+// Алгоритм:
+//  1. Использует готовый ID или генерирует UUID.
+//  2. Кодирует сложные поля в JSONB.
+//  3. Готовит отдельные записи для file_rows.
+//  4. В одной транзакции обновляет метаданные и заменяет набор строк.
+//  5. Для массовой вставки использует PostgreSQL COPY.
 func (s *PostgresStorage) SaveFileData(ctx context.Context, data models.FileData) (string, error) {
 	const upsertFileQuery = `
 		INSERT INTO uploaded_files (
@@ -131,6 +141,9 @@ func (s *PostgresStorage) SaveFileData(ctx context.Context, data models.FileData
 	return fileID, nil
 }
 
+// GetFileData - восстанавливает FileData из двух таблиц.
+// Сначала читает uploaded_files, затем по позиции собирает file_rows.
+// Исходные номера строк и ошибки возвращаются без потерь.
 func (s *PostgresStorage) GetFileData(ctx context.Context, fileID string) (models.FileData, bool, error) {
 	const getFileQuery = `
 		SELECT
@@ -240,6 +253,9 @@ func (s *PostgresStorage) GetFileData(ctx context.Context, fileID string) (model
 	return data, true, nil
 }
 
+// SearchFileRows - выполняет регистронезависимый поиск по search_text.
+// Весь файл не загружается в Go: фильтрация, подсчёт и LIMIT работают в БД.
+// Символы %, _ и \ экранируются, поэтому считаются обычным текстом.
 func (s *PostgresStorage) SearchFileRows(ctx context.Context, fileID, query string, limit int) (models.FileSearchResult, bool, error) {
 	const getSearchHeadersQuery = `
 		SELECT headers
@@ -304,6 +320,8 @@ func (s *PostgresStorage) SearchFileRows(ctx context.Context, fileID, query stri
 	return result, true, nil
 }
 
+// prepareFileRows - преобразует FileData.Rows в набор значений для pgx.CopyFrom.
+// Для каждой строки также собирается search_text и признак валидности.
 func prepareFileRows(data models.FileData, fileID string) ([][]any, error) {
 	invalidByRow := make(map[int][]models.ProcessingWarning, len(data.InvalidRows))
 	for _, invalid := range data.InvalidRows {
@@ -347,6 +365,8 @@ func prepareFileRows(data models.FileData, fileID string) ([][]any, error) {
 	return rows, nil
 }
 
+// sourceRowNumber - возвращает номер строки из исходного файла.
+// Если RowNumbers нет, номер вычисляется от строки заголовка.
 func sourceRowNumber(data models.FileData, index int) int {
 	if index < len(data.RowNumbers) && data.RowNumbers[index] > 0 {
 		return data.RowNumbers[index]
@@ -357,6 +377,7 @@ func sourceRowNumber(data models.FileData, index int) int {
 	return index + 1
 }
 
+// marshalSlice - кодирует slice в JSON; nil сохраняется как [], а не null.
 func marshalSlice[T any](values []T) ([]byte, error) {
 	if values == nil {
 		values = []T{}
@@ -364,6 +385,7 @@ func marshalSlice[T any](values []T) ([]byte, error) {
 	return json.Marshal(values)
 }
 
+// unmarshalJSON - декодирует JSONB и добавляет к ошибке имя читаемого поля.
 func unmarshalJSON(data []byte, target any, label string) error {
 	if len(data) == 0 {
 		return fmt.Errorf("decode %s: empty JSON", label)
@@ -374,6 +396,7 @@ func unmarshalJSON(data []byte, target any, label string) error {
 	return nil
 }
 
+// escapeLikePattern - экранирует служебные символы LIKE для буквального поиска.
 func escapeLikePattern(value string) string {
 	value = strings.ReplaceAll(value, `\`, `\\`)
 	value = strings.ReplaceAll(value, `%`, `\%`)

@@ -6,6 +6,7 @@ import (
 	"task1/models"
 )
 
+// TestEscapeLikePattern доказывает, что %, _ и \ ищутся как текст, а не как маски LIKE.
 func TestEscapeLikePattern(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -28,6 +29,7 @@ func TestEscapeLikePattern(t *testing.T) {
 	}
 }
 
+// TestSourceRowNumber проверяет приорит RowNumbers и резервный расчёт от HeaderRow.
 func TestSourceRowNumber(t *testing.T) {
 	tests := []struct {
 		name  string

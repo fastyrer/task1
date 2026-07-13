@@ -220,6 +220,7 @@ func (h *ContactHandler) Resolve(w http.ResponseWriter, r *http.Request) {
 	for index, row := range fd.Rows {
 		if row[phoneColumn] == req.Phone {
 			incoming = services.RowToContact(row, req.Phone, fd.ID)
+			// В аудит передаётся номер строки из файла, а не её позиция в slice.
 			incoming.SourceRow = index + 1
 			if index < len(fd.RowNumbers) && fd.RowNumbers[index] > 0 {
 				incoming.SourceRow = fd.RowNumbers[index]
@@ -312,6 +313,7 @@ func (h *ContactHandler) ResolveAll(w http.ResponseWriter, r *http.Request) {
 		}
 
 		incoming := services.RowToContact(row, phone, fd.ID)
+		// Запоминаем исходную строку для contact_sources при массовом разрешении.
 		incoming.SourceRow = index + 1
 		if index < len(fd.RowNumbers) && fd.RowNumbers[index] > 0 {
 			incoming.SourceRow = fd.RowNumbers[index]

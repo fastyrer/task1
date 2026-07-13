@@ -9,20 +9,23 @@ import "time"
 
 // Один контакт — одна строка из файла, приведённая к фиксированным полям
 type Contact struct {
-	ID        string            `json:"id"`
-	Phone     string            `json:"phone"`
-	Email     string            `json:"email,omitempty"`
-	Name      string            `json:"name,omitempty"`
-	Discount  string            `json:"discount,omitempty"`
-	Data      map[string]string `json:"data,omitempty"`
-	FileID    string            `json:"fileId"`
-	SourceRow int               `json:"-"`
-	CreatedAt time.Time         `json:"createdAt"`
-	UpdatedAt time.Time         `json:"updatedAt"`
+	ID       string            `json:"id"`
+	Phone    string            `json:"phone"`
+	Email    string            `json:"email,omitempty"`
+	Name     string            `json:"name,omitempty"`
+	Discount string            `json:"discount,omitempty"`
+	Data     map[string]string `json:"data,omitempty"`
+	FileID   string            `json:"fileId"`
+	// SourceRow хранит исходный номер строки файла для аудита и не отдаётся в JSON API.
+	SourceRow int       `json:"-"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
 }
 
+// ContactEventAction - тип события, которое сохраняется в истории и источниках контакта.
 type ContactEventAction string
 
+// Константы совпадают с CHECK-ограничениями contact_sources и contact_versions в PostgreSQL.
 const (
 	ContactEventCreated  ContactEventAction = "created"
 	ContactEventUpdated  ContactEventAction = "updated"

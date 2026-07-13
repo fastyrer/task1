@@ -113,6 +113,8 @@ func (h *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, resp)
 }
 
+// searchStoredRows - преобразует строки, найденные PostgreSQL, в формат HTTP-ответа.
+// PostgreSQL выбирает подходящие строки, а rowMatches отмечает конкретные ячейки для подсветки.
 func searchStoredRows(result models.FileSearchResult, query string, limit int) searchResponse {
 	normalizedQuery := strings.ToLower(query)
 	rows := make([]searchRow, 0, len(result.Rows))
