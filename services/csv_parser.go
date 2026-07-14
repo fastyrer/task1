@@ -19,12 +19,12 @@ import (
 // parseCSVContent – декодирует CSV-байты, определяет разделитель и парсит записи в models.FileData.
 //
 // parseCSVContent:
-	// 1. Декодирование содержимого и определение кодировки
-	// 2. Проверка на пустой файл
-	// 3. Настройка CSV-ридера (разделитель, пробелы, число полей)
-	// 4. Чтение всех записей в слайс parsedRecord
-	// 5. Преобразование parsedRecord в models.FileData через recordsToFileData
-	// 6. Установка поля Encoding и добавление предупреждения, если кодировка не UTF-8
+// 1. Декодирование содержимого и определение кодировки
+// 2. Проверка на пустой файл
+// 3. Настройка CSV-ридера (разделитель, пробелы, число полей)
+// 4. Чтение всех записей в слайс parsedRecord
+// 5. Преобразование parsedRecord в models.FileData через recordsToFileData
+// 6. Установка поля Encoding и добавление предупреждения, если кодировка не UTF-8
 func parseCSVContent(content []byte) (models.FileData, error) {
 	// 1. Декодирование содержимого и определение кодировки
 	text, encoding, err := utils.DecodeCSVContent(content)

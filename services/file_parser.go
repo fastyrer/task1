@@ -1,13 +1,14 @@
-// Package services содержит общий парсинг файлов и преобразование в models.FileData.
+// Package services содержит бизнес-логику: парсинг файлов, валидацию, шаблоны.
 //
-// file_parser.go – обеспечивает чтение содержимого файлов, детекцию формата (CSV/XLS/XLSX),
-// выбор листа для Excel и преобразование сырых строк в структуру FileData.
+// file_parser.go – чтение файлов, детекция формата (CSV/XLS/XLSX), выбор листа Excel,
+// преобразование сырых строк в FileData. Первая непустая строка считается заголовками.
 
 package services
 
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"mime/multipart"
 	"path/filepath"
@@ -26,7 +27,7 @@ var (
 	ErrInvalidExcel      = errors.New("Некорректная структура XLS/XLSX.")
 	ErrReadFile          = errors.New("Не удалось прочитать файл.")
 	ErrFileTypeMismatch  = errors.New("Расширение файла не совпадает с содержимым.")
-	ErrInvalidEncoding   = utils.ErrInvalidEncoding
+	ErrInvalidEncoding   = errors.New("Недопустимая кодировка")
 	ErrSheetNotFound     = errors.New("Лист Excel не найден.")
 )
 
@@ -225,26 +226,45 @@ func rowsToFileData(rows [][]string) (models.FileData, error) {
 	return recordsToFileData(records)
 }
 
-// recordsToFileData – основной трансформер parsedRecord -> models.FileData.
-
-// recordsToFileData:
-	// 1. Находит индекс строки заголовков и список заголовков
-	// 2. Собирает данные строк, пропуская пустые записи
-	// 3. Валидирует строки и формирует список invalid/warnings
-	// 4. Формирует итоговую models.FileData и обновляет статистику
+// recordsToFileData – преобразует parsedRecord в models.FileData.
+//
+// Первая непустая строка считается заголовками. Все строки до неё
+// помечаются как пропущенные (warning). Пустые строки после заголовков
+// пропускаются без предупреждения.
 func recordsToFileData(records []parsedRecord) (models.FileData, error) {
-	
 	if len(records) == 0 {
 		return models.FileData{}, ErrEmptyFile
 	}
 
-	// 1. Находит индекс строки заголовков и список заголовков
-	headerIndex, headers, warnings, err := detectHeaderRecord(records)
+	// Ищем первую непустую строку — это заголовки
+	headerIndex := 0
+	for headerIndex < len(records) {
+		if !utils.IsEmptyRecord(records[headerIndex].Values) {
+			break
+		}
+		headerIndex++
+	}
+	if headerIndex >= len(records) {
+		return models.FileData{}, ErrNoHeaders
+	}
+
+	headers, err := normalizeHeaders(records[headerIndex].Values)
 	if err != nil {
 		return models.FileData{}, err
 	}
 
-	// 2. Собирает данные строк, пропуская пустые записи
+	// Предупреждения о пропущенных строках до заголовков
+	warnings := make([]models.ProcessingWarning, 0)
+	for index := 0; index < headerIndex; index++ {
+		if !utils.IsEmptyRecord(records[index].Values) {
+			warnings = append(warnings, models.ProcessingWarning{
+				Row:     records[index].Number,
+				Message: "Строка пропущена до найденных заголовков.",
+			})
+		}
+	}
+
+	// Сбор данных после заголовков
 	dataRows := make([]parsedDataRow, 0, len(records)-headerIndex-1)
 	emptyRowCount := 0
 	for _, record := range records[headerIndex+1:] {
@@ -266,7 +286,6 @@ func recordsToFileData(records []parsedRecord) (models.FileData, error) {
 		return models.FileData{}, ErrNoDataRows
 	}
 
-	// 3. Валидирует строки и формирует список invalid/warnings
 	invalidRows, validationWarnings := validateRows(headers, dataRows)
 	warnings = append(warnings, validationWarnings...)
 
@@ -277,8 +296,6 @@ func recordsToFileData(records []parsedRecord) (models.FileData, error) {
 		rowNumbers = append(rowNumbers, row.Number)
 	}
 
-
-	// 4. Формирует итоговую models.FileData и обновляет статистику
 	data := models.FileData{
 		HeaderRow:   records[headerIndex].Number,
 		Headers:     headers,
@@ -294,4 +311,49 @@ func recordsToFileData(records []parsedRecord) (models.FileData, error) {
 	RefreshStats(&data)
 
 	return data, nil
+}
+
+// normalizeHeaders – очищает заголовки, проверяет на пустоту и дубликаты.
+func normalizeHeaders(record []string) ([]string, error) {
+	record = utils.TrimTrailingEmptyCells(record)
+	if len(record) == 0 || utils.IsEmptyRecord(record) {
+		return nil, ErrNoHeaders
+	}
+
+	headers := make([]string, len(record))
+	seen := make(map[string]struct{}, len(record))
+	for index, header := range record {
+		header = utils.CleanHeader(header)
+		if header == "" {
+			return nil, errors.New("В файле есть пустые заголовки.")
+		}
+
+		key := strings.ToLower(header)
+		if _, ok := seen[key]; ok {
+			return nil, fmt.Errorf("В файле есть повторяющийся заголовок: %s.", header)
+		}
+		seen[key] = struct{}{}
+		headers[index] = header
+	}
+
+	return headers, nil
+}
+
+// rowShapeWarnings – проверяет форму строки относительно заголовков.
+func rowShapeWarnings(rowNumber int, headers []string, values []string) []models.ProcessingWarning {
+	warnings := make([]models.ProcessingWarning, 0, 2)
+	if len(values) < len(headers) {
+		warnings = append(warnings, models.ProcessingWarning{
+			Row:     rowNumber,
+			Message: "В строке меньше значений, чем заголовков; недостающие ячейки заполнены пустыми значениями.",
+		})
+	}
+	if len(values) > len(headers) && !utils.IsEmptyRecord(values[len(headers):]) {
+		warnings = append(warnings, models.ProcessingWarning{
+			Row:     rowNumber,
+			Message: "В строке есть лишние значения без заголовков; они не были сохранены.",
+		})
+	}
+
+	return warnings
 }

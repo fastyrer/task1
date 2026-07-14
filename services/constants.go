@@ -6,6 +6,9 @@ const (
 	DefaultSearchResultLimit = 1000
 )
 
+// CSV
+
+
 // Телефон
 const (
 	ErrorPhoneEmptyTemplate = "Шаблон уведомления не может быть пустым"
