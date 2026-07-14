@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
@@ -345,13 +346,6 @@ func prepareFileRows(data models.FileData, fileID string) ([][]any, error) {
 			return nil, fmt.Errorf("marshal file row errors %d: %w", rowNumber, err)
 		}
 
-		searchValues := make([]string, 0, len(data.Headers))
-		for _, header := range data.Headers {
-			value := strings.TrimSpace(values[header])
-			if value != "" {
-				searchValues = append(searchValues, value)
-			}
-		}
 		rows = append(rows, []any{
 			fileID,
 			index + 1,
@@ -359,10 +353,27 @@ func prepareFileRows(data models.FileData, fileID string) ([][]any, error) {
 			valuesJSON,
 			len(rowErrors) == 0,
 			errorsJSON,
-			strings.Join(searchValues, "\n"),
+			rowSearchText(values),
 		})
 	}
 	return rows, nil
+}
+
+// rowSearchText собирает стабильную поисковую строку из всех значений строки файла.
+func rowSearchText(values map[string]string) string {
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	searchValues := make([]string, 0, len(keys))
+	for _, key := range keys {
+		if value := strings.TrimSpace(values[key]); value != "" {
+			searchValues = append(searchValues, value)
+		}
+	}
+	return strings.Join(searchValues, "\n")
 }
 
 // sourceRowNumber - возвращает номер строки из исходного файла.

@@ -16,9 +16,12 @@ import (
 	"bytes"
 	"context"
 	_ "embed"
+	"errors"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"task1/handlers"
@@ -29,7 +32,8 @@ import (
 var frontendHTML []byte
 
 func main() {
-	ctx := context.Background()
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 	// Режим migrate не запускает HTTP-сервер: он применяет схему и сразу завершается.
 	if len(os.Args) == 2 && os.Args[1] == "migrate" {
 		if err := storage.MigrateFromEnv(ctx); err != nil {
@@ -56,21 +60,44 @@ func main() {
 	handlers.RegisterContactRoutes(mux, store, store) // POST /api/contacts/*, /api/rows/fix
 	registerFrontend(mux)                             // GET / → frontend/index.html
 
-	// Порт из окружения или 8080 по умолчанию
-
-	//ток из окружения сделать !!!!!!!!!!!
+	// Порт из окружения или 8080 по умолчанию.
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
 
 	addr := ":" + port
-	log.Printf("storage driver: postgres")
+	log.Print("storage driver: postgres")
 	log.Printf("server started at http://localhost%s", addr)
 
-	// Запуск HTTP-сервера с CORS-обёрткой
-	if err := http.ListenAndServe(addr, withCORS(mux)); err != nil {
-		log.Fatal(err)
+	server := &http.Server{
+		Addr:              addr,
+		Handler:           withCORS(mux),
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       60 * time.Second,
+		WriteTimeout:      60 * time.Second,
+		IdleTimeout:       2 * time.Minute,
+	}
+	serverErrors := make(chan error, 1)
+	go func() {
+		serverErrors <- server.ListenAndServe()
+	}()
+
+	select {
+	case err := <-serverErrors:
+		if !errors.Is(err, http.ErrServerClosed) {
+			log.Fatal(err)
+		}
+	case <-ctx.Done():
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := server.Shutdown(shutdownCtx); err != nil {
+			log.Printf("server shutdown: %v", err)
+			_ = server.Close()
+		}
+		if err := <-serverErrors; !errors.Is(err, http.ErrServerClosed) {
+			log.Printf("server stopped: %v", err)
+		}
 	}
 }
 

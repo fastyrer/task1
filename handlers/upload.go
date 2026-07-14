@@ -84,11 +84,14 @@ func (h *UploadHandler) Upload(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseMultipartForm(uploadLimit); err != nil {
 		var maxBytesError *http.MaxBytesError
 		if errors.As(err, &maxBytesError) {
-			writeJSONError(w, http.StatusRequestEntityTooLarge, fmt.Sprintf(services.ErrorFileExcessiveSize + strconv.FormatInt(uploadLimit, 10)))
+			writeJSONError(w, http.StatusRequestEntityTooLarge, services.ErrorFileExcessiveSize+formatUploadSize(uploadLimit))
 			return
-		} // !!!
+		}
 		writeJSONError(w, http.StatusBadRequest, services.ErrorFileNotOpened)
 		return
+	}
+	if r.MultipartForm != nil {
+		defer r.MultipartForm.RemoveAll()
 	}
 
 	// Получение файла из формы
@@ -107,6 +110,10 @@ func (h *UploadHandler) Upload(w http.ResponseWriter, r *http.Request) {
 	// Проверка размера файла
 	if header.Size == 0 {
 		writeJSONError(w, http.StatusBadRequest, services.ErrEmptyFile.Error())
+		return
+	}
+	if header.Size > uploadLimit {
+		writeJSONError(w, http.StatusRequestEntityTooLarge, services.ErrorFileExcessiveSize+formatUploadSize(uploadLimit))
 		return
 	}
 
@@ -175,7 +182,6 @@ func addMIMEWarning(data *models.FileData) {
 	if isExpectedMIME(data.Format, mimeType) {
 		return
 	}
-	// ???
 	data.Warnings = append(data.Warnings, models.ProcessingWarning{
 		Message: fmt.Sprintf("MIME-тип %s не соответствует формату %s.", data.MIMEType, strings.ToUpper(data.Format)),
 	})
@@ -215,8 +221,7 @@ func previewRows(rows []map[string]string) []map[string]string {
 	return rows[:limit]
 }
 
-// userMessage выводит сообщение об ошибке для пользователя
-// err – одна из возможных ошибок
+// userMessage не отдаёт клиенту неожиданные внутренние ошибки парсера.
 func userMessage(err error) string {
 	switch {
 	case errors.Is(err, services.ErrUnsupportedFormat),
@@ -231,7 +236,7 @@ func userMessage(err error) string {
 		errors.Is(err, services.ErrSheetNotFound):
 		return err.Error()
 	default:
-		return err.Error()
+		return services.ErrorFileNotOpened
 	}
 }
 

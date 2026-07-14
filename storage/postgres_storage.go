@@ -4,62 +4,19 @@ package storage
 
 import (
 	"context"
-	"errors"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
-	"task1/models"
 	"time"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-const uploadedFilesSchema = `
-CREATE TABLE IF NOT EXISTS uploaded_files (
-	id TEXT PRIMARY KEY,
-	original_filename TEXT NOT NULL DEFAULT '',
-	format TEXT NOT NULL DEFAULT '',
-	row_count INTEGER NOT NULL DEFAULT 0,
-	column_count INTEGER NOT NULL DEFAULT 0,
-	payload JSONB NOT NULL,
-	created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-	updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE INDEX IF NOT EXISTS uploaded_files_created_at_idx ON uploaded_files (created_at DESC);
-CREATE INDEX IF NOT EXISTS uploaded_files_format_idx ON uploaded_files (format);
-
-CREATE TABLE IF NOT EXISTS contacts (
-	id TEXT PRIMARY KEY,
-	phone TEXT NOT NULL UNIQUE,
-	email TEXT NOT NULL DEFAULT '',
-	name TEXT NOT NULL DEFAULT '',
-	discount TEXT NOT NULL DEFAULT '',
-	file_id TEXT NOT NULL REFERENCES uploaded_files(id) ON DELETE CASCADE,
-	created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-	updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE INDEX IF NOT EXISTS contacts_file_id_idx ON contacts (file_id);
-CREATE INDEX IF NOT EXISTS contacts_email_idx ON contacts (email);
-
-CREATE TABLE IF NOT EXISTS contact_versions (
-	id SERIAL PRIMARY KEY,
-	contact_id TEXT NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,
-	phone TEXT NOT NULL DEFAULT '',
-	email TEXT NOT NULL DEFAULT '',
-	name TEXT NOT NULL DEFAULT '',
-	discount TEXT NOT NULL DEFAULT '',
-	file_id TEXT NOT NULL,
-	action TEXT NOT NULL DEFAULT '',
-	created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE INDEX IF NOT EXISTS contact_versions_contact_id_idx ON contact_versions (contact_id);
-`
-
+// PostgresStorage - единственная runtime-реализация Store.
+// pool переиспользует соединения, queryTimeout ограничивает CRUD-операции.
 type PostgresStorage struct {
 	pool         *pgxpool.Pool
 	queryTimeout time.Duration
@@ -135,19 +92,7 @@ func MigratePostgres(ctx context.Context, databaseURL string) error {
 	)
 	defer cancel()
 
-	_, err = s.pool.Exec(queryCtx, `
-		INSERT INTO uploaded_files (
-			id, original_filename, format, row_count, column_count, payload
-		)
-		VALUES ($1, $2, $3, $4, $5, $6)
-		ON CONFLICT (id) DO UPDATE SET
-			original_filename = EXCLUDED.original_filename,
-			format = EXCLUDED.format,
-			row_count = EXCLUDED.row_count,
-			column_count = EXCLUDED.column_count,
-			payload = EXCLUDED.payload,
-			updated_at = now()
-	`, fileID, data.OriginalFilename, data.Format, data.Stats.RowCount, data.Stats.ColumnCount, payload)
+	pool, err := pgxpool.NewWithConfig(migrationCtx, config)
 	if err != nil {
 		return fmt.Errorf("create migration pool: %w", err)
 	}
@@ -231,151 +176,15 @@ func envDuration(name string, fallback time.Duration) time.Duration {
 	return time.Duration(parsed) * time.Second
 }
 
-func (s *PostgresStorage) SaveContact(ctx context.Context, contact models.Contact) (string, error) {
-	contactID := strings.TrimSpace(contact.ID)
-	if contactID == "" {
-		contactID = generateFileID()
-	}
-	contact.ID = contactID
-
-	queryCtx, cancel := s.withTimeout(ctx)
-	defer cancel()
-
-	_, err := s.pool.Exec(queryCtx, `
-		INSERT INTO contacts (id, phone, email, name, discount, file_id)
-		VALUES ($1, $2, $3, $4, $5, $6)
-		ON CONFLICT (id) DO UPDATE SET
-			phone = EXCLUDED.phone,
-			email = EXCLUDED.email,
-			name = EXCLUDED.name,
-			discount = EXCLUDED.discount,
-			file_id = EXCLUDED.file_id,
-			updated_at = now()
-	`, contactID, contact.Phone, contact.Email, contact.Name, contact.Discount, contact.FileID)
-	if err != nil {
-		return "", fmt.Errorf("save contact: %w", err)
+// generateID - генерирует криптографически случайный UUID v4 без внешней библиотеки.
+func generateID() (string, error) {
+	buffer := make([]byte, 16)
+	if _, err := rand.Read(buffer); err != nil {
+		return "", fmt.Errorf("generate id: %w", err)
 	}
 
-	s.saveContactVersion(ctx, contact, "created")
-
-	return contactID, nil
-}
-
-func (s *PostgresStorage) GetContactByPhone(ctx context.Context, phone string) (models.Contact, bool, error) {
-	queryCtx, cancel := s.withTimeout(ctx)
-	defer cancel()
-
-	c, err := s.scanContact(queryCtx, `WHERE phone = $1`, phone)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return models.Contact{}, false, nil
-	}
-	if err != nil {
-		return models.Contact{}, false, fmt.Errorf("get contact by phone: %w", err)
-	}
-
-	return c, true, nil
-}
-
-func (s *PostgresStorage) ListContactsByFileID(ctx context.Context, fileID string) ([]models.Contact, error) {
-	queryCtx, cancel := s.withTimeout(ctx)
-	defer cancel()
-
-	rows, err := s.pool.Query(queryCtx, `
-		SELECT id, phone, email, name, discount, file_id, created_at, updated_at
-		FROM contacts
-		WHERE file_id = $1
-		ORDER BY created_at
-	`, fileID)
-	if err != nil {
-		return nil, fmt.Errorf("list contacts by file id: %w", err)
-	}
-	defer rows.Close()
-
-	contacts := make([]models.Contact, 0)
-	for rows.Next() {
-		var c models.Contact
-		if err := rows.Scan(&c.ID, &c.Phone, &c.Email, &c.Name, &c.Discount, &c.FileID, &c.CreatedAt, &c.UpdatedAt); err != nil {
-			return nil, fmt.Errorf("scan contact: %w", err)
-		}
-		contacts = append(contacts, c)
-	}
-
-	return contacts, nil
-}
-
-func (s *PostgresStorage) UpdateContact(ctx context.Context, contact models.Contact) error {
-	queryCtx, cancel := s.withTimeout(ctx)
-	defer cancel()
-
-	_, err := s.pool.Exec(queryCtx, `
-		UPDATE contacts
-		SET phone = $1, email = $2, name = $3, discount = $4, file_id = $5, updated_at = now()
-		WHERE id = $6
-	`, contact.Phone, contact.Email, contact.Name, contact.Discount, contact.FileID, contact.ID)
-	if err != nil {
-		return fmt.Errorf("update contact: %w", err)
-	}
-
-	s.saveContactVersion(ctx, contact, "updated")
-
-	return nil
-}
-
-func (s *PostgresStorage) scanContact(ctx context.Context, whereClause string, args ...any) (models.Contact, error) {
-	var c models.Contact
-
-	err := s.pool.QueryRow(ctx, `
-		SELECT id, phone, email, name, discount, file_id, created_at, updated_at
-		FROM contacts
-		`+whereClause, args...).Scan(
-		&c.ID, &c.Phone, &c.Email, &c.Name, &c.Discount,
-		&c.FileID, &c.CreatedAt, &c.UpdatedAt,
-	)
-	if err != nil {
-		return models.Contact{}, err
-	}
-
-	return c, nil
-}
-
-func (s *PostgresStorage) ResolveConflict(ctx context.Context, phone string, action models.ConflictAction, incoming models.Contact) error {
-	existing, _, err := s.GetContactByPhone(ctx, phone)
-	if err != nil {
-		return fmt.Errorf("resolve conflict get existing: %w", err)
-	}
-
-	switch action {
-	case models.ConflictActionSkip:
-		return nil
-	case models.ConflictActionReplace:
-		incoming.ID = existing.ID
-		incoming.CreatedAt = existing.CreatedAt
-		return s.UpdateContact(ctx, incoming)
-	case models.ConflictActionMerge:
-		if incoming.Name == "" {
-			incoming.Name = existing.Name
-		}
-		if incoming.Email == "" {
-			incoming.Email = existing.Email
-		}
-		if incoming.Discount == "" {
-			incoming.Discount = existing.Discount
-		}
-		incoming.ID = existing.ID
-		incoming.CreatedAt = existing.CreatedAt
-		return s.UpdateContact(ctx, incoming)
-	default:
-		return fmt.Errorf("unknown conflict action: %s", action)
-	}
-}
-
-func (s *PostgresStorage) saveContactVersion(ctx context.Context, contact models.Contact, action string) error {
-	queryCtx, cancel := s.withTimeout(ctx)
-	defer cancel()
-
-	_, err := s.pool.Exec(queryCtx, `
-		INSERT INTO contact_versions (contact_id, phone, email, name, discount, file_id, action)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
-	`, contact.ID, contact.Phone, contact.Email, contact.Name, contact.Discount, contact.FileID, action)
-	return err
+	buffer[6] = (buffer[6] & 0x0f) | 0x40
+	buffer[8] = (buffer[8] & 0x3f) | 0x80
+	encoded := hex.EncodeToString(buffer)
+	return encoded[0:8] + "-" + encoded[8:12] + "-" + encoded[12:16] + "-" + encoded[16:20] + "-" + encoded[20:32], nil
 }

@@ -26,21 +26,21 @@ type NotificationHandler struct {
 	store storage.FileStore
 }
 
-// previewRequest 
+// previewRequest содержит выбранный файл, телефонную колонку и шаблон.
 type previewRequest struct {
 	FileID      string `json:"fileId"`
 	PhoneColumn string `json:"phoneColumn"`
 	Template    string `json:"template"`
 }
 
-// notificationItem
+// notificationItem - готовое уведомление для одной строки файла.
 type notificationItem struct {
 	Phone string `json:"phone"`
 	Text  string `json:"text"`
 	Row   int    `json:"row"`
 }
 
-// previewResponse 
+// previewResponse содержит готовые уведомления и число пропущенных строк.
 type previewResponse struct {
 	Notifications []notificationItem `json:"notifications"`
 	Skipped       int                `json:"skipped"`
@@ -53,14 +53,7 @@ func RegisterNotificationRoutes(mux *http.ServeMux, store storage.FileStore) {
 	mux.HandleFunc("/api/export", h.Export)
 }
 
-// Preview 
-/*
-	CORS — OPTIONS --> 204.
-	Декодирует JSON-тело в previewRequest (fileId, phoneColumn, template).
-	Проверяет существование файла в хранилище.
-	Вызывает generate(req) — общая логика формирования уведомлений.
-	Возвращает { notifications: [...], skipped: int } в JSON (200) или ошибку.
-*/
+// Preview формирует JSON-предпросмотр уведомлений для выбранного файла.
 func (h *NotificationHandler) Preview(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodOptions {
 		w.WriteHeader(http.StatusNoContent)
@@ -96,11 +89,7 @@ func (h *NotificationHandler) Preview(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, resp)
 }
 
-// Export делает все то же самое, что и Preview, только возвращает JSON-файл
-/*
-	Пишет BOM (0xEF, 0xBB, 0xBF) → заголовки Телефон,Сообщение → строки уведомлений.
-	Отдаёт с Content-Type: text/csv; charset=utf-8 и Content-Disposition: attachment.
-*/
+// Export формирует те же уведомления и возвращает CSV-файл с UTF-8 BOM.
 func (h *NotificationHandler) Export(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodOptions {
 		w.WriteHeader(http.StatusNoContent)
@@ -137,29 +126,30 @@ func (h *NotificationHandler) Export(w http.ResponseWriter, r *http.Request) {
 	buf.Write([]byte{0xef, 0xbb, 0xbf})
 
 	writer := csv.NewWriter(&buf)
-	writer.Write([]string{"Телефон", "Сообщение"})
+	if err := writer.Write([]string{"Телефон", "Сообщение"}); err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "Не удалось сформировать CSV")
+		return
+	}
 	for _, n := range resp.Notifications {
-		writer.Write([]string{n.Phone, n.Text})
+		if err := writer.Write([]string{n.Phone, n.Text}); err != nil {
+			writeJSONError(w, http.StatusInternalServerError, "Не удалось сформировать CSV")
+			return
+		}
 	}
 	writer.Flush()
+	if err := writer.Error(); err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "Не удалось сформировать CSV")
+		return
+	}
 
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 	w.Header().Set("Content-Disposition", "attachment; filename=notifications.csv")
 	w.Write(buf.Bytes())
 }
 
-// generate
-/*
-	Проверяет колонку телефона — ищет req.PhoneColumn среди data.Headers.
-	Проверяет шаблон — не пустой, неизвестные плейсхолдеры (ValidateUnknownPlaceholders).
-	Строит invalidSet — map[int]struct{} из номеров невалидных строк (data.InvalidRows[].Row).
-	Цикл по data.Rows:
-	Пустой телефон → skipped++, continue.
-	Номер строки (data.RowNumbers[i]) в invalidSet → skipped++, continue.
-	Иначе GenerateText(template, row) → notificationItem{Phone, Text, Row}.
-	Возвращает previewResponse{Notifications, Skipped}.
-*/
+// generate проверяет шаблон и формирует уведомления только из валидных строк файла.
 func (h *NotificationHandler) generate(data models.FileData, req previewRequest) (previewResponse, error) {
+	req.PhoneColumn = strings.TrimSpace(req.PhoneColumn)
 	phoneExists := false
 	for _, h := range data.Headers {
 		if h == req.PhoneColumn {
@@ -168,11 +158,11 @@ func (h *NotificationHandler) generate(data models.FileData, req previewRequest)
 		}
 	}
 	if !phoneExists {
-		return previewResponse{}, fmt.Errorf("Колонка '%s' не найдена в файле.", req.PhoneColumn) // ???
+		return previewResponse{}, fmt.Errorf("колонка %q не найдена в файле", req.PhoneColumn)
 	}
 
 	if strings.TrimSpace(req.Template) == "" {
-		return previewResponse{}, fmt.Errorf(services.ErrorPhoneEmptyTemplate)
+		return previewResponse{}, fmt.Errorf("%s", services.ErrorTemplateEmpty)
 	}
 
 	placeholders := services.ParsePlaceholders(req.Template)
@@ -180,10 +170,7 @@ func (h *NotificationHandler) generate(data models.FileData, req previewRequest)
 		return previewResponse{}, err
 	}
 
-	invalidSet := make(map[int]struct{}, len(data.InvalidRows))
-	for _, inv := range data.InvalidRows {
-		invalidSet[inv.Row] = struct{}{}
-	}
+	invalidSet := invalidRowNumbers(data.InvalidRows)
 
 	notifications := make([]notificationItem, 0, len(data.Rows))
 	skipped := 0
@@ -195,18 +182,17 @@ func (h *NotificationHandler) generate(data models.FileData, req previewRequest)
 			continue
 		}
 
-		if i < len(data.RowNumbers) {
-			if _, ok := invalidSet[data.RowNumbers[i]]; ok {
-				skipped++
-				continue
-			}
+		rowNumber := fileRowNumber(data, i)
+		if _, invalid := invalidSet[rowNumber]; invalid {
+			skipped++
+			continue
 		}
 
 		text := services.GenerateText(req.Template, row)
 		notifications = append(notifications, notificationItem{
 			Phone: phone,
 			Text:  text,
-			Row:   i + 1,
+			Row:   rowNumber,
 		})
 	}
 

@@ -87,6 +87,68 @@ func TestContactSerialIDAndGeneratedUID(t *testing.T) {
 	if dataColumnExists {
 		t.Fatal("contacts schema must not contain data columns")
 	}
+
+	const payloadColumnQuery = `
+		SELECT EXISTS (
+			SELECT 1
+			FROM information_schema.columns
+			WHERE table_schema = current_schema()
+			  AND table_name = 'uploaded_files'
+			  AND column_name = 'payload'
+		)
+	`
+	var payloadColumnExists bool
+	if err := store.pool.QueryRow(ctx, payloadColumnQuery).Scan(&payloadColumnExists); err != nil {
+		t.Fatalf("check payload column: %v", err)
+	}
+	if payloadColumnExists {
+		t.Fatal("uploaded_files schema must not contain legacy payload")
+	}
+
+	fixedPhone := fmt.Sprintf("+7 (998) %s-%s-%s", phoneDigits[0:3], phoneDigits[3:5], phoneDigits[5:7])
+	fixedFileID, err := store.SaveFileData(ctx, models.FileData{
+		OriginalFilename: "fixed-row.csv",
+		Format:           "csv",
+		Headers:          []string{"Телефон", "Имя"},
+		Rows:             []map[string]string{{"Телефон": "bad", "Имя": "Анна"}},
+		RowNumbers:       []int{2},
+		Stats: models.ProcessingStats{
+			RowCount:        1,
+			ColumnCount:     2,
+			InvalidRowCount: 1,
+		},
+		Warnings: []models.ProcessingWarning{{Row: 2, Column: "Телефон", Message: "Некорректный телефон."}},
+		InvalidRows: []models.InvalidRow{{
+			Row:    2,
+			Values: map[string]string{"Телефон": "bad", "Имя": "Анна"},
+			Errors: []models.ProcessingWarning{{Row: 2, Column: "Телефон", Message: "Некорректный телефон."}},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("SaveFileData fixed row: %v", err)
+	}
+
+	fixedValues := map[string]string{"Телефон": fixedPhone, "Имя": "Анна"}
+	if err := store.SaveFixedRow(ctx, fixedFileID, 2, fixedValues, models.Contact{
+		Phone: fixedPhone,
+		Name:  "Анна",
+	}); err != nil {
+		t.Fatalf("SaveFixedRow: %v", err)
+	}
+
+	refreshed, found, err := store.GetFileData(ctx, fixedFileID)
+	if err != nil || !found {
+		t.Fatalf("GetFileData fixed row: found=%v err=%v", found, err)
+	}
+	if len(refreshed.InvalidRows) != 0 || len(refreshed.Warnings) != 0 {
+		t.Fatalf("fixed row still has validation errors: %#v", refreshed)
+	}
+	if refreshed.Stats.ValidRowCount != 1 || refreshed.Stats.InvalidRowCount != 0 {
+		t.Fatalf("unexpected refreshed stats: %#v", refreshed.Stats)
+	}
+	if refreshed.Rows[0]["Телефон"] != fixedPhone {
+		t.Fatalf("fixed row phone = %q", refreshed.Rows[0]["Телефон"])
+	}
 }
 
 // assertContactTestDatabase запрещает запуск интеграционного теста на рабочей БД.

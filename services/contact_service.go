@@ -12,8 +12,10 @@ import (
 )
 
 type FixRowResult struct {
-	Fixed  int           `json:"fixed"`
-	Failed []FixRowError `json:"failed,omitempty"`
+	Fixed    int                        `json:"fixed"`
+	Failed   []FixRowError              `json:"failed,omitempty"`
+	Stats    *models.ProcessingStats    `json:"stats,omitempty"`
+	Warnings []models.ProcessingWarning `json:"warnings,omitempty"`
 }
 
 type FixRowError struct {
@@ -21,8 +23,7 @@ type FixRowError struct {
 	Errors    []models.ProcessingWarning `json:"errors"`
 }
 
-var ErrNoPhoneInRow = fmt.Errorf("в строке нет номера телефона")
-
+// ProcessingResult – итог обработки набора контактов.
 type ProcessingResult struct {
 	Saved     int                   `json:"saved"`
 	Conflicts []models.ConflictInfo `json:"conflicts"`
@@ -96,6 +97,9 @@ func ProcessContacts(ctx context.Context, store storage.ContactStore, data model
 		}
 
 		if ContactsEqual(existing, contact) {
+			if err := store.RecordContactMatch(ctx, existing, contact); err != nil {
+				return nil, fmt.Errorf("record matching contact: %w", err)
+			}
 			result.Skipped++
 			continue
 		}
@@ -127,33 +131,10 @@ func RowToContact(row map[string]string, phone, fileID string) models.Contact {
 			contact.Email = value
 		case utils.ColumnDiscount:
 			contact.Discount = value
-		case utils.ColumnGeneric:
-			if isNameLikeField(header) {
-				contact.Name = value
-			}
 		}
 	}
 
 	return contact
-}
-
-// isNameLikeField – определяет, относится ли колонка к имени клиента.
-
-// isNameLikeField:
-// 1. Нормализация имени колонки
-// 2. Сопоставление с известными вариантами имени
-//
-func isNameLikeField(header string) bool {
-	// 1. Нормализация имени колонки
-	key := utils.HeaderKey(header)
-
-	// 2. Сопоставление с известными вариантами имени
-	switch key {
-	case "имя", "фио", "name", "first name", "last name", "client", "клиент":
-		return true
-	default:
-		return false
-	}
 }
 
 // ContactsEqual – сравнивает два контакта по основным полям.
@@ -221,7 +202,13 @@ type FixRowInput struct {
 	Values    map[string]string `json:"values"`
 }
 
-func FixAndSaveRow(ctx context.Context, store storage.ContactStore, row FixRowInput, headers []string, phoneColumn string, fileID string) *FixRowError {
+// FixAndSaveRow – валидирует и сохраняет исправленную строку, учитывая возможные конфликты.
+
+// FixAndSaveRow:
+// 1. Очистка и нормализация значений строки
+// 2. Проверка корректности телефона, email, скидки и даты
+// 3. Сохранение контакта или формирование ошибки/конфликта
+func FixAndSaveRow(ctx context.Context, store storage.ContactStore, row FixRowInput, phoneColumn string, fileID string) *FixRowError {
 	rowErrors := make([]models.ProcessingWarning, 0)
 	values := make(map[string]string)
 
@@ -285,38 +272,10 @@ func FixAndSaveRow(ctx context.Context, store storage.ContactStore, row FixRowIn
 		}
 	}
 
+	// 3. Строка файла, контакт и аудит сохраняются одной транзакцией PostgreSQL.
 	contact := RowToContact(values, phone, fileID)
-	// Номер исходной строки попадёт в contact_sources вместе с контактом.
 	contact.SourceRow = row.RowNumber
-	existing, exists, err := store.GetContactByPhone(ctx, phone)
-	if err != nil {
-		return &FixRowError{
-			RowNumber: row.RowNumber,
-			Errors:    []models.ProcessingWarning{{Message: fmt.Sprintf("Ошибка БД: %v", err)}},
-		}
-	}
-
-	if exists {
-		if ContactsEqual(existing, contact) {
-			return nil
-		}
-		if err := store.ResolveConflict(ctx, phone, models.ConflictActionReplace, contact); err != nil {
-			return &FixRowError{
-				RowNumber: row.RowNumber,
-				Errors:    []models.ProcessingWarning{{Message: fmt.Sprintf("Ошибка сохранения: %v", err)}},
-			}
-		}
-		return nil
-	}
-
-	if _, err := store.SaveContact(ctx, contact); err != nil {
-		// Между предварительным SELECT и INSERT другой запрос мог успеть создать тот же телефон.
-		// В этом случае повторяем операцию уже как разрешение конфликта.
-		if errors.Is(err, storage.ErrContactAlreadyExists) {
-			if resolveErr := store.ResolveConflict(ctx, phone, models.ConflictActionReplace, contact); resolveErr == nil {
-				return nil
-			}
-		}
+	if err := store.SaveFixedRow(ctx, fileID, row.RowNumber, values, contact); err != nil {
 		return &FixRowError{
 			RowNumber: row.RowNumber,
 			Errors:    []models.ProcessingWarning{{Message: fmt.Sprintf("Ошибка сохранения: %v", err)}},

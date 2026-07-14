@@ -114,91 +114,38 @@ func (s *PostgresStorage) GetContactByPhone(ctx context.Context, phone string) (
 	return contact, true, nil
 }
 
-// ListContactsByFileID - возвращает контакты, которые встречались в конкретном файле.
-// DISTINCT ON не даёт одному контакту попасть в результат дважды.
-func (s *PostgresStorage) ListContactsByFileID(ctx context.Context, fileID string) ([]models.Contact, error) {
-	const listContactsByFileQuery = `
-		SELECT DISTINCT ON (c.id)
-			c.id,
-			c.uid::text,
-			c.phone,
-			c.email,
-			c.name,
-			c.discount,
-			c.created_at,
-			c.updated_at,
-			COALESCE(source.file_id, ''),
-			source.row_number
-		FROM contact_sources AS source
-		JOIN contacts AS c ON c.id = source.contact_id
-		WHERE source.file_id = $1
-		ORDER BY c.id, source.created_at DESC, source.id DESC
+// RecordContactMatch сохраняет связь с новым файлом, когда поля контакта совпали полностью.
+func (s *PostgresStorage) RecordContactMatch(ctx context.Context, existing, incoming models.Contact) error {
+	const insertMatchedSourceQuery = `
+		INSERT INTO contact_sources (contact_id, file_id, row_number, action, incoming)
+		VALUES ($1, $2, $3, $4, $5)
+		ON CONFLICT (contact_id, file_id, row_number, action) DO NOTHING
 	`
 
-	queryCtx, cancel := s.withTimeout(ctx)
-	defer cancel()
-
-	rows, err := s.pool.Query(queryCtx, listContactsByFileQuery, fileID)
-	if err != nil {
-		return nil, fmt.Errorf("list contacts by file id: %w", err)
-	}
-	defer rows.Close()
-
-	contacts := make([]models.Contact, 0)
-	for rows.Next() {
-		contact, err := scanContact(rows)
-		if err != nil {
-			return nil, fmt.Errorf("scan contact: %w", err)
-		}
-		contacts = append(contacts, contact)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate contacts: %w", err)
-	}
-	return contacts, nil
-}
-
-// UpdateContact - обновляет текущие данные контакта по ID.
-// Новое состояние и запись contact_versions фиксируются одной транзакцией.
-func (s *PostgresStorage) UpdateContact(ctx context.Context, contact models.Contact) error {
-	const updateContactQuery = `
-		UPDATE contacts
-		SET phone = $1, email = $2, name = $3, discount = $4
-		WHERE id = $5
-		RETURNING created_at, updated_at
-	`
-
-	queryCtx, cancel := s.withTimeout(ctx)
-	defer cancel()
-
-	tx, err := s.pool.Begin(queryCtx)
-	if err != nil {
-		return fmt.Errorf("begin update contact transaction: %w", err)
-	}
-	defer tx.Rollback(queryCtx)
-
-	err = tx.QueryRow(queryCtx, updateContactQuery,
-		contact.Phone,
-		contact.Email,
-		contact.Name,
-		contact.Discount,
-		contact.ID,
-	).Scan(
-		&contact.CreatedAt,
-		&contact.UpdatedAt,
-	)
-	if errors.Is(err, pgx.ErrNoRows) {
+	if existing.ID <= 0 {
 		return ErrContactNotFound
 	}
-	if err != nil {
-		return fmt.Errorf("update contact: %w", err)
+	if strings.TrimSpace(incoming.FileID) == "" {
+		return nil
 	}
+	incoming.ID = existing.ID
+	incoming.UID = existing.UID
 
-	if err := saveContactVersionTx(queryCtx, tx, contact, models.ContactEventUpdated); err != nil {
+	snapshotJSON, err := marshalContactSnapshot(incoming)
+	if err != nil {
 		return err
 	}
-	if err := tx.Commit(queryCtx); err != nil {
-		return fmt.Errorf("commit update contact transaction: %w", err)
+
+	queryCtx, cancel := s.withTimeout(ctx)
+	defer cancel()
+	if _, err := s.pool.Exec(queryCtx, insertMatchedSourceQuery,
+		existing.ID,
+		incoming.FileID,
+		incoming.SourceRow,
+		models.ContactEventMatched,
+		snapshotJSON,
+	); err != nil {
+		return fmt.Errorf("save matched contact source: %w", err)
 	}
 	return nil
 }

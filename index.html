@@ -733,7 +733,6 @@
       let currentHeaders = [];
       let detectedPhoneColumn = "";
       let searchTimer = 0;
-      let currentConflicts = [];
       let searchSequence = 0;
 
       uploadButton.addEventListener("click", async () => {
@@ -997,13 +996,9 @@
       }
 
       function renderInvalidRows(rows) {
-        const fixRowRow = document.getElementById("fixRowRow");
-        const fixButton = document.getElementById("fixRowsButton");
-        const fixStatus = document.getElementById("fixStatus");
-
         if (!rows.length) {
           invalidRowsTable.innerHTML = '<tbody><tr><td class="empty-state">Ошибочных строк нет.</td></tr></tbody>';
-          if (fixRowRow) fixRowRow.style.display = "none";
+          fixRowRow.style.display = "none";
           return;
         }
 
@@ -1060,8 +1055,8 @@
         });
 
         invalidRowsTable.replaceChildren(thead, tbody);
-        if (fixRowRow) fixRowRow.style.display = "flex";
-        if (fixStatus) fixStatus.textContent = "";
+        fixRowRow.style.display = "flex";
+        fixStatusEl.textContent = "";
       }
 
       function findTagAtCursor(range, direction) {
@@ -1516,7 +1511,6 @@
         saveStatus.textContent = "Нажмите, чтобы сохранить валидные данные в базу";
         saveButton.disabled = false;
         saveButton.textContent = "💾 Сохранить данные в БД";
-        currentConflicts = [];
       }
 
       saveButton.addEventListener("click", async () => {
@@ -1576,7 +1570,6 @@
       });
 
       function renderConflicts(conflicts) {
-        currentConflicts = conflicts || [];
         if (!conflicts.length) {
           conflictsSection.style.display = "none";
           return;
@@ -1683,7 +1676,6 @@
             showError(payload.error || "Ошибка при разрешении конфликта.");
             return;
           }
-
           const card = conflictsBlock.querySelector(`[data-index="${index}"]`);
           if (card) {
             card.style.opacity = "0.5";
@@ -1761,6 +1753,13 @@
             return;
           }
 
+          if (payload.stats) {
+            renderStats(payload.stats);
+          }
+          if (Array.isArray(payload.warnings)) {
+            renderWarnings(payload.warnings);
+          }
+
           if (payload.failed && payload.failed.length > 0) {
             const failedMsgs = payload.failed.map(f =>
               `Строка ${f.rowNumber}: ${(f.errors || []).map(e => e.message).join("; ")}`
@@ -1774,7 +1773,6 @@
             fixStatusEl.textContent = `✓ Исправлено: ${fixed}. ${failed > 0 ? `Ошибок: ${failed}` : ""}`;
             fixStatusEl.style.color = "#0f766e";
 
-            const editedRows = trs.length;
             const remainingRows = [];
             for (const tr of trs) {
               const rn = parseInt(tr.dataset.rowNumber, 10);
@@ -1798,7 +1796,7 @@
               renderInvalidRows(remainingRows);
             } else {
               invalidRowsTable.innerHTML = '<tbody><tr><td class="empty-state">Все строки исправлены ✓</td></tr></tbody>';
-              document.getElementById("fixRowRow").style.display = "none";
+              fixRowRow.style.display = "none";
             }
           }
 

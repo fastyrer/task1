@@ -9,6 +9,7 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"task1/models"
 	"task1/services"
@@ -84,11 +85,15 @@ func (h *ContactHandler) FixRows(w http.ResponseWriter, r *http.Request) {
 
 	result := services.FixRowResult{}
 	for _, row := range req.Rows {
-		if err := services.FixAndSaveRow(r.Context(), h.contacts, row, data.Headers, phoneColumn, data.ID); err != nil {
+		if err := services.FixAndSaveRow(r.Context(), h.contacts, row, phoneColumn, data.ID); err != nil {
 			result.Failed = append(result.Failed, *err)
 		} else {
 			result.Fixed++
 		}
+	}
+	if refreshed, found, refreshErr := h.store.GetFileData(r.Context(), data.ID); refreshErr == nil && found {
+		result.Stats = &refreshed.Stats
+		result.Warnings = refreshed.Warnings
 	}
 
 	writeJSON(w, http.StatusOK, result)
@@ -187,6 +192,7 @@ func (h *ContactHandler) Resolve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	req.Phone = strings.TrimSpace(req.Phone)
 	if req.Phone == "" {
 		writeJSONError(w, http.StatusBadRequest, services.ErrorPhoneEmpty)
 		return
@@ -195,7 +201,7 @@ func (h *ContactHandler) Resolve(w http.ResponseWriter, r *http.Request) {
 	switch req.Action {
 	case models.ConflictActionSkip, models.ConflictActionReplace, models.ConflictActionMerge:
 	default:
-		writeJSONError(w, http.StatusBadRequest, services.ErrUnsupportedFormat.Error())
+		writeJSONError(w, http.StatusBadRequest, services.ErrorUnsupportedAction)
 		return
 	}
 
@@ -209,7 +215,7 @@ func (h *ContactHandler) Resolve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	phoneColumn := findPhoneColumn(fd.Headers)
+	phoneColumn := utils.DetectPhoneColumn(fd.Headers)
 	if phoneColumn == "" {
 		writeJSONError(w, http.StatusBadRequest, services.ErrorPhoneColNotFound)
 		return
@@ -218,13 +224,9 @@ func (h *ContactHandler) Resolve(w http.ResponseWriter, r *http.Request) {
 	var incoming models.Contact
 	var found bool
 	for index, row := range fd.Rows {
-		if row[phoneColumn] == req.Phone {
+		if strings.TrimSpace(row[phoneColumn]) == req.Phone {
 			incoming = services.RowToContact(row, req.Phone, fd.ID)
-			// В аудит передаётся номер строки из файла, а не её позиция в slice.
-			incoming.SourceRow = index + 1
-			if index < len(fd.RowNumbers) && fd.RowNumbers[index] > 0 {
-				incoming.SourceRow = fd.RowNumbers[index]
-			}
+			incoming.SourceRow = fileRowNumber(fd, index)
 			found = true
 			break
 		}
@@ -291,40 +293,43 @@ func (h *ContactHandler) ResolveAll(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	phoneColumn := findPhoneColumn(fd.Headers)
+	phoneColumn := utils.DetectPhoneColumn(fd.Headers)
 	if phoneColumn == "" {
 		writeJSONError(w, http.StatusBadRequest, services.ErrorPhoneColNotFound)
 		return
 	}
 
 	resolved := 0
+	invalidRows := invalidRowNumbers(fd.InvalidRows)
 	for index, row := range fd.Rows {
-		phone := row[phoneColumn]
+		if _, invalid := invalidRows[fileRowNumber(fd, index)]; invalid {
+			continue
+		}
+
+		phone := strings.TrimSpace(row[phoneColumn])
 		if phone == "" {
 			continue
 		}
 
 		existing, exists, err := h.contacts.GetContactByPhone(r.Context(), phone)
 		if err != nil {
-			continue
+			writeJSONError(w, http.StatusInternalServerError, services.ErrorConflictNotSolved)
+			return
 		}
 		if !exists {
 			continue
 		}
 
 		incoming := services.RowToContact(row, phone, fd.ID)
-		// Запоминаем исходную строку для contact_sources при массовом разрешении.
-		incoming.SourceRow = index + 1
-		if index < len(fd.RowNumbers) && fd.RowNumbers[index] > 0 {
-			incoming.SourceRow = fd.RowNumbers[index]
-		}
+		incoming.SourceRow = fileRowNumber(fd, index)
 
 		if services.ContactsEqual(existing, incoming) {
 			continue
 		}
 
 		if err := h.contacts.ResolveConflict(r.Context(), phone, req.Action, incoming); err != nil {
-			continue
+			writeJSONError(w, http.StatusInternalServerError, services.ErrorConflictNotSolved)
+			return
 		}
 		resolved++
 	}
@@ -336,14 +341,17 @@ func (h *ContactHandler) ResolveAll(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// findPhoneColumn – находит название колонки с телефоном среди заголовков.
-// Дублирует utils.DetectPhoneColumn, но без создания зависимостей.
-// Используется в Resolve и ResolveAll как локальная утилита.
-func findPhoneColumn(headers []string) string {
-	for _, h := range headers {
-		if utils.ClassifyHeader(h) == utils.ColumnPhone {
-			return h
-		}
+func fileRowNumber(data models.FileData, index int) int {
+	if index < len(data.RowNumbers) && data.RowNumbers[index] > 0 {
+		return data.RowNumbers[index]
 	}
-	return ""
+	return index + 1
+}
+
+func invalidRowNumbers(rows []models.InvalidRow) map[int]struct{} {
+	result := make(map[int]struct{}, len(rows))
+	for _, row := range rows {
+		result[row.Row] = struct{}{}
+	}
+	return result
 }

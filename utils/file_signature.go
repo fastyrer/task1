@@ -43,7 +43,10 @@ func LooksBinary(content []byte) bool {
 	return controlCount*4 > limit
 }
 
-// DetectedMIMEType возвращает MIME-тип по распознанному формату.
+// DetectedMIMEType возвращает MIME-тип для распознанного формата.
+//
+// Для CSV/XLS/XLSX возвращает известный MIME-тип.
+// Для неизвестного формата — через http.DetectContentType.
 func DetectedMIMEType(format string, content []byte) string {
 	switch format {
 	case "csv":
@@ -55,12 +58,4 @@ func DetectedMIMEType(format string, content []byte) string {
 	default:
 		return http.DetectContentType(content)
 	}
-}
-
-// ExcelFormat определяет формат Excel по сигнатуре.
-func ExcelFormat(content []byte) string {
-	if IsXLSX(content) {
-		return "xlsx"
-	}
-	return "xls"
 }
