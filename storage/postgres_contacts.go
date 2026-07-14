@@ -71,6 +71,39 @@ func (s *PostgresStorage) SaveContact(ctx context.Context, contact models.Contac
 	return contact.UID, nil
 }
 
+// ListContacts - возвращает текущее состояние всех контактов для общей рассылки.
+// Уникальное ограничение contacts.phone гарантирует одну запись на номер телефона.
+func (s *PostgresStorage) ListContacts(ctx context.Context) ([]models.Contact, error) {
+	const listContactsQuery = `
+		SELECT id, uid::text, phone, email, name, discount, created_at, updated_at
+		FROM contacts
+		ORDER BY id
+	`
+
+	queryCtx, cancel := s.withTimeout(ctx)
+	defer cancel()
+
+	rows, err := s.pool.Query(queryCtx, listContactsQuery)
+	if err != nil {
+		return nil, fmt.Errorf("list contacts: %w", err)
+	}
+	defer rows.Close()
+
+	contacts := make([]models.Contact, 0)
+	for rows.Next() {
+		contact, err := scanCoreContact(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan listed contact: %w", err)
+		}
+		contacts = append(contacts, contact)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate contacts: %w", err)
+	}
+
+	return contacts, nil
+}
+
 // GetContactByPhone - возвращает актуальное состояние контакта по уникальному телефону.
 // LATERAL-подзапрос добавляет к ответу последний файл и номер строки-источника.
 func (s *PostgresStorage) GetContactByPhone(ctx context.Context, phone string) (models.Contact, bool, error) {

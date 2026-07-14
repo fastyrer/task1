@@ -79,6 +79,13 @@ func TestCleanPostgresSchemaAndContactResolution(t *testing.T) {
 	if !found || contact.ID <= 0 || contact.UID != uid {
 		t.Fatalf("unexpected contact identity: %#v", contact)
 	}
+	contacts, err := store.ListContacts(ctx)
+	if err != nil {
+		t.Fatalf("ListContacts: %v", err)
+	}
+	if len(contacts) != 1 || contacts[0].UID != uid || contacts[0].Phone != phone {
+		t.Fatalf("unexpected contact list: %#v", contacts)
+	}
 
 	const legacySchemaQuery = `
 		SELECT EXISTS (

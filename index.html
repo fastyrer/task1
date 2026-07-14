@@ -732,6 +732,7 @@
       let currentFileId = "";
       let currentHeaders = [];
       let detectedPhoneColumn = "";
+      const contactTemplateFields = ["Телефон", "Имя", "Email", "Скидка"];
       let searchTimer = 0;
       let searchSequence = 0;
 
@@ -814,6 +815,7 @@
 
       previewButton.addEventListener("click", handlePreview);
       exportButton.addEventListener("click", handleExport);
+      initConstructor();
 
       searchButton.addEventListener("click", () => {
         runSearch();
@@ -858,7 +860,6 @@
         renderPreview(currentHeaders, payload.previewRows || []);
         renderWarnings(payload.warnings || []);
         renderInvalidRows(payload.invalidRows || []);
-        initConstructor();
         showSavePanel();
       }
 
@@ -1173,7 +1174,7 @@
         constructorSection.style.display = "block";
         constructorHeaders.replaceChildren();
 
-        currentHeaders.forEach((header) => {
+        contactTemplateFields.forEach((header) => {
           const item = document.createElement("li");
           item.textContent = `{{${header}}}`;
           item.style.cursor = "pointer";
@@ -1181,9 +1182,7 @@
           constructorHeaders.appendChild(item);
         });
 
-        placeholderHint.textContent = detectedPhoneColumn
-          ? `Колонка телефона: ${detectedPhoneColumn}`
-          : "Колонка телефона не определена.";
+        placeholderHint.textContent = "Получатели: все сохранённые контакты в базе данных.";
         notificationResults.style.display = "none";
         exportButton.style.display = "none";
         notificationError.textContent = "";
@@ -1334,10 +1333,6 @@
         clearNotificationError();
 
         const template = templateInput.textContent || "";
-        if (!detectedPhoneColumn) {
-          showNotificationError("Не удалось определить колонку с номером телефона.");
-          return;
-        }
         if (!template.trim()) {
           showNotificationError("Введите шаблон сообщения.");
           return;
@@ -1350,11 +1345,7 @@
           const response = await fetch(previewURL, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              fileId: currentFileId,
-              phoneColumn: detectedPhoneColumn,
-              template,
-            }),
+            body: JSON.stringify({ template }),
           });
           const payload = await response.json();
 
@@ -1376,7 +1367,7 @@
         const notifications = payload.notifications || [];
         const skipped = payload.skipped || 0;
         if (!notifications.length) {
-          showNotificationError("Нет строк с номерами телефонов.");
+          showNotificationError("В базе данных нет сохранённых контактов.");
           notificationResults.style.display = "none";
           exportButton.style.display = "none";
           return;
@@ -1385,7 +1376,7 @@
         notificationResults.style.display = "";
         exportButton.style.display = "";
         resultSummary.textContent = skipped > 0
-          ? `Сформировано уведомлений: ${notifications.length}. Пропущено строк: ${skipped}`
+          ? `Сформировано уведомлений: ${notifications.length}. Пропущено контактов: ${skipped}`
           : `Сформировано уведомлений: ${notifications.length}`;
 
         const thead = document.createElement("thead");
@@ -1419,10 +1410,6 @@
         clearNotificationError();
 
         const template = templateInput.textContent || "";
-        if (!detectedPhoneColumn) {
-          showNotificationError("Не удалось определить колонку с номером телефона.");
-          return;
-        }
         if (!template.trim()) {
           showNotificationError("Введите шаблон сообщения.");
           return;
@@ -1435,11 +1422,7 @@
           const response = await fetch(exportURL, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              fileId: currentFileId,
-              phoneColumn: detectedPhoneColumn,
-              template,
-            }),
+            body: JSON.stringify({ template }),
           });
 
           if (!response.ok) {

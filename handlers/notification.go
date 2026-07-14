@@ -1,8 +1,8 @@
 // Package handlers содержит HTTP-обработчики для всех эндпоинтов приложения.
 //
-// notification.go – генерация уведомлений по шаблону.
-// POST /api/preview формирует уведомления из строк файла по шаблону
-// с плейсхолдерами {{Name}} и возвращает JSON с предпросмотром.
+// notification.go - генерация уведомлений по шаблону.
+// POST /api/preview формирует уведомления из актуальных контактов PostgreSQL
+// с фиксированными плейсхолдерами и возвращает JSON с предпросмотром.
 // POST /api/export делает то же самое, но возвращает CSV-файл
 // с колонками Телефон,Сообщение для скачивания.
 
@@ -10,50 +10,68 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"encoding/csv"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"net/http"
 	"strings"
 
 	"task1/models"
 	"task1/services"
-	"task1/storage"
 )
 
-// NotificationHandler инкапсулирует доступ к хранилищу файлов
+const (
+	phonePlaceholder    = "Телефон"
+	namePlaceholder     = "Имя"
+	emailPlaceholder    = "Email"
+	discountPlaceholder = "Скидка"
+)
+
+// contactTemplateFields - полный список полей, доступных в шаблоне рассылки.
+var contactTemplateFields = []string{
+	phonePlaceholder,
+	namePlaceholder,
+	emailPlaceholder,
+	discountPlaceholder,
+}
+
+// NotificationStore ограничивает обработчик единственной нужной операцией с контактами.
+type NotificationStore interface {
+	ListContacts(ctx context.Context) ([]models.Contact, error)
+}
+
+// NotificationHandler инкапсулирует чтение актуальных контактов из PostgreSQL.
 type NotificationHandler struct {
-	store storage.FileStore
+	store NotificationStore
 }
 
-// previewRequest содержит выбранный файл, телефонную колонку и шаблон.
+// previewRequest содержит шаблон общей рассылки по сохранённым контактам.
 type previewRequest struct {
-	FileID      string `json:"fileId"`
-	PhoneColumn string `json:"phoneColumn"`
-	Template    string `json:"template"`
+	Template string `json:"template"`
 }
 
-// notificationItem - готовое уведомление для одной строки файла.
+// notificationItem - готовое уведомление для одного контакта.
 type notificationItem struct {
 	Phone string `json:"phone"`
 	Text  string `json:"text"`
 	Row   int    `json:"row"`
 }
 
-// previewResponse содержит готовые уведомления и число пропущенных строк.
+// previewResponse содержит готовые уведомления и число пропущенных контактов.
 type previewResponse struct {
 	Notifications []notificationItem `json:"notifications"`
 	Skipped       int                `json:"skipped"`
 }
 
-// Привязывает два эндпоинта к одному NotificationHandler.
-func RegisterNotificationRoutes(mux *http.ServeMux, store storage.FileStore) {
+// RegisterNotificationRoutes привязывает два эндпоинта к одному NotificationHandler.
+func RegisterNotificationRoutes(mux *http.ServeMux, store NotificationStore) {
 	h := &NotificationHandler{store: store}
 	mux.HandleFunc("/api/preview", h.Preview)
 	mux.HandleFunc("/api/export", h.Export)
 }
 
-// Preview формирует JSON-предпросмотр уведомлений для выбранного файла.
+// Preview формирует JSON-предпросмотр по всем актуальным контактам.
 func (h *NotificationHandler) Preview(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodOptions {
 		w.WriteHeader(http.StatusNoContent)
@@ -69,24 +87,18 @@ func (h *NotificationHandler) Preview(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusBadRequest, services.ErrorBadRequest)
 		return
 	}
-
-	data, ok, err := h.store.GetFileData(r.Context(), req.FileID)
-	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, services.ErrorFileNotOpened)
-		return
-	}
-	if !ok {
-		writeJSONError(w, http.StatusNotFound, services.ErrorFileNotFound)
-		return
-	}
-
-	resp, err := h.generate(data, req)
-	if err != nil {
+	if err := validateNotificationTemplate(req.Template); err != nil {
 		writeJSONError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	writeJSON(w, http.StatusOK, resp)
+	contacts, err := h.store.ListContacts(r.Context())
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, services.ErrorContactsNotRead)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, generateNotifications(contacts, req.Template))
 }
 
 // Export формирует те же уведомления и возвращает CSV-файл с UTF-8 BOM.
@@ -105,22 +117,17 @@ func (h *NotificationHandler) Export(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusBadRequest, services.ErrorBadRequest)
 		return
 	}
-
-	data, ok, err := h.store.GetFileData(r.Context(), req.FileID)
-	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, services.ErrorFileNotOpened)
-		return
-	}
-	if !ok {
-		writeJSONError(w, http.StatusNotFound, services.ErrorFileNotFound)
-		return
-	}
-
-	resp, err := h.generate(data, req)
-	if err != nil {
+	if err := validateNotificationTemplate(req.Template); err != nil {
 		writeJSONError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+
+	contacts, err := h.store.ListContacts(r.Context())
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, services.ErrorContactsNotRead)
+		return
+	}
+	resp := generateNotifications(contacts, req.Template)
 
 	var buf bytes.Buffer
 	buf.Write([]byte{0xef, 0xbb, 0xbf})
@@ -130,8 +137,8 @@ func (h *NotificationHandler) Export(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusInternalServerError, "Не удалось сформировать CSV")
 		return
 	}
-	for _, n := range resp.Notifications {
-		if err := writer.Write([]string{n.Phone, n.Text}); err != nil {
+	for _, notification := range resp.Notifications {
+		if err := writer.Write([]string{notification.Phone, notification.Text}); err != nil {
 			writeJSONError(w, http.StatusInternalServerError, "Не удалось сформировать CSV")
 			return
 		}
@@ -147,57 +154,43 @@ func (h *NotificationHandler) Export(w http.ResponseWriter, r *http.Request) {
 	w.Write(buf.Bytes())
 }
 
-// generate проверяет шаблон и формирует уведомления только из валидных строк файла.
-func (h *NotificationHandler) generate(data models.FileData, req previewRequest) (previewResponse, error) {
-	req.PhoneColumn = strings.TrimSpace(req.PhoneColumn)
-	phoneExists := false
-	for _, h := range data.Headers {
-		if h == req.PhoneColumn {
-			phoneExists = true
-			break
-		}
-	}
-	if !phoneExists {
-		return previewResponse{}, fmt.Errorf("колонка %q не найдена в файле", req.PhoneColumn)
+// validateNotificationTemplate проверяет шаблон до обращения к PostgreSQL.
+func validateNotificationTemplate(template string) error {
+	if strings.TrimSpace(template) == "" {
+		return errors.New(services.ErrorTemplateEmpty)
 	}
 
-	if strings.TrimSpace(req.Template) == "" {
-		return previewResponse{}, fmt.Errorf("%s", services.ErrorTemplateEmpty)
-	}
+	placeholders := services.ParsePlaceholders(template)
+	return services.ValidateUnknownPlaceholders(placeholders, contactTemplateFields)
+}
 
-	placeholders := services.ParsePlaceholders(req.Template)
-	if err := services.ValidateUnknownPlaceholders(placeholders, data.Headers); err != nil {
-		return previewResponse{}, err
-	}
-
-	invalidSet := invalidRowNumbers(data.InvalidRows)
-
-	notifications := make([]notificationItem, 0, len(data.Rows))
+// generateNotifications формирует по одному сообщению на уникальный телефон из contacts.
+func generateNotifications(contacts []models.Contact, template string) previewResponse {
+	notifications := make([]notificationItem, 0, len(contacts))
 	skipped := 0
 
-	for i, row := range data.Rows {
-		phone := strings.TrimSpace(row[req.PhoneColumn])
+	for index, contact := range contacts {
+		phone := strings.TrimSpace(contact.Phone)
 		if phone == "" {
 			skipped++
 			continue
 		}
 
-		rowNumber := fileRowNumber(data, i)
-		if _, invalid := invalidSet[rowNumber]; invalid {
-			skipped++
-			continue
+		values := map[string]string{
+			phonePlaceholder:    phone,
+			namePlaceholder:     contact.Name,
+			emailPlaceholder:    contact.Email,
+			discountPlaceholder: contact.Discount,
 		}
-
-		text := services.GenerateText(req.Template, row)
 		notifications = append(notifications, notificationItem{
 			Phone: phone,
-			Text:  text,
-			Row:   rowNumber,
+			Text:  services.GenerateText(template, values),
+			Row:   index + 1,
 		})
 	}
 
 	return previewResponse{
 		Notifications: notifications,
 		Skipped:       skipped,
-	}, nil
+	}
 }

@@ -8,13 +8,17 @@ const (
 
 // CSV
 
-
 // Телефон
 const (
 	ErrorTemplateEmpty    = "Шаблон уведомления не может быть пустым"
 	ErrorPhoneEmpty       = "Пустой номер телефона"
 	ErrorPhoneColNotFound = "Не найдена колонка с телефоном"
 	ErrorPhoneNotFound    = "Запись с таким телефоном не найдена в файле"
+)
+
+// Контакты.
+const (
+	ErrorContactsNotRead = "Не удалось прочитать контакты из базы данных"
 )
 
 // Файлы.

@@ -26,6 +26,9 @@ type ContactStore interface {
 	// SaveContact создаёт контакт и возвращает его публичный UID.
 	SaveContact(ctx context.Context, contact models.Contact) (string, error)
 
+	// ListContacts возвращает все актуальные контакты для общей рассылки.
+	ListContacts(ctx context.Context) ([]models.Contact, error)
+
 	// GetContactByPhone – поиск контакта по телефону (телефон является уникальным ключом)
 	GetContactByPhone(ctx context.Context, phone string) (models.Contact, bool, error)
 

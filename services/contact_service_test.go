@@ -24,6 +24,10 @@ func (s *contactStoreStub) SaveContact(context.Context, models.Contact) (string,
 	return "", s.saveErr
 }
 
+func (s *contactStoreStub) ListContacts(context.Context) ([]models.Contact, error) {
+	return nil, nil
+}
+
 func (s *contactStoreStub) GetContactByPhone(context.Context, string) (models.Contact, bool, error) {
 	return s.existing, s.existingFound, nil
 }
