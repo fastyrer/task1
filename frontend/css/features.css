@@ -1,0 +1,265 @@
+#constructorSection {
+  display: none;
+}
+
+.template-editor {
+  min-height: 80px;
+  overflow-y: auto;
+  overflow-wrap: break-word;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px;
+  outline: none;
+  background: #fbfcfd;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  white-space: pre-wrap;
+}
+
+.template-editor:empty::before {
+  content: attr(data-placeholder);
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.template-editor .tag {
+  border-radius: 4px;
+  padding: 1px 3px;
+  background: #e0f2f1;
+  color: #0f766e;
+  user-select: all;
+}
+
+#notificationTable th:nth-child(2),
+#notificationTable td:nth-child(2) {
+  width: 200px;
+  white-space: nowrap;
+}
+
+.phone-empty {
+  opacity: 0.5;
+}
+
+.conflict-card {
+  margin-bottom: 12px;
+  border: 1px solid #e6a817;
+  border-radius: 8px;
+  padding: 14px;
+  background: #fffbe6;
+}
+
+.conflict-card[data-resolved="true"] {
+  opacity: 0.5;
+}
+
+.conflict-phone {
+  margin-bottom: 8px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.conflict-diff-table {
+  width: 100%;
+  margin: 8px 0;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.conflict-diff-table th,
+.conflict-diff-table td {
+  border: 1px solid var(--border);
+  padding: 6px 8px;
+  text-align: left;
+}
+
+.conflict-diff-table th {
+  background: #f1e8cc;
+  font-weight: 600;
+}
+
+.conflict-diff-table .diff {
+  background: #fff3cd;
+}
+
+.conflict-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.conflict-resolution {
+  color: #0f766e;
+  font-weight: 600;
+}
+
+.btn-outline {
+  min-height: 34px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 0 12px;
+  background: transparent;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-outline:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+.btn-outline.skip {
+  border-color: #6c757d;
+  color: #6c757d;
+}
+
+.btn-outline.skip:hover {
+  background: #6c757d;
+  color: #fff;
+}
+
+.btn-outline.replace {
+  border-color: #dc3545;
+  color: #dc3545;
+}
+
+.btn-outline.replace:hover {
+  background: #dc3545;
+  color: #fff;
+}
+
+.btn-outline.merge {
+  border-color: #0f766e;
+  color: #0f766e;
+}
+
+.btn-outline.merge:hover {
+  background: #0f766e;
+  color: #fff;
+}
+
+.collapsible {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.collapsible-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.collapsible-header:hover {
+  background: #f8fafb;
+}
+
+.collapsible-header h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.collapse-arrow {
+  color: var(--muted);
+  font-size: 12px;
+  transition: transform 0.2s;
+}
+
+.collapsible.closed .collapse-arrow {
+  transform: rotate(180deg);
+}
+
+.collapsible-body {
+  border-top: 1px solid var(--border);
+  padding: 16px 20px;
+}
+
+.collapsible.closed .collapsible-body {
+  display: none;
+}
+
+.save-panel {
+  border: 2px solid var(--accent);
+  background: linear-gradient(135deg, #e8f5f4 0%, #f0fdfb 100%);
+}
+
+.save-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.btn-primary.btn-lg {
+  min-height: 52px;
+  padding: 14px 28px;
+  font-size: 16px;
+}
+
+.save-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.save-stat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.save-stat.ok {
+  background: #e0f2f1;
+  color: #0f766e;
+}
+
+.save-stat.warn {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.save-stat.danger {
+  background: #fff1f1;
+  color: #a51d2d;
+}
+
+.fix-row-actions {
+  margin-top: 12px;
+}
+
+.conflicts-title {
+  margin: 16px 0 12px;
+}
+
+.invalid-row-number {
+  font-weight: 600;
+}
+
+.invalid-value-cell {
+  background: #fffdf5;
+  cursor: text;
+}
+
+.invalid-value-cell:focus {
+  outline: 2px solid var(--accent);
+}
+
+.invalid-errors {
+  color: #a51d2d;
+  font-size: 13px;
+}
+
+/* Должно идти после компонентных display-правил, чтобы скрывать action-row. */
+.is-hidden {
+  display: none;
+}

@@ -69,7 +69,7 @@ func ProcessContacts(ctx context.Context, store storage.ContactStore, data model
 		}
 
 		// 6. Создание объекта контакта из строки.
-		// Для аудита берём исходный номер, а не индекс в Go-slice.
+		// Для связи с источником берём исходный номер, а не индекс в Go-slice.
 		rowNumber := i + 1
 		if i < len(data.RowNumbers) && data.RowNumbers[i] > 0 {
 			rowNumber = data.RowNumbers[i]
@@ -272,7 +272,7 @@ func FixAndSaveRow(ctx context.Context, store storage.ContactStore, row FixRowIn
 		}
 	}
 
-	// 3. Строка файла, контакт и аудит сохраняются одной транзакцией PostgreSQL.
+	// 3. Строка файла, контакт и связь с источником сохраняются одной транзакцией PostgreSQL.
 	contact := RowToContact(values, phone, fileID)
 	contact.SourceRow = row.RowNumber
 	if err := store.SaveFixedRow(ctx, fileID, row.RowNumber, values, contact); err != nil {

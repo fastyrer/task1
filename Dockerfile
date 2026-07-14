@@ -8,7 +8,8 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 # В сборку попадают только файлы, нужные приложению.
-COPY main.go index.html ./
+COPY main.go ./
+COPY frontend ./frontend
 COPY handlers ./handlers
 COPY models ./models
 COPY services ./services
