@@ -13,7 +13,7 @@ import (
 	"task1/models"
 )
 
-// SaveFixedRow сохраняет исправленную строку, контакт и аудит одной транзакцией.
+// SaveFixedRow сохраняет исправленную строку, контакт и связь с источником одной транзакцией.
 func (s *PostgresStorage) SaveFixedRow(
 	ctx context.Context,
 	fileID string,

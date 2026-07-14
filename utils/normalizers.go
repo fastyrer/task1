@@ -1,15 +1,11 @@
 // normalizers.go – приведение данных к единому формату.
-//
-// NormalizePhone приводит российские номера к +7 (XXX) XXX-XX-XX,
-// NormalizeEmail проверяет и приводит к нижнему регистру,
-// NormalizePercent нормализует проценты (0–100) к числовому виду.
+
 package utils
 
 import (
-	"fmt"
+	"net/mail"
 	"strconv"
 	"strings"
-	"net/mail"
 )
 
 const maxPhoneDigits = 11
@@ -41,11 +37,7 @@ func NormalizePhone(value string) (string, bool) {
 		return "", false
 	}
 
-	return fmt.Sprintf(
-		"+7 (%s) %s-%s-%s",
-		normalized[2:5], normalized[5:8],
-		normalized[8:10], normalized[10:12],
-	), true
+	return normalized, true
 }
 
 func NormalizeEmail(value string) (string, bool) {

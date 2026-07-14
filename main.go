@@ -8,19 +8,22 @@
 //  2. storage.NewFromEnv(ctx) – подключение к уже мигрированной PostgreSQL
 //  3. http.NewServeMux() – мультиплексор маршрутов
 //  4. Register*Routes – регистрация всех обработчиков
-//  5. registerFrontend(mux) – раздача встроенного index.html
+//  5. registerFrontend(mux) – раздача встроенной директории frontend
 //  6. http.ListenAndServe(addr, withCORS(mux)) – запуск сервера
 package main
 
 import (
 	"bytes"
 	"context"
-	_ "embed"
+	"embed"
 	"errors"
+	"fmt"
+	"io/fs"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -28,8 +31,8 @@ import (
 	"task1/storage"
 )
 
-//go:embed index.html
-var frontendHTML []byte
+//go:embed frontend
+var frontendFiles embed.FS
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -75,7 +78,9 @@ func main() {
 	handlers.RegisterNotificationRoutes(mux, store)   // POST /api/preview, /api/export
 	handlers.RegisterSearchRoutes(mux, store)         // POST /api/search
 	handlers.RegisterContactRoutes(mux, store, store) // POST /api/contacts/*, /api/rows/fix
-	registerFrontend(mux)                             // GET / → frontend/index.html
+	if err := registerFrontend(mux); err != nil {     // GET / и статические frontend-ресурсы
+		log.Fatal(err)
+	}
 
 	// Порт из окружения или 8080 по умолчанию.
 	port := os.Getenv("PORT")
@@ -118,22 +123,48 @@ func main() {
 	}
 }
 
-// registerFrontend - отдаёт встроенный index.html независимо от рабочей директории.
-// Благодаря go:embed фронтенд находится внутри одного Go-бинарника.
-func registerFrontend(mux *http.ServeMux) {
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/" || r.Method != http.MethodGet {
+// registerFrontend - подключает встроенные HTML, CSS и JavaScript к HTTP-серверу.
+// Благодаря go:embed frontend остаётся внутри одного Go-бинарника.
+func registerFrontend(mux *http.ServeMux) error {
+	frontendRoot, err := fs.Sub(frontendFiles, "frontend")
+	if err != nil {
+		return fmt.Errorf("open embedded frontend: %w", err)
+	}
+
+	mux.Handle("/", frontendHandler(frontendRoot))
+	return nil
+}
+
+// frontendHandler отдаёт только существующие файлы и не показывает каталоги.
+func frontendHandler(frontendRoot fs.FS) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
 			http.NotFound(w, r)
 			return
 		}
 
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		name := strings.TrimPrefix(r.URL.Path, "/")
+		if name == "" {
+			name = "index.html"
+		}
+		if !fs.ValidPath(name) {
+			http.NotFound(w, r)
+			return
+		}
+
+		content, err := fs.ReadFile(frontendRoot, name)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+
+		w.Header().Set("Cache-Control", "no-cache")
 		http.ServeContent(
 			w,
 			r,
-			"index.html",
+			name,
 			time.Time{},
-			bytes.NewReader(frontendHTML),
+			bytes.NewReader(content),
 		)
 	})
 }

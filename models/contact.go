@@ -18,7 +18,7 @@ type Contact struct {
 	Name     string `json:"name,omitempty"`
 	Discount string `json:"discount,omitempty"`
 	FileID   string `json:"fileId"`
-	// SourceRow хранит исходный номер строки файла для аудита и не отдаётся в JSON API.
+	// SourceRow хранит номер строки для связи контакта с файлом-источником.
 	SourceRow int       `json:"-"`
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
