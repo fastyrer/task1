@@ -34,12 +34,29 @@ var frontendHTML []byte
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	// Режим migrate не запускает HTTP-сервер: он применяет схему и сразу завершается.
-	if len(os.Args) == 2 && os.Args[1] == "migrate" {
-		if err := storage.MigrateFromEnv(ctx); err != nil {
-			log.Fatal(err)
+	// Режим migrate не запускает HTTP-сервер и поддерживает направления up/down.
+	if len(os.Args) >= 2 && os.Args[1] == "migrate" {
+		direction := "up"
+		if len(os.Args) == 3 {
+			direction = os.Args[2]
+		} else if len(os.Args) > 3 {
+			log.Fatal("usage: server migrate [up|down]")
 		}
-		log.Print("postgres migrations applied")
+
+		switch direction {
+		case "up":
+			if err := storage.MigrateFromEnv(ctx); err != nil {
+				log.Fatal(err)
+			}
+			log.Print("postgres migrations applied")
+		case "down":
+			if err := storage.RollbackMigrationFromEnv(ctx); err != nil {
+				log.Fatal(err)
+			}
+			log.Print("postgres migration rolled back")
+		default:
+			log.Fatal("usage: server migrate [up|down]")
+		}
 		return
 	}
 

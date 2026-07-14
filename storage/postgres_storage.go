@@ -107,6 +107,43 @@ func MigratePostgres(ctx context.Context, databaseURL string) error {
 	return nil
 }
 
+// RollbackPostgresMigration - откатывает последнюю применённую миграцию.
+// Команда предназначена для контролируемого отката и может удалять данные.
+func RollbackPostgresMigration(ctx context.Context, databaseURL string) error {
+	databaseURL = strings.TrimSpace(databaseURL)
+	if databaseURL == "" {
+		return fmt.Errorf("DATABASE_URL is required")
+	}
+
+	config, err := pgxpool.ParseConfig(databaseURL)
+	if err != nil {
+		return fmt.Errorf("parse migration DATABASE_URL: %w", err)
+	}
+	config.MaxConns = 1
+	config.MinConns = 0
+	config.ConnConfig.RuntimeParams["application_name"] = "task1-migrations-down"
+
+	migrationCtx, cancel := context.WithTimeout(
+		ctx,
+		envDuration("DB_MIGRATION_TIMEOUT_SECONDS", 60*time.Second),
+	)
+	defer cancel()
+
+	pool, err := pgxpool.NewWithConfig(migrationCtx, config)
+	if err != nil {
+		return fmt.Errorf("create migration rollback pool: %w", err)
+	}
+	defer pool.Close()
+
+	if err := pool.Ping(migrationCtx); err != nil {
+		return fmt.Errorf("ping postgres for migration rollback: %w", err)
+	}
+	if err := runMigrationDown(migrationCtx, pool); err != nil {
+		return fmt.Errorf("roll back postgres migration: %w", err)
+	}
+	return nil
+}
+
 // Ping - проверяет, что пул может выполнить запрос к PostgreSQL.
 func (s *PostgresStorage) Ping(ctx context.Context) error {
 	return s.pool.Ping(ctx)

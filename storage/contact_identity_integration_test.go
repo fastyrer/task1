@@ -33,6 +33,12 @@ func TestCleanPostgresSchemaAndContactResolution(t *testing.T) {
 	if err := MigratePostgres(ctx, databaseURL); err != nil {
 		t.Fatalf("MigratePostgres repeated run: %v", err)
 	}
+	if err := RollbackPostgresMigration(ctx, databaseURL); err != nil {
+		t.Fatalf("RollbackPostgresMigration: %v", err)
+	}
+	if err := MigratePostgres(ctx, databaseURL); err != nil {
+		t.Fatalf("MigratePostgres after rollback: %v", err)
+	}
 	store, err := NewPostgresStorage(ctx, databaseURL)
 	if err != nil {
 		t.Fatalf("NewPostgresStorage: %v", err)

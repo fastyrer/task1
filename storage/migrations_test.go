@@ -21,6 +21,12 @@ func TestLoadEmbeddedMigrations(t *testing.T) {
 	if len(migration.Script) == 0 {
 		t.Fatal("migration script is empty")
 	}
+	if migration.DownName != "000001_initial_schema.down.sql" {
+		t.Fatalf("down migration name = %q", migration.DownName)
+	}
+	if len(migration.DownScript) == 0 {
+		t.Fatal("down migration script is empty")
+	}
 	if len(migration.Checksum) != 64 {
 		t.Fatalf("migration checksum length = %d, want 64", len(migration.Checksum))
 	}

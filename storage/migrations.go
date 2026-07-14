@@ -21,16 +21,99 @@ import (
 // Он не даёт двум экземплярам мигратора менять схему одновременно.
 const migrationLockID int64 = 7420198463521
 
-// migrationFS содержит .up.sql-файлы внутри Go-бинарника.
+// migrationFS содержит парные up/down SQL-файлы внутри Go-бинарника.
 //
-//go:embed migrations/*.up.sql
+//go:embed migrations/*.up.sql migrations/*.down.sql
 var migrationFS embed.FS
 
 type embeddedMigration struct {
-	Version  int64
-	Name     string
-	Script   []byte
-	Checksum string
+	Version    int64
+	Name       string
+	Script     []byte
+	DownName   string
+	DownScript []byte
+	Checksum   string
+}
+
+// runMigrationDown откатывает последнюю применённую миграцию.
+func runMigrationDown(ctx context.Context, pool *pgxpool.Pool) error {
+	const lockMigrationsQuery = `SELECT pg_advisory_xact_lock($1)`
+	const migrationsTableExistsQuery = `
+		SELECT to_regclass(current_schema() || '.schema_migrations') IS NOT NULL
+	`
+	const latestMigrationQuery = `
+		SELECT version, name, checksum
+		FROM schema_migrations
+		ORDER BY version DESC
+		LIMIT 1
+	`
+	const deleteMigrationQuery = `DELETE FROM schema_migrations WHERE version = $1`
+	const remainingMigrationsQuery = `SELECT count(*) FROM schema_migrations`
+	const dropMigrationsTableQuery = `DROP TABLE schema_migrations`
+
+	migrations, err := loadEmbeddedMigrations()
+	if err != nil {
+		return err
+	}
+
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin migration rollback transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	if _, err := tx.Exec(ctx, lockMigrationsQuery, migrationLockID); err != nil {
+		return fmt.Errorf("lock migration rollback: %w", err)
+	}
+
+	var migrationsTableExists bool
+	if err := tx.QueryRow(ctx, migrationsTableExistsQuery).Scan(&migrationsTableExists); err != nil {
+		return fmt.Errorf("check schema_migrations: %w", err)
+	}
+	if !migrationsTableExists {
+		return fmt.Errorf("no applied migrations to roll back")
+	}
+
+	var applied embeddedMigration
+	if err := tx.QueryRow(ctx, latestMigrationQuery).Scan(&applied.Version, &applied.Name, &applied.Checksum); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return fmt.Errorf("no applied migrations to roll back")
+		}
+		return fmt.Errorf("read latest migration: %w", err)
+	}
+
+	var target *embeddedMigration
+	for index := range migrations {
+		if migrations[index].Version == applied.Version {
+			target = &migrations[index]
+			break
+		}
+	}
+	if target == nil || target.Name != applied.Name || target.Checksum != applied.Checksum {
+		return fmt.Errorf("applied migration %d does not match application", applied.Version)
+	}
+
+	if _, err := tx.Exec(ctx, string(target.DownScript)); err != nil {
+		return fmt.Errorf("roll back migration %s: %w", target.Name, err)
+	}
+	if _, err := tx.Exec(ctx, deleteMigrationQuery, target.Version); err != nil {
+		return fmt.Errorf("delete migration %s: %w", target.Name, err)
+	}
+
+	var remaining int
+	if err := tx.QueryRow(ctx, remainingMigrationsQuery).Scan(&remaining); err != nil {
+		return fmt.Errorf("count remaining migrations: %w", err)
+	}
+	if remaining == 0 {
+		if _, err := tx.Exec(ctx, dropMigrationsTableQuery); err != nil {
+			return fmt.Errorf("drop empty schema_migrations: %w", err)
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit migration rollback: %w", err)
+	}
+	return nil
 }
 
 type migrationQueryer interface {
@@ -119,9 +202,16 @@ func loadEmbeddedMigrations() ([]embeddedMigration, error) {
 	}
 
 	names := make([]string, 0, len(entries))
+	downNames := make(map[string]struct{})
 	for _, entry := range entries {
-		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".up.sql") {
+		if entry.IsDir() {
+			continue
+		}
+		switch {
+		case strings.HasSuffix(entry.Name(), ".up.sql"):
 			names = append(names, entry.Name())
+		case strings.HasSuffix(entry.Name(), ".down.sql"):
+			downNames[entry.Name()] = struct{}{}
 		}
 	}
 	sort.Strings(names)
@@ -141,14 +231,34 @@ func loadEmbeddedMigrations() ([]embeddedMigration, error) {
 		if err != nil {
 			return nil, fmt.Errorf("read migration %s: %w", name, err)
 		}
+		downName := strings.TrimSuffix(name, ".up.sql") + ".down.sql"
+		if _, exists := downNames[downName]; !exists {
+			return nil, fmt.Errorf("down migration for %q is missing", name)
+		}
+		downScript, err := migrationFS.ReadFile("migrations/" + downName)
+		if err != nil {
+			return nil, fmt.Errorf("read migration %s: %w", downName, err)
+		}
+		delete(downNames, downName)
+
 		checksum := fmt.Sprintf("%x", sha256.Sum256(script))
 		migrations = append(migrations, embeddedMigration{
-			Version: version, Name: name, Script: script, Checksum: checksum,
+			Version:    version,
+			Name:       name,
+			Script:     script,
+			DownName:   downName,
+			DownScript: downScript,
+			Checksum:   checksum,
 		})
 		seenVersions[version] = name
 	}
 	if len(migrations) == 0 {
 		return nil, fmt.Errorf("no embedded migrations found")
+	}
+	if len(downNames) > 0 {
+		for name := range downNames {
+			return nil, fmt.Errorf("up migration for %q is missing", name)
+		}
 	}
 	return migrations, nil
 }

@@ -73,6 +73,15 @@ func MigrateFromEnv(ctx context.Context) error {
 	return MigratePostgres(ctx, databaseURL)
 }
 
+// RollbackMigrationFromEnv - откатывает последнюю миграцию из DATABASE_URL.
+func RollbackMigrationFromEnv(ctx context.Context) error {
+	databaseURL, err := databaseURLFromEnv()
+	if err != nil {
+		return err
+	}
+	return RollbackPostgresMigration(ctx, databaseURL)
+}
+
 // databaseURLFromEnv - читает и проверяет обязательную строку подключения.
 func databaseURLFromEnv() (string, error) {
 	databaseURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
