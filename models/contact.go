@@ -1,7 +1,13 @@
+// Package models хранит структуры данных
+//
+// contact.go – Сохранение строк из загруженных файлов как структурированных
+// записей с дедупликацией по телефону.
+
 package models
 
 import "time"
 
+// Один контакт — одна строка из файла, приведённая к фиксированным полям
 type Contact struct {
 	// ID - внутренний автоинкрементный ключ PostgreSQL; наружу через API не отдаётся.
 	ID int64 `json:"-"`
@@ -41,6 +47,7 @@ const (
 	ConflictActionMerge   ConflictAction = "merge"
 )
 
+// Информация об одном конфликте
 type ConflictInfo struct {
 	Row         int               `json:"row"`
 	Phone       string            `json:"phone"`
@@ -50,12 +57,16 @@ type ConflictInfo struct {
 	Actions     []ConflictAction  `json:"actions"`
 }
 
+// Запросы на разрешение
+
+// ResolveRequest разрешает конфликт для одного телефона
 type ResolveRequest struct {
 	FileID string         `json:"fileId"`
 	Phone  string         `json:"phone"`
 	Action ConflictAction `json:"action"`
 }
 
+// BatchResolveRequest разрешает все конфликты в одном файле за один раз
 type BatchResolveRequest struct {
 	FileID string         `json:"fileId"`
 	Action ConflictAction `json:"action"`
