@@ -16,8 +16,8 @@ import (
 
 var uuidPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
 
-// TestContactSerialIDAndGeneratedUID проверяет конечную схему на отдельной тестовой БД.
-func TestContactSerialIDAndGeneratedUID(t *testing.T) {
+// TestCleanPostgresSchemaAndContactResolution проверяет схему и разрешение конфликтов.
+func TestCleanPostgresSchemaAndContactResolution(t *testing.T) {
 	databaseURL := strings.TrimSpace(os.Getenv("TEST_DATABASE_URL"))
 	if databaseURL == "" {
 		t.Skip("TEST_DATABASE_URL is not set")
@@ -29,6 +29,9 @@ func TestContactSerialIDAndGeneratedUID(t *testing.T) {
 
 	if err := MigratePostgres(ctx, databaseURL); err != nil {
 		t.Fatalf("MigratePostgres: %v", err)
+	}
+	if err := MigratePostgres(ctx, databaseURL); err != nil {
+		t.Fatalf("MigratePostgres repeated run: %v", err)
 	}
 	store, err := NewPostgresStorage(ctx, databaseURL)
 	if err != nil {
@@ -71,38 +74,64 @@ func TestContactSerialIDAndGeneratedUID(t *testing.T) {
 		t.Fatalf("unexpected contact identity: %#v", contact)
 	}
 
-	const dataColumnQuery = `
+	const legacySchemaQuery = `
 		SELECT EXISTS (
 			SELECT 1
 			FROM information_schema.columns
 			WHERE table_schema = current_schema()
-			  AND table_name IN ('contacts', 'contact_versions')
-			  AND column_name = 'data'
+			  AND (
+				(table_name = 'contacts' AND column_name IN ('data', 'file_id')) OR
+				(table_name = 'uploaded_files' AND column_name = 'payload') OR
+				(table_name = 'contact_sources' AND column_name = 'incoming')
+			  )
+		) OR EXISTS (
+			SELECT 1
+			FROM information_schema.tables
+			WHERE table_schema = current_schema()
+			  AND table_name = 'contact_versions'
 		)
 	`
-	var dataColumnExists bool
-	if err := store.pool.QueryRow(ctx, dataColumnQuery).Scan(&dataColumnExists); err != nil {
-		t.Fatalf("check data columns: %v", err)
+	var legacySchemaExists bool
+	if err := store.pool.QueryRow(ctx, legacySchemaQuery).Scan(&legacySchemaExists); err != nil {
+		t.Fatalf("check legacy schema: %v", err)
 	}
-	if dataColumnExists {
-		t.Fatal("contacts schema must not contain data columns")
+	if legacySchemaExists {
+		t.Fatal("database must not contain legacy columns or contact_versions")
 	}
 
-	const payloadColumnQuery = `
-		SELECT EXISTS (
-			SELECT 1
-			FROM information_schema.columns
-			WHERE table_schema = current_schema()
-			  AND table_name = 'uploaded_files'
-			  AND column_name = 'payload'
-		)
-	`
-	var payloadColumnExists bool
-	if err := store.pool.QueryRow(ctx, payloadColumnQuery).Scan(&payloadColumnExists); err != nil {
-		t.Fatalf("check payload column: %v", err)
+	incoming := models.Contact{
+		Phone:     phone,
+		Name:      "Пётр",
+		FileID:    fileID,
+		SourceRow: 2,
 	}
-	if payloadColumnExists {
-		t.Fatal("uploaded_files schema must not contain legacy payload")
+	if err := store.ResolveConflict(ctx, phone, models.ConflictActionSkip, incoming); err != nil {
+		t.Fatalf("ResolveConflict skip: %v", err)
+	}
+	if err := store.ResolveConflict(ctx, phone, models.ConflictActionReplace, incoming); err != nil {
+		t.Fatalf("ResolveConflict replace: %v", err)
+	}
+	if err := store.ResolveConflict(ctx, phone, models.ConflictActionReplace, incoming); err != nil {
+		t.Fatalf("ResolveConflict repeated replace: %v", err)
+	}
+
+	contact, found, err = store.GetContactByPhone(ctx, phone)
+	if err != nil || !found || contact.Name != incoming.Name {
+		t.Fatalf("resolved contact: found=%v contact=%#v err=%v", found, contact, err)
+	}
+
+	const sourceStateQuery = `
+		SELECT count(*), max(action)
+		FROM contact_sources
+		WHERE contact_id = $1 AND file_id = $2 AND row_number = $3
+	`
+	var sourceCount int
+	var sourceAction string
+	if err := store.pool.QueryRow(ctx, sourceStateQuery, contact.ID, fileID, 2).Scan(&sourceCount, &sourceAction); err != nil {
+		t.Fatalf("read contact source: %v", err)
+	}
+	if sourceCount != 1 || sourceAction != string(models.ContactSourceReplaced) {
+		t.Fatalf("contact source count=%d action=%q", sourceCount, sourceAction)
 	}
 
 	fixedPhone := fmt.Sprintf("+7 (998) %s-%s-%s", phoneDigits[0:3], phoneDigits[3:5], phoneDigits[5:7])

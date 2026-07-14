@@ -1,10 +1,9 @@
 // postgres_contacts.go - CRUD контактов, дедупликация по телефону,
-// разрешение конфликтов, источники и история изменений.
+// разрешение конфликтов и связь контактов со строками файлов.
 package storage
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -26,7 +25,7 @@ type rowScanner interface {
 //  1. PostgreSQL генерирует внутренний serial ID и публичный UID.
 //  2. Вставляет фиксированные поля через ON CONFLICT (phone) DO NOTHING.
 //  3. Если телефон уже есть, возвращает ErrContactAlreadyExists.
-//  4. В той же транзакции пишет первую версию и связь с файлом-источником.
+//  4. В той же транзакции связывает контакт со строкой файла.
 func (s *PostgresStorage) SaveContact(ctx context.Context, contact models.Contact) (string, error) {
 	const insertContactQuery = `
 		INSERT INTO contacts (phone, email, name, discount)
@@ -62,10 +61,7 @@ func (s *PostgresStorage) SaveContact(ctx context.Context, contact models.Contac
 		return "", fmt.Errorf("insert contact: %w", err)
 	}
 
-	if err := saveContactVersionTx(queryCtx, tx, contact, models.ContactEventCreated); err != nil {
-		return "", err
-	}
-	if err := saveContactSourceTx(queryCtx, tx, contact, models.ContactEventCreated); err != nil {
+	if err := saveContactSourceTx(queryCtx, tx, contact, models.ContactSourceCreated); err != nil {
 		return "", err
 	}
 	if err := tx.Commit(queryCtx); err != nil {
@@ -95,7 +91,7 @@ func (s *PostgresStorage) GetContactByPhone(ctx context.Context, phone string) (
 			SELECT file_id, row_number
 			FROM contact_sources
 			WHERE contact_id = c.id
-			ORDER BY created_at DESC, id DESC
+			ORDER BY updated_at DESC, id DESC
 			LIMIT 1
 		) AS source ON TRUE
 		WHERE c.phone = $1
@@ -116,10 +112,12 @@ func (s *PostgresStorage) GetContactByPhone(ctx context.Context, phone string) (
 
 // RecordContactMatch сохраняет связь с новым файлом, когда поля контакта совпали полностью.
 func (s *PostgresStorage) RecordContactMatch(ctx context.Context, existing, incoming models.Contact) error {
-	const insertMatchedSourceQuery = `
-		INSERT INTO contact_sources (contact_id, file_id, row_number, action, incoming)
-		VALUES ($1, $2, $3, $4, $5)
-		ON CONFLICT (contact_id, file_id, row_number, action) DO NOTHING
+	const upsertMatchedSourceQuery = `
+		INSERT INTO contact_sources (contact_id, file_id, row_number, action)
+		VALUES ($1, $2, $3, $4)
+		ON CONFLICT (contact_id, file_id, row_number) DO UPDATE SET
+			action = EXCLUDED.action,
+			updated_at = now()
 	`
 
 	if existing.ID <= 0 {
@@ -128,22 +126,13 @@ func (s *PostgresStorage) RecordContactMatch(ctx context.Context, existing, inco
 	if strings.TrimSpace(incoming.FileID) == "" {
 		return nil
 	}
-	incoming.ID = existing.ID
-	incoming.UID = existing.UID
-
-	snapshotJSON, err := marshalContactSnapshot(incoming)
-	if err != nil {
-		return err
-	}
-
 	queryCtx, cancel := s.withTimeout(ctx)
 	defer cancel()
-	if _, err := s.pool.Exec(queryCtx, insertMatchedSourceQuery,
+	if _, err := s.pool.Exec(queryCtx, upsertMatchedSourceQuery,
 		existing.ID,
 		incoming.FileID,
 		incoming.SourceRow,
-		models.ContactEventMatched,
-		snapshotJSON,
+		models.ContactSourceMatched,
 	); err != nil {
 		return fmt.Errorf("save matched contact source: %w", err)
 	}
@@ -156,7 +145,7 @@ func (s *PostgresStorage) RecordContactMatch(ctx context.Context, existing, inco
 //  1. SELECT ... FOR UPDATE блокирует контакт до конца транзакции.
 //  2. Проверка contact_sources делает повторный запрос идемпотентным.
 //  3. skip записывает только решение, replace заменяет данные, merge дополняет пустые поля.
-//  4. Версия, источник и контакт изменяются в одной транзакции.
+//  4. Решение и текущее состояние контакта изменяются в одной транзакции.
 func (s *PostgresStorage) ResolveConflict(ctx context.Context, phone string, action models.ConflictAction, incoming models.Contact) error {
 	const lockContactByPhoneQuery = `
 		SELECT id, uid::text, phone, email, name, discount, created_at, updated_at
@@ -192,7 +181,7 @@ func (s *PostgresStorage) ResolveConflict(ctx context.Context, phone string, act
 		return fmt.Errorf("lock conflicting contact: %w", err)
 	}
 
-	eventAction, err := eventActionForConflict(action)
+	sourceAction, err := sourceActionForConflict(action)
 	if err != nil {
 		return err
 	}
@@ -202,7 +191,7 @@ func (s *PostgresStorage) ResolveConflict(ctx context.Context, phone string, act
 			existing.ID,
 			incoming.FileID,
 			incoming.SourceRow,
-			eventAction,
+			sourceAction,
 		).Scan(&alreadyApplied); err != nil {
 			return fmt.Errorf("check conflict idempotency: %w", err)
 		}
@@ -217,16 +206,16 @@ func (s *PostgresStorage) ResolveConflict(ctx context.Context, phone string, act
 
 	switch action {
 	case models.ConflictActionSkip:
-		if err := saveContactSourceTx(queryCtx, tx, incoming, models.ContactEventSkipped); err != nil {
+		if err := saveContactSourceTx(queryCtx, tx, incoming, models.ContactSourceSkipped); err != nil {
 			return err
 		}
 	case models.ConflictActionReplace:
-		if err := updateResolvedContact(queryCtx, tx, &incoming, models.ContactEventReplaced); err != nil {
+		if err := updateResolvedContact(queryCtx, tx, &incoming, models.ContactSourceReplaced); err != nil {
 			return err
 		}
 	case models.ConflictActionMerge:
 		mergeContact(&incoming, existing)
-		if err := updateResolvedContact(queryCtx, tx, &incoming, models.ContactEventMerged); err != nil {
+		if err := updateResolvedContact(queryCtx, tx, &incoming, models.ContactSourceMerged); err != nil {
 			return err
 		}
 	default:
@@ -278,9 +267,9 @@ func scanCoreContact(row rowScanner) (models.Contact, error) {
 	return contact, nil
 }
 
-// updateResolvedContact - обновляет контакт при replace/merge и добавляет аудит.
+// updateResolvedContact - обновляет контакт при replace/merge и сохраняет выбранное действие.
 // Транзакция передаётся снаружи, поэтому helper не может случайно закоммитить часть операции.
-func updateResolvedContact(ctx context.Context, tx pgx.Tx, contact *models.Contact, action models.ContactEventAction) error {
+func updateResolvedContact(ctx context.Context, tx pgx.Tx, contact *models.Contact, action models.ContactSourceAction) error {
 	const updateResolvedContactQuery = `
 		UPDATE contacts
 		SET phone = $1, email = $2, name = $3, discount = $4
@@ -302,83 +291,36 @@ func updateResolvedContact(ctx context.Context, tx pgx.Tx, contact *models.Conta
 		return fmt.Errorf("apply contact conflict: %w", err)
 	}
 
-	if err := saveContactVersionTx(ctx, tx, *contact, action); err != nil {
-		return err
-	}
 	if err := saveContactSourceTx(ctx, tx, *contact, action); err != nil {
 		return err
 	}
 	return nil
 }
 
-// saveContactVersionTx - сохраняет неизменяемый снимок контакта в contact_versions.
-func saveContactVersionTx(ctx context.Context, tx pgx.Tx, contact models.Contact, action models.ContactEventAction) error {
-	const insertContactVersionQuery = `
-		INSERT INTO contact_versions (
-			contact_id, phone, email, name, discount, file_id, action
-		)
-		VALUES ($1, $2, $3, $4, $5, NULLIF($6, ''), $7)
-	`
-
-	if _, err := tx.Exec(ctx, insertContactVersionQuery,
-		contact.ID,
-		contact.Phone,
-		contact.Email,
-		contact.Name,
-		contact.Discount,
-		contact.FileID,
-		action,
-	); err != nil {
-		return fmt.Errorf("save contact version: %w", err)
-	}
-	return nil
-}
-
-// saveContactSourceTx - фиксирует, из какого файла и строки пришёл контакт.
-// ON CONFLICT защищает от повторной записи одного и того же события.
-func saveContactSourceTx(ctx context.Context, tx pgx.Tx, contact models.Contact, action models.ContactEventAction) error {
-	const insertContactSourceQuery = `
-		INSERT INTO contact_sources (contact_id, file_id, row_number, action, incoming)
-		VALUES ($1, $2, $3, $4, $5)
-		ON CONFLICT (contact_id, file_id, row_number, action) DO NOTHING
+// saveContactSourceTx - сохраняет текущую связь контакта со строкой файла.
+// Повторное решение для той же строки обновляет действие вместо накопления истории.
+func saveContactSourceTx(ctx context.Context, tx pgx.Tx, contact models.Contact, action models.ContactSourceAction) error {
+	const upsertContactSourceQuery = `
+		INSERT INTO contact_sources (contact_id, file_id, row_number, action)
+		VALUES ($1, $2, $3, $4)
+		ON CONFLICT (contact_id, file_id, row_number) DO UPDATE SET
+			action = EXCLUDED.action,
+			updated_at = now()
 	`
 
 	if strings.TrimSpace(contact.FileID) == "" {
 		return nil
 	}
 
-	snapshotJSON, err := marshalContactSnapshot(contact)
-	if err != nil {
-		return err
-	}
-	if _, err := tx.Exec(ctx, insertContactSourceQuery,
+	if _, err := tx.Exec(ctx, upsertContactSourceQuery,
 		contact.ID,
 		contact.FileID,
 		contact.SourceRow,
 		action,
-		snapshotJSON,
 	); err != nil {
 		return fmt.Errorf("save contact source: %w", err)
 	}
 	return nil
-}
-
-// marshalContactSnapshot - формирует JSON-снимок входящей строки для contact_sources.
-func marshalContactSnapshot(contact models.Contact) ([]byte, error) {
-	snapshot := map[string]any{
-		"uid":       contact.UID,
-		"phone":     contact.Phone,
-		"email":     contact.Email,
-		"name":      contact.Name,
-		"discount":  contact.Discount,
-		"fileId":    contact.FileID,
-		"rowNumber": contact.SourceRow,
-	}
-	encoded, err := json.Marshal(snapshot)
-	if err != nil {
-		return nil, fmt.Errorf("marshal contact snapshot: %w", err)
-	}
-	return encoded, nil
 }
 
 // mergeContact - дополняет пустые поля incoming значениями existing.
@@ -395,15 +337,15 @@ func mergeContact(incoming *models.Contact, existing models.Contact) {
 	}
 }
 
-// eventActionForConflict - преобразует действие API в типизированное событие аудита.
-func eventActionForConflict(action models.ConflictAction) (models.ContactEventAction, error) {
+// sourceActionForConflict - преобразует действие API в состояние связи со строкой файла.
+func sourceActionForConflict(action models.ConflictAction) (models.ContactSourceAction, error) {
 	switch action {
 	case models.ConflictActionSkip:
-		return models.ContactEventSkipped, nil
+		return models.ContactSourceSkipped, nil
 	case models.ConflictActionReplace:
-		return models.ContactEventReplaced, nil
+		return models.ContactSourceReplaced, nil
 	case models.ConflictActionMerge:
-		return models.ContactEventMerged, nil
+		return models.ContactSourceMerged, nil
 	default:
 		return "", fmt.Errorf("unknown conflict action: %s", action)
 	}

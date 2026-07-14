@@ -122,7 +122,6 @@ func (s *PostgresStorage) SaveFixedRow(
 
 	contact.FileID = fileID
 	contact.SourceRow = rowNumber
-	created := false
 	err = tx.QueryRow(
 		queryCtx,
 		insertFixedContactQuery,
@@ -138,7 +137,6 @@ func (s *PostgresStorage) SaveFixedRow(
 	)
 	switch {
 	case err == nil:
-		created = true
 	case errors.Is(err, pgx.ErrNoRows):
 		existing, lockErr := scanCoreContact(tx.QueryRow(queryCtx, lockContactByPhoneQuery, contact.Phone))
 		if lockErr != nil {
@@ -159,20 +157,12 @@ func (s *PostgresStorage) SaveFixedRow(
 			).Scan(&contact.UpdatedAt); err != nil {
 				return fmt.Errorf("update fixed contact: %w", err)
 			}
-			if err := saveContactVersionTx(queryCtx, tx, contact, models.ContactEventFixed); err != nil {
-				return err
-			}
 		}
 	default:
 		return fmt.Errorf("insert fixed contact: %w", err)
 	}
 
-	if created {
-		if err := saveContactVersionTx(queryCtx, tx, contact, models.ContactEventFixed); err != nil {
-			return err
-		}
-	}
-	if err := saveContactSourceTx(queryCtx, tx, contact, models.ContactEventFixed); err != nil {
+	if err := saveContactSourceTx(queryCtx, tx, contact, models.ContactSourceFixed); err != nil {
 		return err
 	}
 	if _, err := tx.Exec(queryCtx, removeFixedRowWarningsQuery, fileID, rowNumber); err != nil {

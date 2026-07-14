@@ -18,17 +18,17 @@ type Contact struct {
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
-// ContactEventAction - тип события, которое сохраняется в истории и источниках контакта.
-type ContactEventAction string
+// ContactSourceAction - результат обработки контакта из конкретной строки файла.
+type ContactSourceAction string
 
-// Константы совпадают с CHECK-ограничениями contact_sources и contact_versions в PostgreSQL.
+// Константы совпадают с CHECK-ограничением contact_sources в PostgreSQL.
 const (
-	ContactEventCreated  ContactEventAction = "created"
-	ContactEventMatched  ContactEventAction = "matched"
-	ContactEventSkipped  ContactEventAction = "skipped"
-	ContactEventReplaced ContactEventAction = "replaced"
-	ContactEventMerged   ContactEventAction = "merged"
-	ContactEventFixed    ContactEventAction = "fixed"
+	ContactSourceCreated  ContactSourceAction = "created"
+	ContactSourceMatched  ContactSourceAction = "matched"
+	ContactSourceSkipped  ContactSourceAction = "skipped"
+	ContactSourceReplaced ContactSourceAction = "replaced"
+	ContactSourceMerged   ContactSourceAction = "merged"
+	ContactSourceFixed    ContactSourceAction = "fixed"
 )
 
 // ConflictAction - действие пользователя при несовпадении данных одного телефона.
