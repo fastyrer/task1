@@ -22,11 +22,11 @@ type HealthHandler struct {
 	store storage.HealthStore
 }
 
-// healthResponse – формат ответа для GET /api/health.
-type healthResponse struct {
-	Status  string `json:"status"`
-	Storage string `json:"storage"` // всегда postgres
-	Error   string `json:"error,omitempty"`
+// HealthResponse – формат ответа для GET /api/health.
+type HealthResponse struct {
+	Status  string `json:"status" enums:"ok,degraded" example:"ok"`
+	Storage string `json:"storage" enums:"postgres" example:"postgres"`
+	Error   string `json:"error,omitempty" example:"storage unavailable"`
 }
 
 // RegisterHealthRoutes – регистрация маршрута на "/api/health"
@@ -46,6 +46,15 @@ func RegisterHealthRoutes(mux *http.ServeMux, store storage.HealthStore) {
 //     – ошибка → {"status":"degraded","storage":"...","error":"storage unavailable"} (503)
 //  5. cancel() откладывается через defer – гарантированно очищает ресурсы
 //     контекста при любом выходе из функции.
+//
+// @Summary Проверить состояние приложения
+// @Description Проверяет доступность PostgreSQL с таймаутом две секунды.
+// @Tags Health
+// @Produce json
+// @Success 200 {object} HealthResponse
+// @Failure 405 {object} ErrorResponse
+// @Failure 503 {object} HealthResponse
+// @Router /api/health [get]
 func (h *HealthHandler) Health(w http.ResponseWriter, r *http.Request) {
 
 	// 1. CORS
@@ -64,7 +73,7 @@ func (h *HealthHandler) Health(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	// 4. Формирование payload
-	payload := healthResponse{
+	payload := HealthResponse{
 		Status:  "ok",
 		Storage: "postgres",
 	}

@@ -48,7 +48,7 @@ func TestNotificationPreviewUsesSavedContacts(t *testing.T) {
 	if response.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
 	}
-	var payload previewResponse
+	var payload PreviewResponse
 	if err := json.NewDecoder(response.Body).Decode(&payload); err != nil {
 		t.Fatalf("decode preview response: %v", err)
 	}

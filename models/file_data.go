@@ -26,25 +26,25 @@ type FileData struct {
 
 // ProcessingStats хранит все количественные данные (счетчики) для сводки
 type ProcessingStats struct {
-	RowCount        int `json:"rowCount"`
-	ColumnCount     int `json:"columnCount"`
-	ValidRowCount   int `json:"validRowCount"`
-	InvalidRowCount int `json:"invalidRowCount"`
-	EmptyRowCount   int `json:"emptyRowCount"`
-	SkippedRowCount int `json:"skippedRowCount"`
-	WarningCount    int `json:"warningCount"`
+	RowCount        int `json:"rowCount" example:"100"`
+	ColumnCount     int `json:"columnCount" example:"4"`
+	ValidRowCount   int `json:"validRowCount" example:"96"`
+	InvalidRowCount int `json:"invalidRowCount" example:"3"`
+	EmptyRowCount   int `json:"emptyRowCount" example:"1"`
+	SkippedRowCount int `json:"skippedRowCount" example:"1"`
+	WarningCount    int `json:"warningCount" example:"3"`
 }
 
 // ProcessingWarning хранит данные конкретной ошибки или поля
 type ProcessingWarning struct {
-	Row     int    `json:"row,omitempty"`
-	Column  string `json:"column,omitempty"`
-	Message string `json:"message"`
+	Row     int    `json:"row,omitempty" example:"4"`
+	Column  string `json:"column,omitempty" example:"Email"`
+	Message string `json:"message" example:"Некорректный email."`
 }
 
 // InvalidRow хранит данные строки, не прошедшей валидацию
 type InvalidRow struct {
-	Row    int                 `json:"row"`
+	Row    int                 `json:"row" example:"4"`
 	Values map[string]string   `json:"values"`
 	Errors []ProcessingWarning `json:"errors"`
 }

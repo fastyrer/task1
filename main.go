@@ -31,9 +31,30 @@ import (
 	"task1/storage"
 )
 
+// Шаблоны рассылки используют {{Поле}}, поэтому Swag получает другие разделители.
+//go:generate go run github.com/swaggo/swag/cmd/swag@v1.16.6 init --generalInfo main.go --output docs --parseInternal -td "[[,]]"
+
 //go:embed frontend
 var frontendFiles embed.FS
 
+// @title Task1 Client Data API
+// @version 1.0.0
+// @description API для загрузки клиентских CSV/XLS/XLSX, проверки и поиска строк, ведения контактов и подготовки рассылок.
+// @description Все операции с файлами и контактами используют PostgreSQL как единственное хранилище.
+// @BasePath /
+// @schemes http https
+// @accept json
+// @produce json
+// @tag.name Health
+// @tag.description Состояние приложения и подключение к PostgreSQL
+// @tag.name Files
+// @tag.description Загрузка, разбор и исправление строк файлов
+// @tag.name Search
+// @tag.description Поиск по строкам ранее загруженного файла
+// @tag.name Contacts
+// @tag.description Сохранение контактов и разрешение конфликтов по телефону
+// @tag.name Notifications
+// @tag.description Предпросмотр и экспорт рассылки по всем контактам PostgreSQL
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -78,6 +99,7 @@ func main() {
 	handlers.RegisterNotificationRoutes(mux, store)   // POST /api/preview, /api/export
 	handlers.RegisterSearchRoutes(mux, store)         // POST /api/search
 	handlers.RegisterContactRoutes(mux, store, store) // POST /api/contacts/*, /api/rows/fix
+	registerSwagger(mux)                              // GET /swagger и /swagger/doc.json
 	if err := registerFrontend(mux); err != nil {     // GET / и статические frontend-ресурсы
 		log.Fatal(err)
 	}

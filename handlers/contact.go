@@ -32,10 +32,10 @@ func RegisterContactRoutes(mux *http.ServeMux, store storage.FileStore, contacts
 	mux.HandleFunc("/api/rows/fix", h.FixRows)
 }
 
-// fixRowsRequest – запрос на исправление невалидных строк
-type fixRowsRequest struct {
-	FileID string                 `json:"fileId"`
-	Rows   []services.FixRowInput `json:"rows"`
+// FixRowsRequest – запрос на проверку и сохранение исправленных строк.
+type FixRowsRequest struct {
+	FileID string                 `json:"fileId" validate:"required" example:"2f656bc0-6227-49d3-9d09-b2d59bd21c52"`
+	Rows   []services.FixRowInput `json:"rows" validate:"required"`
 }
 
 // FixRows – POST /api/rows/fix
@@ -51,6 +51,19 @@ type fixRowsRequest struct {
 //     – Сохраняем контакт в ContactStore
 //     – Если нормализация не удалась – добавляем в список Failed
 //  4. Возвращаем {fixed: N, failed: [{row, errors}]}
+//
+// @Summary Проверить и сохранить исправленные строки
+// @Description Повторно нормализует отредактированные пользователем строки файла и сохраняет корректные контакты в PostgreSQL.
+// @Tags Files
+// @Accept json
+// @Produce json
+// @Param request body FixRowsRequest true "Исправленные строки"
+// @Success 200 {object} services.FixRowResult
+// @Failure 400 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Failure 405 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /api/rows/fix [post]
 func (h *ContactHandler) FixRows(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodOptions {
 		w.WriteHeader(http.StatusNoContent)
@@ -61,7 +74,7 @@ func (h *ContactHandler) FixRows(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req fixRowsRequest
+	var req FixRowsRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSONError(w, http.StatusBadRequest, services.ErrorBadRequest)
 		return
@@ -99,17 +112,31 @@ func (h *ContactHandler) FixRows(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, result)
 }
 
-// saveRequest – запрос на сохранение данных из файла
-type saveRequest struct {
-	FileID string `json:"fileId"`
+// SaveContactsRequest – запрос на сохранение валидных строк файла как контактов.
+type SaveContactsRequest struct {
+	FileID string `json:"fileId" validate:"required" example:"2f656bc0-6227-49d3-9d09-b2d59bd21c52"`
 }
 
-// saveResponse – ответ на сохранение
-type saveResponse struct {
+// SaveContactsResponse – результат сохранения и найденные конфликты.
+type SaveContactsResponse struct {
 	Saved     int                   `json:"saved"`               // Сколько сохранено
 	Skipped   int                   `json:"skipped"`             // Сколько пропущено
 	Conflicts []models.ConflictInfo `json:"conflicts,omitempty"` // конфликты
 	// с существующими контактами
+}
+
+// ResolveResponse – результат применения решения к одному конфликту.
+type ResolveResponse struct {
+	Status string                `json:"status" enums:"ok" example:"ok"`
+	Phone  string                `json:"phone" example:"+79991234567"`
+	Action models.ConflictAction `json:"action" enums:"skip,replace,merge" example:"merge"`
+}
+
+// ResolveAllResponse – результат применения одного решения ко всем конфликтам файла.
+type ResolveAllResponse struct {
+	Status   string                `json:"status" enums:"ok" example:"ok"`
+	Resolved int                   `json:"resolved" example:"3"`
+	Action   models.ConflictAction `json:"action" enums:"skip,replace,merge" example:"merge"`
 }
 
 // Save – POST /api/contacts/save
@@ -120,6 +147,18 @@ type saveResponse struct {
 //
 // Фронт получает список конфликтов и предлагает пользователю выбрать действие:
 // skip (пропустить), replace (заменить) или merge (слить).
+// @Summary Сохранить контакты из файла
+// @Description Переносит валидные строки загруженного файла в общий справочник контактов. Несовпадающие данные для существующего телефона возвращаются как конфликты.
+// @Tags Contacts
+// @Accept json
+// @Produce json
+// @Param request body SaveContactsRequest true "Идентификатор загруженного файла"
+// @Success 200 {object} SaveContactsResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Failure 405 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /api/contacts/save [post]
 func (h *ContactHandler) Save(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodOptions {
 		w.WriteHeader(http.StatusNoContent)
@@ -130,7 +169,7 @@ func (h *ContactHandler) Save(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req saveRequest
+	var req SaveContactsRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSONError(w, http.StatusBadRequest, services.ErrorBadRequest)
 		return
@@ -158,7 +197,7 @@ func (h *ContactHandler) Save(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, saveResponse{
+	writeJSON(w, http.StatusOK, SaveContactsResponse{
 		Saved:     result.Saved,
 		Skipped:   result.Skipped,
 		Conflicts: result.Conflicts,
@@ -176,6 +215,19 @@ func (h *ContactHandler) Save(w http.ResponseWriter, r *http.Request) {
 //  2. Ищем строку с указанным телефоном в данных файла.
 //  3. Преобразуем строку в Contact (RowToContact).
 //  4. Вызываем ResolveConflict в хранилище – оно применяет выбранное действие.
+//
+// @Summary Разрешить один конфликт контакта
+// @Description Применяет действие skip, replace или merge к несовпадающим данным одного телефона из выбранного файла.
+// @Tags Contacts
+// @Accept json
+// @Produce json
+// @Param request body models.ResolveRequest true "Решение конфликта"
+// @Success 200 {object} ResolveResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Failure 405 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /api/contacts/resolve [post]
 func (h *ContactHandler) Resolve(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodOptions {
 		w.WriteHeader(http.StatusNoContent)
@@ -242,10 +294,10 @@ func (h *ContactHandler) Resolve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"status": "ok",
-		"phone":  req.Phone,
-		"action": req.Action,
+	writeJSON(w, http.StatusOK, ResolveResponse{
+		Status: "ok",
+		Phone:  req.Phone,
+		Action: req.Action,
 	})
 }
 
@@ -260,6 +312,19 @@ func (h *ContactHandler) Resolve(w http.ResponseWriter, r *http.Request) {
 //     есть ли контакт с таким телефоном в хранилище.
 //  3. Если есть и контакты различаются – применяет выбранное действие.
 //  4. Возвращает количество разрешённых конфликтов.
+//
+// @Summary Разрешить все конфликты файла
+// @Description Применяет одно действие skip, replace или merge ко всем несовпадающим контактам выбранного файла.
+// @Tags Contacts
+// @Accept json
+// @Produce json
+// @Param request body models.BatchResolveRequest true "Общее решение конфликтов"
+// @Success 200 {object} ResolveAllResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Failure 405 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /api/contacts/resolve-all [post]
 func (h *ContactHandler) ResolveAll(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodOptions {
 		w.WriteHeader(http.StatusNoContent)
@@ -334,10 +399,10 @@ func (h *ContactHandler) ResolveAll(w http.ResponseWriter, r *http.Request) {
 		resolved++
 	}
 
-	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"status":   "ok",
-		"resolved": resolved,
-		"action":   req.Action,
+	writeJSON(w, http.StatusOK, ResolveAllResponse{
+		Status:   "ok",
+		Resolved: resolved,
+		Action:   req.Action,
 	})
 }
 

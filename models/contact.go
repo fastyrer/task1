@@ -49,8 +49,8 @@ const (
 
 // Информация об одном конфликте
 type ConflictInfo struct {
-	Row         int               `json:"row"`
-	Phone       string            `json:"phone"`
+	Row         int               `json:"row" example:"4"`
+	Phone       string            `json:"phone" example:"+79991234567"`
 	Existing    map[string]string `json:"existing"`    // То, что уже лежит в базе
 	Incoming    map[string]string `json:"incoming"`    // То, что прислал фронт
 	Differences []string          `json:"differences"` // Отличные поля
@@ -61,13 +61,13 @@ type ConflictInfo struct {
 
 // ResolveRequest разрешает конфликт для одного телефона
 type ResolveRequest struct {
-	FileID string         `json:"fileId"`
-	Phone  string         `json:"phone"`
-	Action ConflictAction `json:"action"`
+	FileID string         `json:"fileId" validate:"required" example:"2f656bc0-6227-49d3-9d09-b2d59bd21c52"`
+	Phone  string         `json:"phone" validate:"required" example:"+79991234567"`
+	Action ConflictAction `json:"action" validate:"required" enums:"skip,replace,merge" example:"merge"`
 }
 
 // BatchResolveRequest разрешает все конфликты в одном файле за один раз
 type BatchResolveRequest struct {
-	FileID string         `json:"fileId"`
-	Action ConflictAction `json:"action"`
+	FileID string         `json:"fileId" validate:"required" example:"2f656bc0-6227-49d3-9d09-b2d59bd21c52"`
+	Action ConflictAction `json:"action" validate:"required" enums:"skip,replace,merge" example:"merge"`
 }
