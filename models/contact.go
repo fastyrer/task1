@@ -24,7 +24,6 @@ type ContactEventAction string
 // Константы совпадают с CHECK-ограничениями contact_sources и contact_versions в PostgreSQL.
 const (
 	ContactEventCreated  ContactEventAction = "created"
-	ContactEventUpdated  ContactEventAction = "updated"
 	ContactEventMatched  ContactEventAction = "matched"
 	ContactEventSkipped  ContactEventAction = "skipped"
 	ContactEventReplaced ContactEventAction = "replaced"

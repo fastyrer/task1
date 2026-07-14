@@ -142,6 +142,7 @@ func RowToContact(row map[string]string, phone, fileID string) models.Contact {
 // isNameLikeField:
 // 1. Нормализация имени колонки
 // 2. Сопоставление с известными вариантами имени
+//
 func isNameLikeField(header string) bool {
 	// 1. Нормализация имени колонки
 	key := utils.HeaderKey(header)

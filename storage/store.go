@@ -23,21 +23,20 @@ type FileStore interface {
 
 // ContactStore – операции с контактами
 type ContactStore interface {
-
 	// SaveContact создаёт контакт и возвращает его публичный UID.
 	SaveContact(ctx context.Context, contact models.Contact) (string, error)
 
 	// GetContactByPhone – поиск контакта по телефону (телефон является уникальным ключом)
 	GetContactByPhone(ctx context.Context, phone string) (models.Contact, bool, error)
 
-	// ListContactsByFileID – все контакты из одного файла
-	ListContactsByFileID(ctx context.Context, fileID string) ([]models.Contact, error)
-
-	// UpdateContact – обновление уже существующего контакта
-	UpdateContact(ctx context.Context, contact models.Contact) error
+	// RecordContactMatch связывает совпавший контакт с очередным файлом-источником.
+	RecordContactMatch(ctx context.Context, existing, incoming models.Contact) error
 
 	// ResolveConflict – применить действие к конфликту
 	ResolveConflict(ctx context.Context, phone string, action models.ConflictAction, incoming models.Contact) error
+
+	// SaveFixedRow атомарно исправляет строку файла и сохраняет соответствующий контакт.
+	SaveFixedRow(ctx context.Context, fileID string, rowNumber int, values map[string]string, contact models.Contact) error
 }
 
 // HealthStore - минимальный контракт проверки доступности БД для /api/health.
