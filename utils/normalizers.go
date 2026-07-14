@@ -1,3 +1,8 @@
+// normalizers.go – приведение данных к единому формату.
+//
+// NormalizePhone приводит российские номера к +7 (XXX) XXX-XX-XX,
+// NormalizeEmail проверяет и приводит к нижнему регистру,
+// NormalizePercent нормализует проценты (0–100) к числовому виду.
 package utils
 
 import (

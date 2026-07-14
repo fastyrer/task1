@@ -1,8 +1,15 @@
+// rows.go – очистка и преобразование строк/ячеек из CSV и Excel.
+//
+// CleanHeader/CleanCell нормализуют отдельные значения. RecordToMap
+// превращает строку CSV в map[заголовок]значение. Остальные функции
+// помогают при парсинге: обрезка пустых ячеек, проверка пустых строк,
+// клонирование map и поиск в слайсе.
 package utils
 
 import "strings"
 
-// CleanHeader нормализует заголовок: удаляет BOM, неразрывные пробелы, схлопывает пробелы.
+// CleanHeader нормализует заголовок: удаляет BOM, неразрывные пробелы,
+// схлопывает пробелы.
 func CleanHeader(value string) string {
 	value = strings.TrimPrefix(value, "\ufeff")
 	value = strings.ReplaceAll(value, "\u00a0", " ")

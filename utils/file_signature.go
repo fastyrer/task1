@@ -1,3 +1,5 @@
+// file_signature.go – определение формата файла по magic-байтам (сигнатуре).
+
 package utils
 
 import (
@@ -10,10 +12,12 @@ var (
 	xlsMagic  = []byte{0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1}
 )
 
+// IsXLSX проверяет ZIP-сигнатуру: первые 4 байта — PK\x03\x04.
 func IsXLSX(content []byte) bool {
 	return bytes.HasPrefix(content, xlsxMagic)
 }
 
+// IsXLS проверяет сигнатуру OLE2 Compound Binary: D0 CF 11 E0 ….
 func IsXLS(content []byte) bool {
 	return bytes.HasPrefix(content, xlsMagic)
 }
@@ -43,10 +47,8 @@ func LooksBinary(content []byte) bool {
 	return controlCount*4 > limit
 }
 
-// DetectedMIMEType возвращает MIME-тип для распознанного формата.
-//
-// Для CSV/XLS/XLSX возвращает известный MIME-тип.
-// Для неизвестного формата — через http.DetectContentType.
+// DetectedMIMEType возвращает MIME-тип по формату. Для csv/xls/xlsx —
+// известный MIME, для остального — http.DetectContentType.
 func DetectedMIMEType(format string, content []byte) string {
 	switch format {
 	case "csv":

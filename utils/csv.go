@@ -36,6 +36,11 @@ func DetectCSVDelimiter(content string) rune {
 	return ','
 }
 
+// ============================================================================
+// sampleLines можно оптимизировать: принимать []byte вместо string, 
+// сканировать \n через bytes.IndexByte или bufio.Scanner.
+// ============================================================================
+
 // sampleLines извлекает до limit непустых строк из содержимого,
 // убирая \r и лишние пробелы.
 func sampleLines(content string, limit int) []string {
