@@ -15,9 +15,9 @@ import (
 // validateRows – проверяет каждую строку данных и возвращает список invalid-строк и предупреждений.
 
 // validateRows:
-	// 1. Классифицирует колонки по типам через utils.ClassifyHeader
-	// 2. Для каждой строки очищает значения и нормализует их по типу
-	// 3. Накапливает предупреждения и отмечает invalid-строки
+// 1. Классифицирует колонки по типам через utils.ClassifyHeader
+// 2. Для каждой строки очищает значения и нормализует их по типу
+// 3. Накапливает предупреждения и отмечает invalid-строки
 func validateRows(headers []string, rows []parsedDataRow) ([]models.InvalidRow, []models.ProcessingWarning) {
 
 	// Классифицирует колонки по типам через utils.ClassifyHeader
@@ -65,10 +65,6 @@ func validateRows(headers []string, rows []parsedDataRow) ([]models.InvalidRow, 
 					continue
 				}
 				row.Values[header] = normalized
-			case utils.ColumnDate:
-				if !utils.IsSupportedDate(value) {
-					rowErrors = append(rowErrors, fieldWarning(row.Number, header, "Дата должна быть в распознаваемом формате."))
-				}
 			}
 		}
 

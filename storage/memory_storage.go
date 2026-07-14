@@ -31,20 +31,11 @@ func DefaultStorage() *MemoryStorage {
 	return defaultStorage
 }
 
-func SaveFileData(ctx context.Context, data models.FileData) (string, error) {
-	return defaultStorage.SaveFileData(ctx, data)
-}
-
-func GetFileData(ctx context.Context, fileID string) (models.FileData, bool, error) {
-	return defaultStorage.GetFileData(ctx, fileID)
-}
-
 func (s *MemoryStorage) SaveFileData(_ context.Context, data models.FileData) (string, error) {
 	fileID := strings.TrimSpace(data.ID)
 	if fileID == "" {
 		fileID = generateFileID()
 	}
-
 	data.ID = fileID
 
 	s.mu.Lock()
@@ -66,8 +57,7 @@ func (s *MemoryStorage) Ping(_ context.Context) error {
 	return nil
 }
 
-func (s *MemoryStorage) Close() {
-}
+func (s *MemoryStorage) Close() {}
 
 func (s *MemoryStorage) Driver() string {
 	return "memory"
@@ -154,15 +144,6 @@ func (s *MemoryStorage) ResolveConflict(_ context.Context, phone string, action 
 		}
 		if incoming.Discount == "" {
 			incoming.Discount = existing.Discount
-		}
-		if incoming.Data == nil {
-			incoming.Data = existing.Data
-		} else {
-			for k, v := range existing.Data {
-				if _, ok := incoming.Data[k]; !ok {
-					incoming.Data[k] = v
-				}
-			}
 		}
 		incoming.ID = existing.ID
 		incoming.CreatedAt = existing.CreatedAt

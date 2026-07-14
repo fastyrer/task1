@@ -1,9 +1,11 @@
-// columns.go – классификация колонок по точному совпадению заголовка.
+// columns.go – классификация колонок по заголовкам.
 //
-// Определяет тип колонки (телефон, email, скидка, дата) по тексту заголовка
-// через точное сравнение. Используется при валидации строк (row_validator)
-// и в обработчиках для поиска колонки телефона.
+// Единственная колонка, которую проект должен распознавать — телефон,
+// так как он используется как ключ для отправки и сохранения контактов.
+// Остальные колонки считаются произвольными данными (ColumnGeneric)
 package utils
+
+import "strings"
 
 // ColumnKind – тип колонки.
 type ColumnKind string
@@ -11,31 +13,23 @@ type ColumnKind string
 const (
 	ColumnGeneric  ColumnKind = ""
 	ColumnPhone    ColumnKind = "phone"
+	ColumnName     ColumnKind = "name"
 	ColumnEmail    ColumnKind = "email"
 	ColumnDiscount ColumnKind = "discount"
-	ColumnDate     ColumnKind = "date"
 )
 
-// ClassifyHeader определяет назначение колонки по заголовку.
-//
-// Ожидаемые заголовки:
-//
-//	"Телефон"        → ColumnPhone
-//	"Email"          → ColumnEmail
-//	"E-mail"         → ColumnEmail
-//	"Скидка"         → ColumnDiscount
-//	"Дата Доставки"  → ColumnDate
-//	всё остальное    → ColumnGeneric
+// ClassifyHeader определяет тип колонки по заголовку.
 func ClassifyHeader(header string) ColumnKind {
-	switch header {
-	case "Телефон":
+	key := strings.ToLower(header)
+	switch {
+	case strings.Contains(key, "телефон"), key == "phone", strings.Contains(key, "mobile"):
 		return ColumnPhone
-	case "Email", "E-mail":
+	case strings.Contains(key, "имя"), key == "name", strings.Contains(key, "фио"), strings.Contains(key, "клиент"), strings.Contains(key, "client"):
+		return ColumnName
+	case key == "email", key == "e-mail", strings.Contains(key, "почта"), strings.Contains(key, "mail"):
 		return ColumnEmail
-	case "Скидка":
+	case strings.Contains(key, "скидка"), strings.Contains(key, "discount"), strings.Contains(key, "процент"):
 		return ColumnDiscount
-	case "Дата Доставки":
-		return ColumnDate
 	default:
 		return ColumnGeneric
 	}

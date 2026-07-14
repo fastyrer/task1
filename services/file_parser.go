@@ -27,7 +27,7 @@ var (
 	ErrInvalidExcel      = errors.New("Некорректная структура XLS/XLSX.")
 	ErrReadFile          = errors.New("Не удалось прочитать файл.")
 	ErrFileTypeMismatch  = errors.New("Расширение файла не совпадает с содержимым.")
-	ErrInvalidEncoding   = utils.ErrInvalidEncoding
+	ErrInvalidEncoding   = errors.New("Недопустимая кодировка")
 	ErrSheetNotFound     = errors.New("Лист Excel не найден.")
 )
 

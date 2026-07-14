@@ -1,4 +1,3 @@
-// excel.go – работа с Excel-файлами: объединённые ячейки и навигация по листам.
 package utils
 
 import (
@@ -8,59 +7,38 @@ import (
 	"github.com/xuri/excelize/v2"
 )
 
-// FillMergedCells заполняет пустые ячейки объединённых диапазонов их значением.
-//
-// В Excel объединённые ячейки хранят значение только в первой (левой-верхней)
-// ячейке, остальные ячейки диапазона пустые. При парсинге это приводит к
-// потере данных. Функция находит все объединённые диапазоны на листе и
-// копирует значение во все ячейки диапазона.
-//
-// Параметры:
-//   - workbook – открытый XLSX-файл
-//   - sheetName – имя листа
-//   - rows – уже прочитанные строки листа (могут расширяться, если
-//     объединённые ячейки выходят за текущие границы)
-//
-// Возвращает:
-//   - обновлённый rows с заполненными ячейками
-//   - количество обработанных объединений (для статистики)
-//   - ошибку (если не удалось прочитать координаты ячейки)
-//
-// Пример: ячейки A1:B2 объединены со значением "Итого".
-// До: rows = [["" ""] ["" ""]]
-// После: rows = [["Итого" "Итого"] ["Итого" "Итого"]]
+// FillMergedCells копирует значение объединённых ячеек во все ячейки диапазона.
 func FillMergedCells(workbook *excelize.File, sheetName string, rows [][]string) ([][]string, int, error) {
 	mergeCells, err := workbook.GetMergeCells(sheetName)
 	if err != nil {
 		return rows, 0, err
 	}
 
-	for _, mergeCell := range mergeCells {
-		value := CleanCell(mergeCell.GetCellValue())
+	for _, mc := range mergeCells {
+		value := CleanCell(mc.GetCellValue())
 		if value == "" {
 			continue
 		}
 
-		startColumn, startRow, err := excelize.CellNameToCoordinates(mergeCell.GetStartAxis())
+		startCol, startRow, err := excelize.CellNameToCoordinates(mc.GetStartAxis())
 		if err != nil {
 			return rows, 0, err
 		}
-		endColumn, endRow, err := excelize.CellNameToCoordinates(mergeCell.GetEndAxis())
+		endCol, endRow, err := excelize.CellNameToCoordinates(mc.GetEndAxis())
 		if err != nil {
 			return rows, 0, err
 		}
 
-		for rowIndex := startRow - 1; rowIndex <= endRow-1; rowIndex++ {
-			// Расширяем rows если объединение выходит за пределы
-			for len(rows) <= rowIndex {
+		for r := startRow - 1; r <= endRow-1; r++ {
+			for len(rows) <= r {
 				rows = append(rows, nil)
 			}
-			for len(rows[rowIndex]) < endColumn {
-				rows[rowIndex] = append(rows[rowIndex], "")
+			for len(rows[r]) < endCol {
+				rows[r] = append(rows[r], "")
 			}
-			for columnIndex := startColumn - 1; columnIndex <= endColumn-1; columnIndex++ {
-				if CleanCell(rows[rowIndex][columnIndex]) == "" {
-					rows[rowIndex][columnIndex] = value
+			for c := startCol - 1; c <= endCol-1; c++ {
+				if CleanCell(rows[r][c]) == "" {
+					rows[r][c] = value
 				}
 			}
 		}
@@ -70,25 +48,12 @@ func FillMergedCells(workbook *excelize.File, sheetName string, rows [][]string)
 }
 
 // SheetIndexByName ищет лист по имени или порядковому номеру (от 1).
-//
-// Параметры:
-//   - sheetNames – список имён листов (из GetSheetList)
-//   - target – имя листа ("Лист1", "Sheet2") или номер ("1", "2")
-//
-// Возвращает индекс в списке и true/false.
-//
-// Примеры:
-//
-//	SheetIndexByName(["Лист1", "Лист2"], "Лист2") → (1, true)
-//	SheetIndexByName(["Sheet1", "Sheet2"], "2")   → (1, true)
-//	SheetIndexByName(["A", "B"], "C")             → (0, false)
 func SheetIndexByName(sheetNames []string, target string) (int, bool) {
 	target = strings.TrimSpace(target)
-	for index, name := range sheetNames {
-		if name == target || strconv.Itoa(index+1) == target {
-			return index, true
+	for i, name := range sheetNames {
+		if name == target || strconv.Itoa(i+1) == target {
+			return i, true
 		}
 	}
-
 	return 0, false
 }

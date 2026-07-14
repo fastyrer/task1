@@ -37,13 +37,11 @@ CREATE TABLE IF NOT EXISTS contacts (
 	email TEXT NOT NULL DEFAULT '',
 	name TEXT NOT NULL DEFAULT '',
 	discount TEXT NOT NULL DEFAULT '',
-	data JSONB NOT NULL DEFAULT '{}',
 	file_id TEXT NOT NULL REFERENCES uploaded_files(id) ON DELETE CASCADE,
 	created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
 	updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS 	-- phone уже UNIQUE, индекс создаётся автоматически
 CREATE INDEX IF NOT EXISTS contacts_file_id_idx ON contacts (file_id);
 CREATE INDEX IF NOT EXISTS contacts_email_idx ON contacts (email);
 
@@ -54,7 +52,6 @@ CREATE TABLE IF NOT EXISTS contact_versions (
 	email TEXT NOT NULL DEFAULT '',
 	name TEXT NOT NULL DEFAULT '',
 	discount TEXT NOT NULL DEFAULT '',
-	data JSONB NOT NULL DEFAULT '{}',
 	file_id TEXT NOT NULL,
 	action TEXT NOT NULL DEFAULT '',
 	created_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -118,12 +115,7 @@ func (s *PostgresStorage) SaveFileData(ctx context.Context, data models.FileData
 
 	_, err = s.pool.Exec(queryCtx, `
 		INSERT INTO uploaded_files (
-			id,
-			original_filename,
-			format,
-			row_count,
-			column_count,
-			payload
+			id, original_filename, format, row_count, column_count, payload
 		)
 		VALUES ($1, $2, $3, $4, $5, $6)
 		ON CONFLICT (id) DO UPDATE SET
@@ -256,26 +248,20 @@ func (s *PostgresStorage) SaveContact(ctx context.Context, contact models.Contac
 	}
 	contact.ID = contactID
 
-	dataJSON, err := marshalContactJSON(&contact)
-	if err != nil {
-		return "", err
-	}
-
 	queryCtx, cancel := s.withTimeout(ctx)
 	defer cancel()
 
-	_, err = s.pool.Exec(queryCtx, `
-		INSERT INTO contacts (id, phone, email, name, discount, data, file_id)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+	_, err := s.pool.Exec(queryCtx, `
+		INSERT INTO contacts (id, phone, email, name, discount, file_id)
+		VALUES ($1, $2, $3, $4, $5, $6)
 		ON CONFLICT (id) DO UPDATE SET
 			phone = EXCLUDED.phone,
 			email = EXCLUDED.email,
 			name = EXCLUDED.name,
 			discount = EXCLUDED.discount,
-			data = EXCLUDED.data,
 			file_id = EXCLUDED.file_id,
 			updated_at = now()
-	`, contactID, contact.Phone, contact.Email, contact.Name, contact.Discount, dataJSON, contact.FileID)
+	`, contactID, contact.Phone, contact.Email, contact.Name, contact.Discount, contact.FileID)
 	if err != nil {
 		return "", fmt.Errorf("save contact: %w", err)
 	}
@@ -305,7 +291,7 @@ func (s *PostgresStorage) ListContactsByFileID(ctx context.Context, fileID strin
 	defer cancel()
 
 	rows, err := s.pool.Query(queryCtx, `
-		SELECT id, phone, email, name, discount, data, file_id, created_at, updated_at
+		SELECT id, phone, email, name, discount, file_id, created_at, updated_at
 		FROM contacts
 		WHERE file_id = $1
 		ORDER BY created_at
@@ -318,12 +304,8 @@ func (s *PostgresStorage) ListContactsByFileID(ctx context.Context, fileID strin
 	contacts := make([]models.Contact, 0)
 	for rows.Next() {
 		var c models.Contact
-		var dataJSON []byte
-		if err := rows.Scan(&c.ID, &c.Phone, &c.Email, &c.Name, &c.Discount, &dataJSON, &c.FileID, &c.CreatedAt, &c.UpdatedAt); err != nil {
+		if err := rows.Scan(&c.ID, &c.Phone, &c.Email, &c.Name, &c.Discount, &c.FileID, &c.CreatedAt, &c.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan contact: %w", err)
-		}
-		if dataJSON != nil {
-			json.Unmarshal(dataJSON, &c.Data)
 		}
 		contacts = append(contacts, c)
 	}
@@ -332,19 +314,14 @@ func (s *PostgresStorage) ListContactsByFileID(ctx context.Context, fileID strin
 }
 
 func (s *PostgresStorage) UpdateContact(ctx context.Context, contact models.Contact) error {
-	dataJSON, err := marshalContactJSON(&contact)
-	if err != nil {
-		return err
-	}
-
 	queryCtx, cancel := s.withTimeout(ctx)
 	defer cancel()
 
-	_, err = s.pool.Exec(queryCtx, `
+	_, err := s.pool.Exec(queryCtx, `
 		UPDATE contacts
-		SET phone = $1, email = $2, name = $3, discount = $4, data = $5, file_id = $6, updated_at = now()
-		WHERE id = $7
-	`, contact.Phone, contact.Email, contact.Name, contact.Discount, dataJSON, contact.FileID, contact.ID)
+		SET phone = $1, email = $2, name = $3, discount = $4, file_id = $5, updated_at = now()
+		WHERE id = $6
+	`, contact.Phone, contact.Email, contact.Name, contact.Discount, contact.FileID, contact.ID)
 	if err != nil {
 		return fmt.Errorf("update contact: %w", err)
 	}
@@ -354,26 +331,18 @@ func (s *PostgresStorage) UpdateContact(ctx context.Context, contact models.Cont
 	return nil
 }
 
-// scanContact – вспомогательный метод, читает одну строку из contacts по условию WHERE.
-// Принимает контекст, условие (например "WHERE phone = $1") и параметры.
-// Возвращает заполненный Contact или pgx.ErrNoRows, если строка не найдена.
 func (s *PostgresStorage) scanContact(ctx context.Context, whereClause string, args ...any) (models.Contact, error) {
 	var c models.Contact
-	var dataJSON []byte
 
 	err := s.pool.QueryRow(ctx, `
-		SELECT id, phone, email, name, discount, data, file_id, created_at, updated_at
+		SELECT id, phone, email, name, discount, file_id, created_at, updated_at
 		FROM contacts
 		`+whereClause, args...).Scan(
 		&c.ID, &c.Phone, &c.Email, &c.Name, &c.Discount,
-		&dataJSON, &c.FileID, &c.CreatedAt, &c.UpdatedAt,
+		&c.FileID, &c.CreatedAt, &c.UpdatedAt,
 	)
 	if err != nil {
 		return models.Contact{}, err
-	}
-
-	if dataJSON != nil {
-		json.Unmarshal(dataJSON, &c.Data)
 	}
 
 	return c, nil
@@ -402,15 +371,6 @@ func (s *PostgresStorage) ResolveConflict(ctx context.Context, phone string, act
 		if incoming.Discount == "" {
 			incoming.Discount = existing.Discount
 		}
-		if incoming.Data == nil {
-			incoming.Data = existing.Data
-		} else {
-			for k, v := range existing.Data {
-				if _, ok := incoming.Data[k]; !ok {
-					incoming.Data[k] = v
-				}
-			}
-		}
 		incoming.ID = existing.ID
 		incoming.CreatedAt = existing.CreatedAt
 		return s.UpdateContact(ctx, incoming)
@@ -420,27 +380,12 @@ func (s *PostgresStorage) ResolveConflict(ctx context.Context, phone string, act
 }
 
 func (s *PostgresStorage) saveContactVersion(ctx context.Context, contact models.Contact, action string) error {
-	dataJSON, err := marshalContactJSON(&contact)
-	if err != nil {
-		return err
-	}
-
 	queryCtx, cancel := s.withTimeout(ctx)
 	defer cancel()
 
-	_, err = s.pool.Exec(queryCtx, `
-		INSERT INTO contact_versions (contact_id, phone, email, name, discount, data, file_id, action)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-	`, contact.ID, contact.Phone, contact.Email, contact.Name, contact.Discount, dataJSON, contact.FileID, action)
+	_, err := s.pool.Exec(queryCtx, `
+		INSERT INTO contact_versions (contact_id, phone, email, name, discount, file_id, action)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+	`, contact.ID, contact.Phone, contact.Email, contact.Name, contact.Discount, contact.FileID, action)
 	return err
-}
-
-// marshalContactJSON – marshals contact.Data into JSON bytes.
-// Паникует, если contact nil (программная ошибка, не рантайм).
-func marshalContactJSON(contact *models.Contact) ([]byte, error) {
-	dataJSON, err := json.Marshal(contact.Data)
-	if err != nil {
-		return nil, fmt.Errorf("marshal contact data: %w", err)
-	}
-	return dataJSON, nil
 }
