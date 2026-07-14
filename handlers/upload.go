@@ -34,28 +34,29 @@ type UploadHandler struct {
 	store storage.FileStore
 }
 
-// uploadResponse – JSON теги
-type uploadResponse struct {
-	FileID              string                     `json:"fileId"`
-	OriginalFilename    string                     `json:"originalFilename,omitempty"`
-	Size                int64                      `json:"size,omitempty"`
-	MIMEType            string                     `json:"mimeType,omitempty"`
-	DetectedMIMEType    string                     `json:"detectedMimeType,omitempty"`
-	Format              string                     `json:"format,omitempty"`
-	Encoding            string                     `json:"encoding,omitempty"`
-	SheetName           string                     `json:"sheetName,omitempty"`
+// UploadResponse – результат загрузки, проверки и сохранения файла.
+type UploadResponse struct {
+	FileID              string                     `json:"fileId" example:"2f656bc0-6227-49d3-9d09-b2d59bd21c52"`
+	OriginalFilename    string                     `json:"originalFilename,omitempty" example:"clients.xlsx"`
+	Size                int64                      `json:"size,omitempty" example:"18432"`
+	MIMEType            string                     `json:"mimeType,omitempty" example:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"`
+	DetectedMIMEType    string                     `json:"detectedMimeType,omitempty" example:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"`
+	Format              string                     `json:"format,omitempty" enums:"csv,xls,xlsx" example:"xlsx"`
+	Encoding            string                     `json:"encoding,omitempty" example:"UTF-8"`
+	SheetName           string                     `json:"sheetName,omitempty" example:"Клиенты"`
 	Sheets              []string                   `json:"sheets,omitempty"`
-	HeaderRow           int                        `json:"headerRow,omitempty"`
+	HeaderRow           int                        `json:"headerRow,omitempty" example:"1"`
 	Headers             []string                   `json:"headers"`
 	PreviewRows         []map[string]string        `json:"previewRows"`
 	Stats               models.ProcessingStats     `json:"stats"`
 	Warnings            []models.ProcessingWarning `json:"warnings,omitempty"`
 	InvalidRows         []models.InvalidRow        `json:"invalidRows,omitempty"`
-	DetectedPhoneColumn string                     `json:"detectedPhoneColumn,omitempty"`
+	DetectedPhoneColumn string                     `json:"detectedPhoneColumn,omitempty" example:"Телефон"`
 }
 
-type errorResponse struct {
-	Error string `json:"error"`
+// ErrorResponse – единый JSON-формат ошибки всех API-обработчиков.
+type ErrorResponse struct {
+	Error string `json:"error" example:"Некорректный запрос"`
 }
 
 // RegisterUploadRoutes – регистрация маршрута
@@ -64,7 +65,20 @@ func RegisterUploadRoutes(mux *http.ServeMux, store storage.FileStore) {
 	mux.HandleFunc("/api/upload", handler.Upload)
 }
 
-// Upload – основной метод, обрабатывает POST-запросы с файлами
+// Upload – основной метод, обрабатывает POST-запросы с файлами.
+// @Summary Загрузить и проверить файл
+// @Description Принимает CSV, XLS или XLSX, определяет структуру, нормализует данные и сохраняет все строки в PostgreSQL.
+// @Tags Files
+// @Accept multipart/form-data
+// @Produce json
+// @Param file formData file true "CSV/XLS/XLSX-файл с клиентскими данными"
+// @Param sheet formData string false "Имя листа XLS/XLSX; если не задано, используется первый лист"
+// @Success 200 {object} UploadResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 405 {object} ErrorResponse
+// @Failure 413 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /api/upload [post]
 func (h *UploadHandler) Upload(w http.ResponseWriter, r *http.Request) {
 
 	// Обработка CORS (предварительный запрос), возвращает ошибку 204
@@ -137,7 +151,7 @@ func (h *UploadHandler) Upload(w http.ResponseWriter, r *http.Request) {
 	}
 	data.ID = fileID
 
-	writeJSON(w, http.StatusOK, uploadResponse{
+	writeJSON(w, http.StatusOK, UploadResponse{
 		FileID:              fileID,
 		OriginalFilename:    data.OriginalFilename,
 		Size:                data.Size,
@@ -248,7 +262,7 @@ func writeJSON(w http.ResponseWriter, status int, payload any) {
 	_ = json.NewEncoder(w).Encode(payload)
 }
 
-// writeJSONError – оборачивает сообщение в структуру errorResponse
+// writeJSONError – оборачивает сообщение в структуру ErrorResponse.
 func writeJSONError(w http.ResponseWriter, status int, message string) {
-	writeJSON(w, status, errorResponse{Error: message})
+	writeJSON(w, status, ErrorResponse{Error: message})
 }

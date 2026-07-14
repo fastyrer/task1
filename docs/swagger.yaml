@@ -1,0 +1,780 @@
+basePath: /
+consumes:
+- application/json
+definitions:
+  handlers.ErrorResponse:
+    properties:
+      error:
+        example: Некорректный запрос
+        type: string
+    type: object
+  handlers.FixRowsRequest:
+    properties:
+      fileId:
+        example: 2f656bc0-6227-49d3-9d09-b2d59bd21c52
+        type: string
+      rows:
+        items:
+          $ref: '#/definitions/services.FixRowInput'
+        type: array
+    required:
+    - fileId
+    - rows
+    type: object
+  handlers.HealthResponse:
+    properties:
+      error:
+        example: storage unavailable
+        type: string
+      status:
+        enum:
+        - ok
+        - degraded
+        example: ok
+        type: string
+      storage:
+        enum:
+        - postgres
+        example: postgres
+        type: string
+    type: object
+  handlers.NotificationItem:
+    properties:
+      phone:
+        example: "+79991234567"
+        type: string
+      row:
+        example: 1
+        type: integer
+      text:
+        example: 'Здравствуйте, Анна! Ваша скидка: 10%.'
+        type: string
+    type: object
+  handlers.PreviewRequest:
+    properties:
+      template:
+        example: 'Здравствуйте, {{Имя}}! Ваша скидка: {{Скидка}}.'
+        type: string
+    required:
+    - template
+    type: object
+  handlers.PreviewResponse:
+    properties:
+      notifications:
+        items:
+          $ref: '#/definitions/handlers.NotificationItem'
+        type: array
+      skipped:
+        example: 0
+        type: integer
+    type: object
+  handlers.ResolveAllResponse:
+    properties:
+      action:
+        allOf:
+        - $ref: '#/definitions/models.ConflictAction'
+        enum:
+        - skip
+        - replace
+        - merge
+        example: merge
+      resolved:
+        example: 3
+        type: integer
+      status:
+        enum:
+        - ok
+        example: ok
+        type: string
+    type: object
+  handlers.ResolveResponse:
+    properties:
+      action:
+        allOf:
+        - $ref: '#/definitions/models.ConflictAction'
+        enum:
+        - skip
+        - replace
+        - merge
+        example: merge
+      phone:
+        example: "+79991234567"
+        type: string
+      status:
+        enum:
+        - ok
+        example: ok
+        type: string
+    type: object
+  handlers.SaveContactsRequest:
+    properties:
+      fileId:
+        example: 2f656bc0-6227-49d3-9d09-b2d59bd21c52
+        type: string
+    required:
+    - fileId
+    type: object
+  handlers.SaveContactsResponse:
+    properties:
+      conflicts:
+        description: конфликты
+        items:
+          $ref: '#/definitions/models.ConflictInfo'
+        type: array
+      saved:
+        description: Сколько сохранено
+        type: integer
+      skipped:
+        description: Сколько пропущено
+        type: integer
+    type: object
+  handlers.SearchMatch:
+    properties:
+      column:
+        example: Телефон
+        type: string
+      value:
+        example: "+79991234567"
+        type: string
+    type: object
+  handlers.SearchRequest:
+    properties:
+      fileId:
+        example: 2f656bc0-6227-49d3-9d09-b2d59bd21c52
+        type: string
+      limit:
+        example: 100
+        minimum: 1
+        type: integer
+      query:
+        example: "+79"
+        type: string
+    required:
+    - fileId
+    - query
+    type: object
+  handlers.SearchResponse:
+    properties:
+      headers:
+        items:
+          type: string
+        type: array
+      limit:
+        example: 100
+        type: integer
+      query:
+        example: "+79"
+        type: string
+      returned:
+        description: Сколько вернули строк
+        example: 17
+        type: integer
+      rows:
+        items:
+          $ref: '#/definitions/handlers.SearchRow'
+        type: array
+      totalMatches:
+        description: Сколько всего совпадений
+        example: 17
+        type: integer
+      truncated:
+        description: Обрезали ли количество
+        example: false
+        type: boolean
+    type: object
+  handlers.SearchRow:
+    properties:
+      matches:
+        description: Массив совпадений (какие колонки совпали у данной строки)
+        items:
+          $ref: '#/definitions/handlers.SearchMatch'
+        type: array
+      row:
+        type: integer
+      values:
+        additionalProperties:
+          type: string
+        description: Все строка целиком
+        type: object
+    type: object
+  handlers.UploadResponse:
+    properties:
+      detectedMimeType:
+        example: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+        type: string
+      detectedPhoneColumn:
+        example: Телефон
+        type: string
+      encoding:
+        example: UTF-8
+        type: string
+      fileId:
+        example: 2f656bc0-6227-49d3-9d09-b2d59bd21c52
+        type: string
+      format:
+        enum:
+        - csv
+        - xls
+        - xlsx
+        example: xlsx
+        type: string
+      headerRow:
+        example: 1
+        type: integer
+      headers:
+        items:
+          type: string
+        type: array
+      invalidRows:
+        items:
+          $ref: '#/definitions/models.InvalidRow'
+        type: array
+      mimeType:
+        example: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+        type: string
+      originalFilename:
+        example: clients.xlsx
+        type: string
+      previewRows:
+        items:
+          additionalProperties:
+            type: string
+          type: object
+        type: array
+      sheetName:
+        example: Клиенты
+        type: string
+      sheets:
+        items:
+          type: string
+        type: array
+      size:
+        example: 18432
+        type: integer
+      stats:
+        $ref: '#/definitions/models.ProcessingStats'
+      warnings:
+        items:
+          $ref: '#/definitions/models.ProcessingWarning'
+        type: array
+    type: object
+  models.BatchResolveRequest:
+    properties:
+      action:
+        allOf:
+        - $ref: '#/definitions/models.ConflictAction'
+        enum:
+        - skip
+        - replace
+        - merge
+        example: merge
+      fileId:
+        example: 2f656bc0-6227-49d3-9d09-b2d59bd21c52
+        type: string
+    required:
+    - action
+    - fileId
+    type: object
+  models.ConflictAction:
+    enum:
+    - skip
+    - replace
+    - merge
+    type: string
+    x-enum-varnames:
+    - ConflictActionSkip
+    - ConflictActionReplace
+    - ConflictActionMerge
+  models.ConflictInfo:
+    properties:
+      actions:
+        items:
+          $ref: '#/definitions/models.ConflictAction'
+        type: array
+      differences:
+        description: Отличные поля
+        items:
+          type: string
+        type: array
+      existing:
+        additionalProperties:
+          type: string
+        description: То, что уже лежит в базе
+        type: object
+      incoming:
+        additionalProperties:
+          type: string
+        description: То, что прислал фронт
+        type: object
+      phone:
+        example: "+79991234567"
+        type: string
+      row:
+        example: 4
+        type: integer
+    type: object
+  models.InvalidRow:
+    properties:
+      errors:
+        items:
+          $ref: '#/definitions/models.ProcessingWarning'
+        type: array
+      row:
+        example: 4
+        type: integer
+      values:
+        additionalProperties:
+          type: string
+        type: object
+    type: object
+  models.ProcessingStats:
+    properties:
+      columnCount:
+        example: 4
+        type: integer
+      emptyRowCount:
+        example: 1
+        type: integer
+      invalidRowCount:
+        example: 3
+        type: integer
+      rowCount:
+        example: 100
+        type: integer
+      skippedRowCount:
+        example: 1
+        type: integer
+      validRowCount:
+        example: 96
+        type: integer
+      warningCount:
+        example: 3
+        type: integer
+    type: object
+  models.ProcessingWarning:
+    properties:
+      column:
+        example: Email
+        type: string
+      message:
+        example: Некорректный email.
+        type: string
+      row:
+        example: 4
+        type: integer
+    type: object
+  models.ResolveRequest:
+    properties:
+      action:
+        allOf:
+        - $ref: '#/definitions/models.ConflictAction'
+        enum:
+        - skip
+        - replace
+        - merge
+        example: merge
+      fileId:
+        example: 2f656bc0-6227-49d3-9d09-b2d59bd21c52
+        type: string
+      phone:
+        example: "+79991234567"
+        type: string
+    required:
+    - action
+    - fileId
+    - phone
+    type: object
+  services.FixRowError:
+    properties:
+      errors:
+        items:
+          $ref: '#/definitions/models.ProcessingWarning'
+        type: array
+      rowNumber:
+        example: 4
+        type: integer
+    type: object
+  services.FixRowInput:
+    properties:
+      rowNumber:
+        example: 4
+        type: integer
+      values:
+        additionalProperties:
+          type: string
+        type: object
+    required:
+    - rowNumber
+    - values
+    type: object
+  services.FixRowResult:
+    properties:
+      failed:
+        items:
+          $ref: '#/definitions/services.FixRowError'
+        type: array
+      fixed:
+        example: 2
+        type: integer
+      stats:
+        $ref: '#/definitions/models.ProcessingStats'
+      warnings:
+        items:
+          $ref: '#/definitions/models.ProcessingWarning'
+        type: array
+    type: object
+info:
+  contact: {}
+  description: |-
+    API для загрузки клиентских CSV/XLS/XLSX, проверки и поиска строк, ведения контактов и подготовки рассылок.
+    Все операции с файлами и контактами используют PostgreSQL как единственное хранилище.
+  title: Task1 Client Data API
+  version: 1.0.0
+paths:
+  /api/contacts/resolve:
+    post:
+      consumes:
+      - application/json
+      description: Применяет действие skip, replace или merge к несовпадающим данным
+        одного телефона из выбранного файла.
+      parameters:
+      - description: Решение конфликта
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.ResolveRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.ResolveResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "405":
+          description: Method Not Allowed
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Разрешить один конфликт контакта
+      tags:
+      - Contacts
+  /api/contacts/resolve-all:
+    post:
+      consumes:
+      - application/json
+      description: Применяет одно действие skip, replace или merge ко всем несовпадающим
+        контактам выбранного файла.
+      parameters:
+      - description: Общее решение конфликтов
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.BatchResolveRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.ResolveAllResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "405":
+          description: Method Not Allowed
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Разрешить все конфликты файла
+      tags:
+      - Contacts
+  /api/contacts/save:
+    post:
+      consumes:
+      - application/json
+      description: Переносит валидные строки загруженного файла в общий справочник
+        контактов. Несовпадающие данные для существующего телефона возвращаются как
+        конфликты.
+      parameters:
+      - description: Идентификатор загруженного файла
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.SaveContactsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.SaveContactsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "405":
+          description: Method Not Allowed
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Сохранить контакты из файла
+      tags:
+      - Contacts
+  /api/export:
+    post:
+      consumes:
+      - application/json
+      description: Формирует сообщения по всем актуальным контактам PostgreSQL и возвращает
+        UTF-8 CSV с колонками «Телефон» и «Сообщение».
+      parameters:
+      - description: Шаблон сообщения
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.PreviewRequest'
+      produces:
+      - text/csv
+      - application/json
+      responses:
+        "200":
+          description: notifications.csv
+          schema:
+            type: file
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "405":
+          description: Method Not Allowed
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Экспортировать общую рассылку
+      tags:
+      - Notifications
+  /api/health:
+    get:
+      description: Проверяет доступность PostgreSQL с таймаутом две секунды.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.HealthResponse'
+        "405":
+          description: Method Not Allowed
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/handlers.HealthResponse'
+      summary: Проверить состояние приложения
+      tags:
+      - Health
+  /api/preview:
+    post:
+      consumes:
+      - application/json
+      description: Формирует сообщение для каждого актуального контакта PostgreSQL.
+        Поддерживаются плейсхолдеры {{Телефон}}, {{Имя}}, {{Email}} и {{Скидка}}.
+      parameters:
+      - description: Шаблон сообщения
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.PreviewRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PreviewResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "405":
+          description: Method Not Allowed
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Предпросмотр общей рассылки
+      tags:
+      - Notifications
+  /api/rows/fix:
+    post:
+      consumes:
+      - application/json
+      description: Повторно нормализует отредактированные пользователем строки файла
+        и сохраняет корректные контакты в PostgreSQL.
+      parameters:
+      - description: Исправленные строки
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.FixRowsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/services.FixRowResult'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "405":
+          description: Method Not Allowed
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Проверить и сохранить исправленные строки
+      tags:
+      - Files
+  /api/search:
+    post:
+      consumes:
+      - application/json
+      description: Ищет подстроку без учёта регистра во всех ячейках ранее загруженного
+        файла. Возвращает полные строки и колонки совпадений для подсветки.
+      parameters:
+      - description: Параметры поиска
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.SearchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.SearchResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "405":
+          description: Method Not Allowed
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Найти строки в файле
+      tags:
+      - Search
+  /api/upload:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Принимает CSV, XLS или XLSX, определяет структуру, нормализует
+        данные и сохраняет все строки в PostgreSQL.
+      parameters:
+      - description: CSV/XLS/XLSX-файл с клиентскими данными
+        in: formData
+        name: file
+        required: true
+        type: file
+      - description: Имя листа XLS/XLSX; если не задано, используется первый лист
+        in: formData
+        name: sheet
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.UploadResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "405":
+          description: Method Not Allowed
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "413":
+          description: Request Entity Too Large
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Загрузить и проверить файл
+      tags:
+      - Files
+produces:
+- application/json
+schemes:
+- http
+- https
+swagger: "2.0"
+tags:
+- description: Состояние приложения и подключение к PostgreSQL
+  name: Health
+- description: Загрузка, разбор и исправление строк файлов
+  name: Files
+- description: Поиск по строкам ранее загруженного файла
+  name: Search
+- description: Сохранение контактов и разрешение конфликтов по телефону
+  name: Contacts
+- description: Предпросмотр и экспорт рассылки по всем контактам PostgreSQL
+  name: Notifications

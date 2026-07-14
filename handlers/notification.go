@@ -46,22 +46,22 @@ type NotificationHandler struct {
 	store NotificationStore
 }
 
-// previewRequest содержит шаблон общей рассылки по сохранённым контактам.
-type previewRequest struct {
-	Template string `json:"template"`
+// PreviewRequest содержит шаблон общей рассылки по сохранённым контактам.
+type PreviewRequest struct {
+	Template string `json:"template" validate:"required" example:"Здравствуйте, {{Имя}}! Ваша скидка: {{Скидка}}."`
 }
 
-// notificationItem - готовое уведомление для одного контакта.
-type notificationItem struct {
-	Phone string `json:"phone"`
-	Text  string `json:"text"`
-	Row   int    `json:"row"`
+// NotificationItem – готовое уведомление для одного контакта.
+type NotificationItem struct {
+	Phone string `json:"phone" example:"+79991234567"`
+	Text  string `json:"text" example:"Здравствуйте, Анна! Ваша скидка: 10%."`
+	Row   int    `json:"row" example:"1"`
 }
 
-// previewResponse содержит готовые уведомления и число пропущенных контактов.
-type previewResponse struct {
-	Notifications []notificationItem `json:"notifications"`
-	Skipped       int                `json:"skipped"`
+// PreviewResponse содержит готовые уведомления и число пропущенных контактов.
+type PreviewResponse struct {
+	Notifications []NotificationItem `json:"notifications"`
+	Skipped       int                `json:"skipped" example:"0"`
 }
 
 // RegisterNotificationRoutes привязывает два эндпоинта к одному NotificationHandler.
@@ -72,6 +72,17 @@ func RegisterNotificationRoutes(mux *http.ServeMux, store NotificationStore) {
 }
 
 // Preview формирует JSON-предпросмотр по всем актуальным контактам.
+// @Summary Предпросмотр общей рассылки
+// @Description Формирует сообщение для каждого актуального контакта PostgreSQL. Поддерживаются плейсхолдеры {{Телефон}}, {{Имя}}, {{Email}} и {{Скидка}}.
+// @Tags Notifications
+// @Accept json
+// @Produce json
+// @Param request body PreviewRequest true "Шаблон сообщения"
+// @Success 200 {object} PreviewResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 405 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /api/preview [post]
 func (h *NotificationHandler) Preview(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodOptions {
 		w.WriteHeader(http.StatusNoContent)
@@ -82,7 +93,7 @@ func (h *NotificationHandler) Preview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req previewRequest
+	var req PreviewRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSONError(w, http.StatusBadRequest, services.ErrorBadRequest)
 		return
@@ -102,6 +113,17 @@ func (h *NotificationHandler) Preview(w http.ResponseWriter, r *http.Request) {
 }
 
 // Export формирует те же уведомления и возвращает CSV-файл с UTF-8 BOM.
+// @Summary Экспортировать общую рассылку
+// @Description Формирует сообщения по всем актуальным контактам PostgreSQL и возвращает UTF-8 CSV с колонками «Телефон» и «Сообщение».
+// @Tags Notifications
+// @Accept json
+// @Produce text/csv,application/json
+// @Param request body PreviewRequest true "Шаблон сообщения"
+// @Success 200 {file} file "notifications.csv"
+// @Failure 400 {object} ErrorResponse
+// @Failure 405 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /api/export [post]
 func (h *NotificationHandler) Export(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodOptions {
 		w.WriteHeader(http.StatusNoContent)
@@ -112,7 +134,7 @@ func (h *NotificationHandler) Export(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req previewRequest
+	var req PreviewRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSONError(w, http.StatusBadRequest, services.ErrorBadRequest)
 		return
@@ -165,8 +187,8 @@ func validateNotificationTemplate(template string) error {
 }
 
 // generateNotifications формирует по одному сообщению на уникальный телефон из contacts.
-func generateNotifications(contacts []models.Contact, template string) previewResponse {
-	notifications := make([]notificationItem, 0, len(contacts))
+func generateNotifications(contacts []models.Contact, template string) PreviewResponse {
+	notifications := make([]NotificationItem, 0, len(contacts))
 	skipped := 0
 
 	for index, contact := range contacts {
@@ -182,14 +204,14 @@ func generateNotifications(contacts []models.Contact, template string) previewRe
 			emailPlaceholder:    contact.Email,
 			discountPlaceholder: contact.Discount,
 		}
-		notifications = append(notifications, notificationItem{
+		notifications = append(notifications, NotificationItem{
 			Phone: phone,
 			Text:  services.GenerateText(template, values),
 			Row:   index + 1,
 		})
 	}
 
-	return previewResponse{
+	return PreviewResponse{
 		Notifications: notifications,
 		Skipped:       skipped,
 	}

@@ -12,14 +12,14 @@ import (
 )
 
 type FixRowResult struct {
-	Fixed    int                        `json:"fixed"`
+	Fixed    int                        `json:"fixed" example:"2"`
 	Failed   []FixRowError              `json:"failed,omitempty"`
 	Stats    *models.ProcessingStats    `json:"stats,omitempty"`
 	Warnings []models.ProcessingWarning `json:"warnings,omitempty"`
 }
 
 type FixRowError struct {
-	RowNumber int                        `json:"rowNumber"`
+	RowNumber int                        `json:"rowNumber" example:"4"`
 	Errors    []models.ProcessingWarning `json:"errors"`
 }
 
@@ -198,8 +198,8 @@ func contactToMap(c models.Contact) map[string]string {
 }
 
 type FixRowInput struct {
-	RowNumber int               `json:"rowNumber"`
-	Values    map[string]string `json:"values"`
+	RowNumber int               `json:"rowNumber" validate:"required" example:"4"`
+	Values    map[string]string `json:"values" validate:"required"`
 }
 
 // FixAndSaveRow – валидирует и сохраняет исправленную строку, учитывая возможные конфликты.
