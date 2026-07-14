@@ -9,11 +9,13 @@ import (
 
 // FillMergedCells копирует значение объединённых ячеек во все ячейки диапазона.
 func FillMergedCells(workbook *excelize.File, sheetName string, rows [][]string) ([][]string, int, error) {
+	// Получение объединенных ячеек
 	mergeCells, err := workbook.GetMergeCells(sheetName)
 	if err != nil {
 		return rows, 0, err
 	}
 
+	// Получение значения из первой ячейки объединенной области
 	for _, mc := range mergeCells {
 		value := CleanCell(mc.GetCellValue())
 		if value == "" {
