@@ -134,7 +134,6 @@ func RowToContact(row map[string]string, phone, fileID string) models.Contact {
 	contact := models.Contact{
 		Phone:  phone,
 		FileID: fileID,
-		Data:   make(map[string]string),
 	}
 
 	// 2. Обход всех значений строки
@@ -153,11 +152,7 @@ func RowToContact(row map[string]string, phone, fileID string) models.Contact {
 		case utils.ColumnGeneric:
 			if isNameLikeField(header) {
 				contact.Name = value
-			} else {
-				contact.Data[header] = value
 			}
-		default:
-			contact.Data[header] = value
 		}
 	}
 
@@ -184,35 +179,19 @@ func isNameLikeField(header string) bool {
 
 // ContactsEqual – сравнивает два контакта по основным полям.
 
-// ContactsEqual:
-// 1. Сравнение основных полей контакта
-// 2. Проверка количества дополнительных данных
-// 3. Сравнение значений дополнительных полей
+// ContactsEqual сравнивает фиксированные поля контакта.
 func ContactsEqual(a, b models.Contact) bool {
-	// 1. Сравнение основных полей контакта
-	if a.Phone != b.Phone || a.Email != b.Email || a.Name != b.Name || a.Discount != b.Discount {
-		return false
-	}
-
-	// 2. Проверка количества дополнительных данных
-	if len(a.Data) != len(b.Data) {
-		return false
-	}
-
-	// 3. Сравнение значений дополнительных полей
-	for k, v := range a.Data {
-		if b.Data[k] != v {
-			return false
-		}
-	}
-	return true
+	return a.Phone == b.Phone &&
+		a.Email == b.Email &&
+		a.Name == b.Name &&
+		a.Discount == b.Discount
 }
 
 // detectConflict – формирует описание конфликта между существующим и входящим контактом.
 
 // detectConflict:
 // 1. Преобразование контактов в удобный вид для сравнения
-// 2. Поиск различий по основным полям (name, email, discount) и дополнительным данным
+// 2. Поиск различий по фиксированным полям (name, email, discount)
 // 3. Формирование информации о конфликте и доступных действиях
 func detectConflict(rowNum int, existing, incoming models.Contact) models.ConflictInfo {
 	// 1. Преобразование контактов в удобный вид для сравнения
@@ -229,18 +208,6 @@ func detectConflict(rowNum int, existing, incoming models.Contact) models.Confli
 	}
 	if existing.Discount != incoming.Discount {
 		differences = append(differences, "discount")
-	}
-
-	// 2. Поиск различий по дополнительным полям
-	for k, v := range existing.Data {
-		if incoming.Data[k] != v {
-			differences = append(differences, k)
-		}
-	}
-	for k, v := range incoming.Data {
-		if existing.Data[k] != v {
-			differences = append(differences, k)
-		}
 	}
 
 	// 3. Формирование информации о конфликте и доступных действиях
@@ -263,8 +230,6 @@ func detectConflict(rowNum int, existing, incoming models.Contact) models.Confli
 // contactToMap:
 // 1. Создание пустой карты значений
 // 2. Заполнение основных полей контакта
-// 3. Добавление дополнительных данных из contact.Data
-
 func contactToMap(c models.Contact) map[string]string {
 	// 1. Создание пустой карты значений
 	m := make(map[string]string)
@@ -273,10 +238,6 @@ func contactToMap(c models.Contact) map[string]string {
 	m["email"] = c.Email
 	m["name"] = c.Name
 	m["discount"] = c.Discount
-	// 3. Добавление дополнительных данных из contact.Data
-	for k, v := range c.Data {
-		m[k] = v
-	}
 	return m
 }
 

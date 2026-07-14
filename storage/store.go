@@ -24,7 +24,7 @@ type FileStore interface {
 // ContactStore – операции с контактами
 type ContactStore interface {
 
-	// SaveContact – создание и сохранение нового контакта
+	// SaveContact создаёт контакт и возвращает его публичный UID.
 	SaveContact(ctx context.Context, contact models.Contact) (string, error)
 
 	// GetContactByPhone – поиск контакта по телефону (телефон является уникальным ключом)
