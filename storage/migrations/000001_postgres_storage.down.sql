@@ -9,7 +9,6 @@ DROP TABLE IF EXISTS file_rows;
 
 -- Возвращаем старые таблицы к состоянию до миграции, убирая новые CHECK-ограничения.
 ALTER TABLE contact_versions DROP CONSTRAINT IF EXISTS chk_contact_versions_action;
-ALTER TABLE contacts DROP CONSTRAINT IF EXISTS chk_contacts_data;
 ALTER TABLE contacts DROP CONSTRAINT IF EXISTS chk_contacts_discount;
 ALTER TABLE contacts DROP CONSTRAINT IF EXISTS chk_contacts_phone;
 ALTER TABLE uploaded_files DROP CONSTRAINT IF EXISTS chk_uploaded_files_size;

@@ -3,12 +3,17 @@ package models
 import "time"
 
 type Contact struct {
-	ID        string    `json:"id"`
-	Phone     string    `json:"phone"`
-	Email     string    `json:"email,omitempty"`
-	Name      string    `json:"name,omitempty"`
-	Discount  string    `json:"discount,omitempty"`
-	FileID    string    `json:"fileId"`
+	// ID - внутренний автоинкрементный ключ PostgreSQL; наружу через API не отдаётся.
+	ID int64 `json:"-"`
+	// UID - публичный UUID контакта, который генерирует PostgreSQL.
+	UID      string `json:"uid"`
+	Phone    string `json:"phone"`
+	Email    string `json:"email,omitempty"`
+	Name     string `json:"name,omitempty"`
+	Discount string `json:"discount,omitempty"`
+	FileID   string `json:"fileId"`
+	// SourceRow хранит исходный номер строки файла для аудита и не отдаётся в JSON API.
+	SourceRow int       `json:"-"`
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
 }
@@ -27,7 +32,9 @@ const (
 	ContactEventFixed    ContactEventAction = "fixed"
 )
 
-type ConflictAction string // Тип для действия при конфликте (псевдоним)
+// ConflictAction - действие пользователя при несовпадении данных одного телефона.
+// Тип остаётся в модели, потому что это общий контракт handlers, services и storage.
+type ConflictAction string
 
 const (
 	ConflictActionSkip    ConflictAction = "skip"

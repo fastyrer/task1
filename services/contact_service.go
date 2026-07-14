@@ -127,12 +127,37 @@ func RowToContact(row map[string]string, phone, fileID string) models.Contact {
 			contact.Email = value
 		case utils.ColumnDiscount:
 			contact.Discount = value
+		case utils.ColumnGeneric:
+			if isNameLikeField(header) {
+				contact.Name = value
+			}
 		}
 	}
 
 	return contact
 }
 
+// isNameLikeField – определяет, относится ли колонка к имени клиента.
+
+// isNameLikeField:
+// 1. Нормализация имени колонки
+// 2. Сопоставление с известными вариантами имени
+func isNameLikeField(header string) bool {
+	// 1. Нормализация имени колонки
+	key := utils.HeaderKey(header)
+
+	// 2. Сопоставление с известными вариантами имени
+	switch key {
+	case "имя", "фио", "name", "first name", "last name", "client", "клиент":
+		return true
+	default:
+		return false
+	}
+}
+
+// ContactsEqual – сравнивает два контакта по основным полям.
+
+// ContactsEqual сравнивает фиксированные поля контакта.
 func ContactsEqual(a, b models.Contact) bool {
 	return a.Phone == b.Phone &&
 		a.Email == b.Email &&
@@ -140,6 +165,12 @@ func ContactsEqual(a, b models.Contact) bool {
 		a.Discount == b.Discount
 }
 
+// detectConflict – формирует описание конфликта между существующим и входящим контактом.
+
+// detectConflict:
+// 1. Преобразование контактов в удобный вид для сравнения
+// 2. Поиск различий по фиксированным полям (name, email, discount)
+// 3. Формирование информации о конфликте и доступных действиях
 func detectConflict(rowNum int, existing, incoming models.Contact) models.ConflictInfo {
 	existingMap := contactToMap(existing)
 	incomingMap := contactToMap(incoming)
@@ -155,6 +186,7 @@ func detectConflict(rowNum int, existing, incoming models.Contact) models.Confli
 		differences = append(differences, "discount")
 	}
 
+	// 3. Формирование информации о конфликте и доступных действиях
 	return models.ConflictInfo{
 		Row:         rowNum,
 		Phone:       incoming.Phone,
@@ -169,6 +201,11 @@ func detectConflict(rowNum int, existing, incoming models.Contact) models.Confli
 	}
 }
 
+// contactToMap – преобразует контакт в map для сравнения и формирования ответа.
+
+// contactToMap:
+// 1. Создание пустой карты значений
+// 2. Заполнение основных полей контакта
 func contactToMap(c models.Contact) map[string]string {
 	m := make(map[string]string, 4)
 	m["phone"] = c.Phone

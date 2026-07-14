@@ -162,7 +162,6 @@ CREATE TABLE IF NOT EXISTS contacts (
 	email TEXT NOT NULL DEFAULT '',
 	name TEXT NOT NULL DEFAULT '',
 	discount TEXT NOT NULL DEFAULT '',
-	data JSONB NOT NULL DEFAULT '{}'::jsonb,
 	created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
 	updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
 	CONSTRAINT uq_contacts_phone UNIQUE (phone)
@@ -184,7 +183,7 @@ BEGIN
 END
 $migration$;
 
--- Ограничения защищают БД от ненормализованного телефона, неверной скидки и необъекта data.
+-- Ограничения защищают БД от ненормализованного телефона и неверной скидки.
 ALTER TABLE contacts DROP CONSTRAINT IF EXISTS contacts_phone_key;
 ALTER TABLE contacts DROP CONSTRAINT IF EXISTS uq_contacts_phone;
 ALTER TABLE contacts ADD CONSTRAINT uq_contacts_phone UNIQUE (phone);
@@ -201,10 +200,6 @@ ALTER TABLE contacts
 		discount = '' OR
 		(discount ~ '^[0-9]+([.][0-9]+)?$' AND discount::numeric BETWEEN 0 AND 100)
 	) NOT VALID;
-
-ALTER TABLE contacts DROP CONSTRAINT IF EXISTS chk_contacts_data;
-ALTER TABLE contacts
-	ADD CONSTRAINT chk_contacts_data CHECK (jsonb_typeof(data) = 'object') NOT VALID;
 
 CREATE INDEX IF NOT EXISTS contacts_email_idx ON contacts (lower(email));
 
@@ -252,8 +247,7 @@ BEGIN
 					'phone', phone,
 					'email', email,
 					'name', name,
-					'discount', discount,
-					'data', data
+					'discount', discount
 				)
 			FROM contacts
 			WHERE file_id IS NOT NULL
@@ -271,7 +265,6 @@ CREATE TABLE IF NOT EXISTS contact_versions (
 	email TEXT NOT NULL DEFAULT '',
 	name TEXT NOT NULL DEFAULT '',
 	discount TEXT NOT NULL DEFAULT '',
-	data JSONB NOT NULL DEFAULT '{}'::jsonb,
 	file_id TEXT REFERENCES uploaded_files(id) ON DELETE SET NULL,
 	action TEXT NOT NULL,
 	created_at TIMESTAMPTZ NOT NULL DEFAULT now()

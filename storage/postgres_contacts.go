@@ -23,32 +23,17 @@ type rowScanner interface {
 // SaveContact - создаёт новый контакт.
 //
 // Алгоритм:
-//  1. Генерирует ID и кодирует дополнительные поля в JSONB.
-//  2. Вставляет контакт через ON CONFLICT (phone) DO NOTHING.
+//  1. PostgreSQL генерирует внутренний serial ID и публичный UID.
+//  2. Вставляет фиксированные поля через ON CONFLICT (phone) DO NOTHING.
 //  3. Если телефон уже есть, возвращает ErrContactAlreadyExists.
 //  4. В той же транзакции пишет первую версию и связь с файлом-источником.
 func (s *PostgresStorage) SaveContact(ctx context.Context, contact models.Contact) (string, error) {
 	const insertContactQuery = `
-		INSERT INTO contacts (id, phone, email, name, discount, data)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO contacts (phone, email, name, discount)
+		VALUES ($1, $2, $3, $4)
 		ON CONFLICT (phone) DO NOTHING
-		RETURNING created_at, updated_at
+		RETURNING id, uid::text, created_at, updated_at
 	`
-
-	contactID := strings.TrimSpace(contact.ID)
-	if contactID == "" {
-		var err error
-		contactID, err = generateID()
-		if err != nil {
-			return "", err
-		}
-	}
-	contact.ID = contactID
-
-	dataJSON, err := marshalContactData(contact.Data)
-	if err != nil {
-		return "", err
-	}
 
 	queryCtx, cancel := s.withTimeout(ctx)
 	defer cancel()
@@ -60,13 +45,13 @@ func (s *PostgresStorage) SaveContact(ctx context.Context, contact models.Contac
 	defer tx.Rollback(queryCtx)
 
 	err = tx.QueryRow(queryCtx, insertContactQuery,
-		contact.ID,
 		contact.Phone,
 		contact.Email,
 		contact.Name,
 		contact.Discount,
-		dataJSON,
 	).Scan(
+		&contact.ID,
+		&contact.UID,
 		&contact.CreatedAt,
 		&contact.UpdatedAt,
 	)
@@ -87,7 +72,7 @@ func (s *PostgresStorage) SaveContact(ctx context.Context, contact models.Contac
 		return "", fmt.Errorf("commit save contact transaction: %w", err)
 	}
 
-	return contact.ID, nil
+	return contact.UID, nil
 }
 
 // GetContactByPhone - возвращает актуальное состояние контакта по уникальному телефону.
@@ -96,11 +81,11 @@ func (s *PostgresStorage) GetContactByPhone(ctx context.Context, phone string) (
 	const getContactByPhoneQuery = `
 		SELECT
 			c.id,
+			c.uid::text,
 			c.phone,
 			c.email,
 			c.name,
 			c.discount,
-			c.data,
 			c.created_at,
 			c.updated_at,
 			COALESCE(source.file_id, ''),
@@ -135,11 +120,11 @@ func (s *PostgresStorage) ListContactsByFileID(ctx context.Context, fileID strin
 	const listContactsByFileQuery = `
 		SELECT DISTINCT ON (c.id)
 			c.id,
+			c.uid::text,
 			c.phone,
 			c.email,
 			c.name,
 			c.discount,
-			c.data,
 			c.created_at,
 			c.updated_at,
 			COALESCE(source.file_id, ''),
@@ -178,15 +163,10 @@ func (s *PostgresStorage) ListContactsByFileID(ctx context.Context, fileID strin
 func (s *PostgresStorage) UpdateContact(ctx context.Context, contact models.Contact) error {
 	const updateContactQuery = `
 		UPDATE contacts
-		SET phone = $1, email = $2, name = $3, discount = $4, data = $5
-		WHERE id = $6
+		SET phone = $1, email = $2, name = $3, discount = $4
+		WHERE id = $5
 		RETURNING created_at, updated_at
 	`
-
-	dataJSON, err := marshalContactData(contact.Data)
-	if err != nil {
-		return err
-	}
 
 	queryCtx, cancel := s.withTimeout(ctx)
 	defer cancel()
@@ -202,7 +182,6 @@ func (s *PostgresStorage) UpdateContact(ctx context.Context, contact models.Cont
 		contact.Email,
 		contact.Name,
 		contact.Discount,
-		dataJSON,
 		contact.ID,
 	).Scan(
 		&contact.CreatedAt,
@@ -233,7 +212,7 @@ func (s *PostgresStorage) UpdateContact(ctx context.Context, contact models.Cont
 //  4. Версия, источник и контакт изменяются в одной транзакции.
 func (s *PostgresStorage) ResolveConflict(ctx context.Context, phone string, action models.ConflictAction, incoming models.Contact) error {
 	const lockContactByPhoneQuery = `
-		SELECT id, phone, email, name, discount, data, created_at, updated_at
+		SELECT id, uid::text, phone, email, name, discount, created_at, updated_at
 		FROM contacts
 		WHERE phone = $1
 		FOR UPDATE
@@ -286,6 +265,7 @@ func (s *PostgresStorage) ResolveConflict(ctx context.Context, phone string, act
 	}
 
 	incoming.ID = existing.ID
+	incoming.UID = existing.UID
 	incoming.CreatedAt = existing.CreatedAt
 
 	switch action {
@@ -316,22 +296,18 @@ func (s *PostgresStorage) ResolveConflict(ctx context.Context, phone string, act
 // Порядок Scan должен точно совпадать с SELECT в вызывающем методе.
 func scanContact(row rowScanner) (models.Contact, error) {
 	var contact models.Contact
-	var dataJSON []byte
 	if err := row.Scan(
 		&contact.ID,
+		&contact.UID,
 		&contact.Phone,
 		&contact.Email,
 		&contact.Name,
 		&contact.Discount,
-		&dataJSON,
 		&contact.CreatedAt,
 		&contact.UpdatedAt,
 		&contact.FileID,
 		&contact.SourceRow,
 	); err != nil {
-		return models.Contact{}, err
-	}
-	if err := unmarshalJSON(dataJSON, &contact.Data, "contact data"); err != nil {
 		return models.Contact{}, err
 	}
 	return contact, nil
@@ -340,20 +316,16 @@ func scanContact(row rowScanner) (models.Contact, error) {
 // scanCoreContact - считывает только поля contacts без данных об источнике.
 func scanCoreContact(row rowScanner) (models.Contact, error) {
 	var contact models.Contact
-	var dataJSON []byte
 	if err := row.Scan(
 		&contact.ID,
+		&contact.UID,
 		&contact.Phone,
 		&contact.Email,
 		&contact.Name,
 		&contact.Discount,
-		&dataJSON,
 		&contact.CreatedAt,
 		&contact.UpdatedAt,
 	); err != nil {
-		return models.Contact{}, err
-	}
-	if err := unmarshalJSON(dataJSON, &contact.Data, "contact data"); err != nil {
 		return models.Contact{}, err
 	}
 	return contact, nil
@@ -364,22 +336,16 @@ func scanCoreContact(row rowScanner) (models.Contact, error) {
 func updateResolvedContact(ctx context.Context, tx pgx.Tx, contact *models.Contact, action models.ContactEventAction) error {
 	const updateResolvedContactQuery = `
 		UPDATE contacts
-		SET phone = $1, email = $2, name = $3, discount = $4, data = $5
-		WHERE id = $6
+		SET phone = $1, email = $2, name = $3, discount = $4
+		WHERE id = $5
 		RETURNING updated_at
 	`
 
-	dataJSON, err := marshalContactData(contact.Data)
-	if err != nil {
-		return err
-	}
-
-	err = tx.QueryRow(ctx, updateResolvedContactQuery,
+	err := tx.QueryRow(ctx, updateResolvedContactQuery,
 		contact.Phone,
 		contact.Email,
 		contact.Name,
 		contact.Discount,
-		dataJSON,
 		contact.ID,
 	).Scan(&contact.UpdatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -402,15 +368,10 @@ func updateResolvedContact(ctx context.Context, tx pgx.Tx, contact *models.Conta
 func saveContactVersionTx(ctx context.Context, tx pgx.Tx, contact models.Contact, action models.ContactEventAction) error {
 	const insertContactVersionQuery = `
 		INSERT INTO contact_versions (
-			contact_id, phone, email, name, discount, data, file_id, action
+			contact_id, phone, email, name, discount, file_id, action
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, NULLIF($7, ''), $8)
+		VALUES ($1, $2, $3, $4, $5, NULLIF($6, ''), $7)
 	`
-
-	dataJSON, err := marshalContactData(contact.Data)
-	if err != nil {
-		return err
-	}
 
 	if _, err := tx.Exec(ctx, insertContactVersionQuery,
 		contact.ID,
@@ -418,7 +379,6 @@ func saveContactVersionTx(ctx context.Context, tx pgx.Tx, contact models.Contact
 		contact.Email,
 		contact.Name,
 		contact.Discount,
-		dataJSON,
 		contact.FileID,
 		action,
 	); err != nil {
@@ -456,26 +416,14 @@ func saveContactSourceTx(ctx context.Context, tx pgx.Tx, contact models.Contact,
 	return nil
 }
 
-// marshalContactData - кодирует дополнительные поля контакта в JSON-объект.
-func marshalContactData(data map[string]string) ([]byte, error) {
-	if data == nil {
-		data = map[string]string{}
-	}
-	encoded, err := json.Marshal(data)
-	if err != nil {
-		return nil, fmt.Errorf("marshal contact data: %w", err)
-	}
-	return encoded, nil
-}
-
 // marshalContactSnapshot - формирует JSON-снимок входящей строки для contact_sources.
 func marshalContactSnapshot(contact models.Contact) ([]byte, error) {
 	snapshot := map[string]any{
+		"uid":       contact.UID,
 		"phone":     contact.Phone,
 		"email":     contact.Email,
 		"name":      contact.Name,
 		"discount":  contact.Discount,
-		"data":      contact.Data,
 		"fileId":    contact.FileID,
 		"rowNumber": contact.SourceRow,
 	}
@@ -497,14 +445,6 @@ func mergeContact(incoming *models.Contact, existing models.Contact) {
 	}
 	if incoming.Discount == "" {
 		incoming.Discount = existing.Discount
-	}
-	if incoming.Data == nil {
-		incoming.Data = make(map[string]string, len(existing.Data))
-	}
-	for key, value := range existing.Data {
-		if _, ok := incoming.Data[key]; !ok {
-			incoming.Data[key] = value
-		}
 	}
 }
 
