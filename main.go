@@ -124,6 +124,7 @@ func main() {
 	}
 	serverErrors := make(chan error, 1)
 	go func() {
+		// передача данных между каналами
 		serverErrors <- server.ListenAndServe()
 	}()
 
