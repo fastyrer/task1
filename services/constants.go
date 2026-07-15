@@ -8,15 +8,31 @@ const (
 
 // Телефон
 const (
-	ErrorTemplateEmpty    = "Шаблон уведомления не может быть пустым"
+	
 	ErrorPhoneEmpty       = "Пустой номер телефона"
-	ErrorPhoneColNotFound = "Не найдена колонка с телефоном"
+	ErrorPhoneColNotFound = "Не найдена колонка с таким телефоном"
 	ErrorPhoneNotFound    = "Запись с таким телефоном не найдена в файле"
+	ErrorPhoneIncorrect = "Некорректный номер телефона"
+)
+
+// email
+const (
+	ErrorEmailIncorrect = "Некорректный email"
+)
+
+// Скидка
+const (
+	ErrorDiscountIncorrect = "Скидка должна быть числом от 0 до 100"
 )
 
 // Контакты.
 const (
 	ErrorContactsNotRead = "Не удалось прочитать контакты из базы данных"
+	ErrorContactAlreadyExists = "Контакт с таким телефоном уже существует"
+)
+
+const (
+	ErrorCSVNotCreated = "Не удалось сформировать CSV"
 )
 
 // Файлы.
@@ -26,6 +42,12 @@ const (
 	ErrorFileExcessiveSize = "Файл слишком большой. Максимальный размер: "
 	ErrorFileAbsent        = "Файл не передан"
 	ErrorFileNotSaved      = "Не удалось сохранить файл"
+)
+
+// Уведомление
+const (
+	ErrorTemplateEmpty    = "Шаблон уведомления не может быть пустым"
+
 )
 
 // Общие ошибки HTTP и бизнес-логики, не привязанные к конкретному ресурсу.

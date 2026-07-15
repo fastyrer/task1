@@ -44,7 +44,7 @@ func ProcessContacts(ctx context.Context, store storage.ContactStore, data model
 
 	// 1. Проверка наличия колонки с телефоном
 	if phoneColumn == "" {
-		return nil, fmt.Errorf("колонка с телефоном не найдена")
+		return nil, fmt.Errorf(ErrorPhoneColNotFound)
 	}
 
 	invalidSet := make(map[int]struct{}, len(data.InvalidRows))
@@ -100,7 +100,7 @@ func ProcessContacts(ctx context.Context, store storage.ContactStore, data model
 			if err := store.RecordContactMatch(ctx, existing, contact); err != nil {
 				return nil, fmt.Errorf("record matching contact: %w", err)
 			}
-			result.Skipped++
+			result.Saved++
 			continue
 		}
 
@@ -227,7 +227,7 @@ func FixAndSaveRow(ctx context.Context, store storage.ContactStore, row FixRowIn
 			normalized, ok := utils.NormalizePhone(cleaned)
 			if !ok {
 				rowErrors = append(rowErrors, models.ProcessingWarning{
-					Row: row.RowNumber, Column: header, Message: "Некорректный телефон.",
+					Row: row.RowNumber, Column: header, Message: ErrorPhoneIncorrect,
 				})
 				values[header] = cleaned
 				continue
@@ -237,7 +237,7 @@ func FixAndSaveRow(ctx context.Context, store storage.ContactStore, row FixRowIn
 			normalized, ok := utils.NormalizeEmail(cleaned)
 			if !ok {
 				rowErrors = append(rowErrors, models.ProcessingWarning{
-					Row: row.RowNumber, Column: header, Message: "Некорректный email.",
+					Row: row.RowNumber, Column: header, Message: ErrorEmailIncorrect,
 				})
 				values[header] = cleaned
 				continue
@@ -247,7 +247,7 @@ func FixAndSaveRow(ctx context.Context, store storage.ContactStore, row FixRowIn
 			normalized, ok := utils.NormalizePercent(cleaned)
 			if !ok {
 				rowErrors = append(rowErrors, models.ProcessingWarning{
-					Row: row.RowNumber, Column: header, Message: "Скидка должна быть числом от 0 до 100.",
+					Row: row.RowNumber, Column: header, Message: ErrorDiscountIncorrect,
 				})
 				values[header] = cleaned
 				continue
@@ -261,7 +261,7 @@ func FixAndSaveRow(ctx context.Context, store storage.ContactStore, row FixRowIn
 	phone := strings.TrimSpace(values[phoneColumn])
 	if phone == "" {
 		rowErrors = append(rowErrors, models.ProcessingWarning{
-			Row: row.RowNumber, Column: phoneColumn, Message: "Номер телефона обязателен.",
+			Row: row.RowNumber, Column: phoneColumn, Message: ErrorPhoneEmpty,
 		})
 	}
 

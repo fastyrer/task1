@@ -156,18 +156,18 @@ func (h *NotificationHandler) Export(w http.ResponseWriter, r *http.Request) {
 
 	writer := csv.NewWriter(&buf)
 	if err := writer.Write([]string{"Телефон", "Сообщение"}); err != nil {
-		writeJSONError(w, http.StatusInternalServerError, "Не удалось сформировать CSV")
+		writeJSONError(w, http.StatusInternalServerError, services.ErrorCSVNotCreated)
 		return
 	}
 	for _, notification := range resp.Notifications {
 		if err := writer.Write([]string{notification.Phone, notification.Text}); err != nil {
-			writeJSONError(w, http.StatusInternalServerError, "Не удалось сформировать CSV")
+			writeJSONError(w, http.StatusInternalServerError, services.ErrorCSVNotCreated)
 			return
 		}
 	}
 	writer.Flush()
 	if err := writer.Error(); err != nil {
-		writeJSONError(w, http.StatusInternalServerError, "Не удалось сформировать CSV")
+		writeJSONError(w, http.StatusInternalServerError, services.ErrorCSVNotCreated)
 		return
 	}
 
