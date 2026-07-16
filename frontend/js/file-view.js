@@ -2,7 +2,7 @@
 
 import { appState } from "./state.js";
 import { renderIcons } from "./icons.js";
-import { formatBytes, formatWarning } from "./ui.js";
+import { formatBytes, formatWarning, showFilePanel, showWorkspaceView } from "./ui.js";
 
 const headersBlock = document.getElementById("headersBlock");
 const previewTable = document.getElementById("previewTable");
@@ -24,46 +24,80 @@ export function renderFileResult(payload) {
 
 export function renderStats(stats) {
   if (!stats) {
-    statsBlock.className = "empty-state";
+    statsBlock.className = "metrics-strip empty-state";
     statsBlock.textContent = "Сводка появится после загрузки файла.";
     return;
   }
 
   const metrics = [
-    ["Строк", stats.rowCount, "file-spreadsheet", "neutral"],
-    ["Колонок", stats.columnCount, "columns-3", "blue"],
-    ["Валидных", stats.validRowCount, "circle-check-big", "success"],
-    ["С ошибками", stats.invalidRowCount, "triangle-alert", "danger"],
-    ["Пустых", stats.emptyRowCount, "list-checks", "neutral"],
-    ["Предупреждений", stats.warningCount, "triangle-alert", "warning"],
+    {
+      label: "Строк", value: stats.rowCount, icon: "file-spreadsheet", tone: "neutral",
+      panel: "preview", target: "previewTitle", action: "Открыть первые строки",
+    },
+    {
+      label: "Колонок", value: stats.columnCount, icon: "columns-3", tone: "blue",
+      panel: "preview", target: "headersTitle", action: "Открыть колонки файла",
+    },
+    {
+      label: "Валидных", value: stats.validRowCount, icon: "circle-check-big", tone: "success",
+      view: "contacts", action: "Перейти к сохранению контактов",
+    },
+    {
+      label: "С ошибками", value: stats.invalidRowCount, icon: "triangle-alert", tone: "danger",
+      panel: "issues", target: "invalidTitle", action: "Открыть строки с ошибками",
+    },
+    {
+      label: "Пустых", value: stats.emptyRowCount, icon: "list-checks", tone: "neutral",
+      panel: "issues", target: "warningsTitle", action: "Открыть диагностику файла",
+    },
+    {
+      label: "Предупреждений", value: stats.warningCount, icon: "triangle-alert", tone: "warning",
+      panel: "issues", target: "warningsTitle", action: "Открыть предупреждения",
+    },
   ];
 
-  const grid = document.createElement("div");
-  grid.className = "summary-grid";
-  metrics.forEach(([label, value, iconName, tone]) => {
-    const item = document.createElement("div");
+  const items = document.createDocumentFragment();
+  metrics.forEach((metric) => {
+    const item = document.createElement("button");
+    item.type = "button";
     item.className = "metric";
-    item.dataset.tone = tone;
+    item.dataset.tone = metric.tone;
+    item.title = metric.action;
+    item.setAttribute("aria-label", `${metric.label}: ${metric.value || 0}. ${metric.action}`);
+    item.addEventListener("click", () => openMetric(metric));
 
     const icon = document.createElement("span");
     icon.className = "metric-icon";
-    icon.dataset.icon = iconName;
+    icon.dataset.icon = metric.icon;
+    icon.setAttribute("aria-hidden", "true");
 
     const caption = document.createElement("p");
     caption.className = "metric-label";
-    caption.textContent = label;
+    caption.textContent = metric.label;
 
     const number = document.createElement("p");
     number.className = "metric-value";
-    number.textContent = Number.isFinite(value) ? value : 0;
+    number.textContent = Number.isFinite(metric.value) ? metric.value : 0;
 
     item.append(icon, caption, number);
-    grid.appendChild(item);
+    items.appendChild(item);
   });
 
-  statsBlock.className = "";
-  statsBlock.replaceChildren(grid);
+  statsBlock.className = "metrics-strip";
+  statsBlock.replaceChildren(items);
   renderIcons(statsBlock);
+}
+
+function openMetric(metric) {
+  showWorkspaceView(metric.view || "files");
+  if (metric.panel) {
+    showFilePanel(metric.panel);
+  }
+  if (metric.target) {
+    window.requestAnimationFrame(() => {
+      document.getElementById(metric.target)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
 }
 
 export function renderWarnings(warnings) {
