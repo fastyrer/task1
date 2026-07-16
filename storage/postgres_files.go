@@ -61,6 +61,8 @@ func (s *PostgresStorage) SaveFileData(ctx context.Context, data models.FileData
 	`
 	const deleteFileRowsQuery = `DELETE FROM file_rows WHERE file_id = $1`
 
+	//старый код (проверить сохранение данных после загрузки файла на странцу через pg admin)
+
 	fileID := strings.TrimSpace(data.ID)
 	if fileID == "" {
 		var err error
