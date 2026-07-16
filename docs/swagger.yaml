@@ -2,24 +2,20 @@ basePath: /
 consumes:
 - application/json
 definitions:
+  handlers.CommitImportRequest:
+    properties:
+      decisions:
+        items:
+          $ref: '#/definitions/models.ImportDecision'
+        type: array
+      draft:
+        $ref: '#/definitions/models.ImportDraft'
+    type: object
   handlers.ErrorResponse:
     properties:
       error:
         example: Некорректный запрос
         type: string
-    type: object
-  handlers.FixRowsRequest:
-    properties:
-      fileId:
-        example: 2f656bc0-6227-49d3-9d09-b2d59bd21c52
-        type: string
-      rows:
-        items:
-          $ref: '#/definitions/services.FixRowInput'
-        type: array
-    required:
-    - fileId
-    - rows
     type: object
   handlers.HealthResponse:
     properties:
@@ -50,6 +46,11 @@ definitions:
         example: 'Здравствуйте, Анна! Ваша скидка: 10%.'
         type: string
     type: object
+  handlers.PreviewImportRequest:
+    properties:
+      draft:
+        $ref: '#/definitions/models.ImportDraft'
+    type: object
   handlers.PreviewRequest:
     properties:
       template:
@@ -68,212 +69,10 @@ definitions:
         example: 0
         type: integer
     type: object
-  handlers.ResolveAllResponse:
+  handlers.ValidateImportRequest:
     properties:
-      action:
-        allOf:
-        - $ref: '#/definitions/models.ConflictAction'
-        enum:
-        - skip
-        - replace
-        - merge
-        example: merge
-      resolved:
-        example: 3
-        type: integer
-      status:
-        enum:
-        - ok
-        example: ok
-        type: string
-    type: object
-  handlers.ResolveResponse:
-    properties:
-      action:
-        allOf:
-        - $ref: '#/definitions/models.ConflictAction'
-        enum:
-        - skip
-        - replace
-        - merge
-        example: merge
-      phone:
-        example: "+79991234567"
-        type: string
-      status:
-        enum:
-        - ok
-        example: ok
-        type: string
-    type: object
-  handlers.SaveContactsRequest:
-    properties:
-      fileId:
-        example: 2f656bc0-6227-49d3-9d09-b2d59bd21c52
-        type: string
-    required:
-    - fileId
-    type: object
-  handlers.SaveContactsResponse:
-    properties:
-      conflicts:
-        description: конфликты
-        items:
-          $ref: '#/definitions/models.ConflictInfo'
-        type: array
-      saved:
-        description: Сколько сохранено
-        type: integer
-      skipped:
-        description: Сколько пропущено
-        type: integer
-    type: object
-  handlers.SearchMatch:
-    properties:
-      column:
-        example: Телефон
-        type: string
-      value:
-        example: "+79991234567"
-        type: string
-    type: object
-  handlers.SearchRequest:
-    properties:
-      fileId:
-        example: 2f656bc0-6227-49d3-9d09-b2d59bd21c52
-        type: string
-      limit:
-        example: 100
-        minimum: 1
-        type: integer
-      query:
-        example: "+79"
-        type: string
-    required:
-    - fileId
-    - query
-    type: object
-  handlers.SearchResponse:
-    properties:
-      headers:
-        items:
-          type: string
-        type: array
-      limit:
-        example: 100
-        type: integer
-      query:
-        example: "+79"
-        type: string
-      returned:
-        description: Сколько вернули строк
-        example: 17
-        type: integer
-      rows:
-        items:
-          $ref: '#/definitions/handlers.SearchRow'
-        type: array
-      totalMatches:
-        description: Сколько всего совпадений
-        example: 17
-        type: integer
-      truncated:
-        description: Обрезали ли количество
-        example: false
-        type: boolean
-    type: object
-  handlers.SearchRow:
-    properties:
-      matches:
-        description: Массив совпадений (какие колонки совпали у данной строки)
-        items:
-          $ref: '#/definitions/handlers.SearchMatch'
-        type: array
-      row:
-        type: integer
-      values:
-        additionalProperties:
-          type: string
-        description: Все строка целиком
-        type: object
-    type: object
-  handlers.UploadResponse:
-    properties:
-      detectedMimeType:
-        example: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
-        type: string
-      detectedPhoneColumn:
-        example: Телефон
-        type: string
-      encoding:
-        example: UTF-8
-        type: string
-      fileId:
-        example: 2f656bc0-6227-49d3-9d09-b2d59bd21c52
-        type: string
-      format:
-        enum:
-        - csv
-        - xls
-        - xlsx
-        example: xlsx
-        type: string
-      headerRow:
-        example: 1
-        type: integer
-      headers:
-        items:
-          type: string
-        type: array
-      invalidRows:
-        items:
-          $ref: '#/definitions/models.InvalidRow'
-        type: array
-      mimeType:
-        example: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
-        type: string
-      originalFilename:
-        example: clients.xlsx
-        type: string
-      previewRows:
-        items:
-          additionalProperties:
-            type: string
-          type: object
-        type: array
-      sheetName:
-        example: Клиенты
-        type: string
-      sheets:
-        items:
-          type: string
-        type: array
-      size:
-        example: 18432
-        type: integer
-      stats:
-        $ref: '#/definitions/models.ProcessingStats'
-      warnings:
-        items:
-          $ref: '#/definitions/models.ProcessingWarning'
-        type: array
-    type: object
-  models.BatchResolveRequest:
-    properties:
-      action:
-        allOf:
-        - $ref: '#/definitions/models.ConflictAction'
-        enum:
-        - skip
-        - replace
-        - merge
-        example: merge
-      fileId:
-        example: 2f656bc0-6227-49d3-9d09-b2d59bd21c52
-        type: string
-    required:
-    - action
-    - fileId
+      draft:
+        $ref: '#/definitions/models.ImportDraft'
     type: object
   models.ConflictAction:
     enum:
@@ -312,6 +111,205 @@ definitions:
       row:
         example: 4
         type: integer
+      version:
+        example: "2026-07-16T08:30:00.123456Z"
+        type: string
+    type: object
+  models.Contact:
+    properties:
+      createdAt:
+        type: string
+      discount:
+        type: string
+      email:
+        type: string
+      name:
+        type: string
+      phone:
+        type: string
+      uid:
+        description: UID - публичный UUID контакта, который генерирует PostgreSQL.
+        type: string
+      updatedAt:
+        type: string
+    type: object
+  models.ContactPage:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/models.Contact'
+        type: array
+      page:
+        example: 1
+        type: integer
+      pageSize:
+        example: 25
+        type: integer
+      query:
+        example: "+7999"
+        type: string
+      total:
+        example: 106
+        type: integer
+      totalPages:
+        example: 5
+        type: integer
+    type: object
+  models.ContactUpdateRequest:
+    properties:
+      discount:
+        example: "10"
+        type: string
+      email:
+        example: client@example.com
+        type: string
+      name:
+        example: Иванов Иван
+        type: string
+      phone:
+        example: "+79991234567"
+        type: string
+      version:
+        example: "2026-07-16T08:30:00.123456Z"
+        type: string
+    type: object
+  models.ImportCommitResult:
+    properties:
+      created:
+        example: 90
+        type: integer
+      importId:
+        type: string
+      matched:
+        example: 10
+        type: integer
+      merged:
+        example: 1
+        type: integer
+      replaced:
+        example: 2
+        type: integer
+      skipped:
+        example: 1
+        type: integer
+    type: object
+  models.ImportDecision:
+    properties:
+      action:
+        allOf:
+        - $ref: '#/definitions/models.ConflictAction'
+        enum:
+        - skip
+        - replace
+        - merge
+        example: merge
+      phone:
+        example: "+79991234567"
+        type: string
+      version:
+        example: "2026-07-16T08:30:00.123456Z"
+        type: string
+    type: object
+  models.ImportDraft:
+    properties:
+      detectedMimeType:
+        type: string
+      emptyRowCount:
+        type: integer
+      encoding:
+        example: UTF-8
+        type: string
+      format:
+        enum:
+        - csv
+        - xls
+        - xlsx
+        example: xlsx
+        type: string
+      headerRow:
+        example: 1
+        type: integer
+      headers:
+        items:
+          type: string
+        type: array
+      importId:
+        example: 2f656bc0-6227-49d3-9d09-b2d59bd21c52
+        type: string
+      mimeType:
+        type: string
+      originalFilename:
+        example: clients.xlsx
+        type: string
+      rows:
+        items:
+          $ref: '#/definitions/models.ImportRow'
+        type: array
+      sheetName:
+        example: Клиенты
+        type: string
+      sheets:
+        items:
+          type: string
+        type: array
+      size:
+        example: 18432
+        type: integer
+      skippedRowCount:
+        type: integer
+    type: object
+  models.ImportPreviewResult:
+    properties:
+      conflictCount:
+        example: 4
+        type: integer
+      conflicts:
+        items:
+          $ref: '#/definitions/models.ConflictInfo'
+        type: array
+      matchedCount:
+        example: 10
+        type: integer
+      newCount:
+        example: 90
+        type: integer
+      skippedCount:
+        example: 2
+        type: integer
+    type: object
+  models.ImportRow:
+    properties:
+      rowNumber:
+        example: 2
+        type: integer
+      values:
+        additionalProperties:
+          type: string
+        type: object
+    type: object
+  models.ImportValidationResult:
+    properties:
+      detectedPhoneColumn:
+        example: Телефон
+        type: string
+      draft:
+        $ref: '#/definitions/models.ImportDraft'
+      invalidRows:
+        items:
+          $ref: '#/definitions/models.InvalidRow'
+        type: array
+      previewRows:
+        items:
+          additionalProperties:
+            type: string
+          type: object
+        type: array
+      stats:
+        $ref: '#/definitions/models.ProcessingStats'
+      warnings:
+        items:
+          $ref: '#/definitions/models.ProcessingWarning'
+        type: array
     type: object
   models.InvalidRow:
     properties:
@@ -363,100 +361,37 @@ definitions:
         example: 4
         type: integer
     type: object
-  models.ResolveRequest:
-    properties:
-      action:
-        allOf:
-        - $ref: '#/definitions/models.ConflictAction'
-        enum:
-        - skip
-        - replace
-        - merge
-        example: merge
-      fileId:
-        example: 2f656bc0-6227-49d3-9d09-b2d59bd21c52
-        type: string
-      phone:
-        example: "+79991234567"
-        type: string
-    required:
-    - action
-    - fileId
-    - phone
-    type: object
-  services.FixRowError:
-    properties:
-      errors:
-        items:
-          $ref: '#/definitions/models.ProcessingWarning'
-        type: array
-      rowNumber:
-        example: 4
-        type: integer
-    type: object
-  services.FixRowInput:
-    properties:
-      rowNumber:
-        example: 4
-        type: integer
-      values:
-        additionalProperties:
-          type: string
-        type: object
-    required:
-    - rowNumber
-    - values
-    type: object
-  services.FixRowResult:
-    properties:
-      failed:
-        items:
-          $ref: '#/definitions/services.FixRowError'
-        type: array
-      fixed:
-        example: 2
-        type: integer
-      stats:
-        $ref: '#/definitions/models.ProcessingStats'
-      warnings:
-        items:
-          $ref: '#/definitions/models.ProcessingWarning'
-        type: array
-    type: object
 info:
   contact: {}
   description: |-
-    API для загрузки клиентских CSV/XLS/XLSX, проверки и поиска строк, ведения контактов и подготовки рассылок.
-    Все операции с файлами и контактами используют PostgreSQL как единственное хранилище.
+    API для проверки клиентских CSV/XLS/XLSX, подтверждённого импорта контактов и подготовки рассылок.
+    Черновик хранится в браузере; PostgreSQL изменяет финальный атомарный импорт и явное ручное сохранение контакта.
   title: Task1 Client Data API
   version: 1.0.0
 paths:
-  /api/contacts/resolve:
-    post:
-      consumes:
-      - application/json
-      description: Применяет действие skip, replace или merge к несовпадающим данным
-        одного телефона из выбранного файла.
+  /api/contacts:
+    get:
+      description: Возвращает 25 подтверждённых контактов PostgreSQL и общее количество
+        совпадений. Поиск выполняется по телефону, ФИО, email, скидке и UID.
       parameters:
-      - description: Решение конфликта
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/models.ResolveRequest'
+      - default: 1
+        description: Номер страницы, начиная с 1
+        in: query
+        name: page
+        type: integer
+      - description: Подстрока для поиска по всем видимым полям
+        in: query
+        name: q
+        type: string
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handlers.ResolveResponse'
+            $ref: '#/definitions/models.ContactPage'
         "400":
           description: Bad Request
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-        "404":
-          description: Not Found
           schema:
             $ref: '#/definitions/handlers.ErrorResponse'
         "405":
@@ -467,86 +402,51 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/handlers.ErrorResponse'
-      summary: Разрешить один конфликт контакта
+      summary: Получить страницу контактов
       tags:
       - Contacts
-  /api/contacts/resolve-all:
-    post:
+  /api/contacts/{uid}:
+    put:
       consumes:
       - application/json
-      description: Применяет одно действие skip, replace или merge ко всем несовпадающим
-        контактам выбранного файла.
+      description: Нормализует поля и обновляет контакт, только если его updatedAt
+        не изменился. Телефон остаётся уникальным.
       parameters:
-      - description: Общее решение конфликтов
+      - description: UUID контакта
+        in: path
+        name: uid
+        required: true
+        type: string
+      - description: Изменяемые поля и текущая версия
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/models.BatchResolveRequest'
+          $ref: '#/definitions/models.ContactUpdateRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handlers.ResolveAllResponse'
+            $ref: '#/definitions/models.Contact'
         "400":
           description: Bad Request
           schema:
             $ref: '#/definitions/handlers.ErrorResponse'
-        "404":
-          description: Not Found
+        "409":
+          description: Conflict
           schema:
             $ref: '#/definitions/handlers.ErrorResponse'
-        "405":
-          description: Method Not Allowed
+        "422":
+          description: Unprocessable Entity
           schema:
             $ref: '#/definitions/handlers.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/handlers.ErrorResponse'
-      summary: Разрешить все конфликты файла
-      tags:
-      - Contacts
-  /api/contacts/save:
-    post:
-      consumes:
-      - application/json
-      description: Переносит валидные строки загруженного файла в общий справочник
-        контактов. Несовпадающие данные для существующего телефона возвращаются как
-        конфликты.
-      parameters:
-      - description: Идентификатор загруженного файла
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/handlers.SaveContactsRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/handlers.SaveContactsResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-        "405":
-          description: Method Not Allowed
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-      summary: Сохранить контакты из файла
+      summary: Изменить контакт
       tags:
       - Contacts
   /api/export:
@@ -606,6 +506,111 @@ paths:
       summary: Проверить состояние приложения
       tags:
       - Health
+  /api/imports/commit:
+    post:
+      consumes:
+      - application/json
+      description: Повторно проверяет черновик и одной транзакцией сохраняет файл,
+        строки, контакты и решения конфликтов.
+      parameters:
+      - description: Черновик и решения всех конфликтов
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CommitImportRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.ImportCommitResult'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Импортировать подтверждённые контакты
+      tags:
+      - Imports
+  /api/imports/preview:
+    post:
+      consumes:
+      - application/json
+      description: Возвращает новые, совпадающие и конфликтующие контакты. Операция
+        выполняет только чтение PostgreSQL.
+      parameters:
+      - description: Проверенный локальный черновик
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.PreviewImportRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.ImportPreviewResult'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Предпросмотр последствий импорта
+      tags:
+      - Imports
+  /api/imports/validate:
+    post:
+      consumes:
+      - application/json
+      description: Нормализует строки после редактирования и возвращает новую диагностику.
+        PostgreSQL не изменяется.
+      parameters:
+      - description: Локальный черновик
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.ValidateImportRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.ImportValidationResult'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "405":
+          description: Method Not Allowed
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Повторно проверить локальный черновик
+      tags:
+      - Imports
   /api/preview:
     post:
       consumes:
@@ -641,90 +646,12 @@ paths:
       summary: Предпросмотр общей рассылки
       tags:
       - Notifications
-  /api/rows/fix:
-    post:
-      consumes:
-      - application/json
-      description: Повторно нормализует отредактированные пользователем строки файла
-        и сохраняет корректные контакты в PostgreSQL.
-      parameters:
-      - description: Исправленные строки
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/handlers.FixRowsRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/services.FixRowResult'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-        "405":
-          description: Method Not Allowed
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-      summary: Проверить и сохранить исправленные строки
-      tags:
-      - Files
-  /api/search:
-    post:
-      consumes:
-      - application/json
-      description: Ищет подстроку без учёта регистра во всех ячейках ранее загруженного
-        файла. Возвращает полные строки и колонки совпадений для подсветки.
-      parameters:
-      - description: Параметры поиска
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/handlers.SearchRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/handlers.SearchResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-        "405":
-          description: Method Not Allowed
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-      summary: Найти строки в файле
-      tags:
-      - Search
   /api/upload:
     post:
       consumes:
       - multipart/form-data
-      description: Принимает CSV, XLS или XLSX, определяет структуру, нормализует
-        данные и сохраняет все строки в PostgreSQL.
+      description: Принимает CSV, XLS или XLSX, нормализует все строки и возвращает
+        их браузеру. PostgreSQL не изменяется.
       parameters:
       - description: CSV/XLS/XLSX-файл с клиентскими данными
         in: formData
@@ -741,7 +668,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handlers.UploadResponse'
+            $ref: '#/definitions/models.ImportValidationResult'
         "400":
           description: Bad Request
           schema:
@@ -758,7 +685,7 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/handlers.ErrorResponse'
-      summary: Загрузить и проверить файл
+      summary: Проверить файл и создать локальный черновик
       tags:
       - Files
 produces:
@@ -770,11 +697,12 @@ swagger: "2.0"
 tags:
 - description: Состояние приложения и подключение к PostgreSQL
   name: Health
-- description: Загрузка, разбор и исправление строк файлов
+- description: Stateless-загрузка и разбор файлов без записи в PostgreSQL
   name: Files
-- description: Поиск по строкам ранее загруженного файла
-  name: Search
-- description: Сохранение контактов и разрешение конфликтов по телефону
+- description: Проверка черновика, предпросмотр конфликтов и атомарный импорт
+  name: Imports
+- description: Поиск, постраничный просмотр и ручное редактирование подтверждённого
+    справочника PostgreSQL
   name: Contacts
 - description: Предпросмотр и экспорт рассылки по всем контактам PostgreSQL
   name: Notifications

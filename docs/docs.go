@@ -21,45 +21,40 @@ const docTemplate = `{
     "host": "[[.Host]]",
     "basePath": "[[.BasePath]]",
     "paths": {
-        "/api/contacts/resolve": {
-            "post": {
-                "description": "Применяет действие skip, replace или merge к несовпадающим данным одного телефона из выбранного файла.",
-                "consumes": [
-                    "application/json"
-                ],
+        "/api/contacts": {
+            "get": {
+                "description": "Возвращает 25 подтверждённых контактов PostgreSQL и общее количество совпадений. Поиск выполняется по телефону, ФИО, email, скидке и UID.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Contacts"
                 ],
-                "summary": "Разрешить один конфликт контакта",
+                "summary": "Получить страницу контактов",
                 "parameters": [
                     {
-                        "description": "Решение конфликта",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.ResolveRequest"
-                        }
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Номер страницы, начиная с 1",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Подстрока для поиска по всем видимым полям",
+                        "name": "q",
+                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ResolveResponse"
+                            "$ref": "#/definitions/models.ContactPage"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/handlers.ErrorResponse"
                         }
@@ -79,9 +74,9 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/contacts/resolve-all": {
-            "post": {
-                "description": "Применяет одно действие skip, replace или merge ко всем несовпадающим контактам выбранного файла.",
+        "/api/contacts/{uid}": {
+            "put": {
+                "description": "Нормализует поля и обновляет контакт, только если его updatedAt не изменился. Телефон остаётся уникальным.",
                 "consumes": [
                     "application/json"
                 ],
@@ -91,15 +86,22 @@ const docTemplate = `{
                 "tags": [
                     "Contacts"
                 ],
-                "summary": "Разрешить все конфликты файла",
+                "summary": "Изменить контакт",
                 "parameters": [
                     {
-                        "description": "Общее решение конфликтов",
+                        "type": "string",
+                        "description": "UUID контакта",
+                        "name": "uid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Изменяемые поля и текущая версия",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.BatchResolveRequest"
+                            "$ref": "#/definitions/models.ContactUpdateRequest"
                         }
                     }
                 ],
@@ -107,7 +109,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ResolveAllResponse"
+                            "$ref": "#/definitions/models.Contact"
                         }
                     },
                     "400": {
@@ -116,72 +118,14 @@ const docTemplate = `{
                             "$ref": "#/definitions/handlers.ErrorResponse"
                         }
                     },
-                    "404": {
-                        "description": "Not Found",
+                    "409": {
+                        "description": "Conflict",
                         "schema": {
                             "$ref": "#/definitions/handlers.ErrorResponse"
                         }
                     },
-                    "405": {
-                        "description": "Method Not Allowed",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/contacts/save": {
-            "post": {
-                "description": "Переносит валидные строки загруженного файла в общий справочник контактов. Несовпадающие данные для существующего телефона возвращаются как конфликты.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Contacts"
-                ],
-                "summary": "Сохранить контакты из файла",
-                "parameters": [
-                    {
-                        "description": "Идентификатор загруженного файла",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/handlers.SaveContactsRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.SaveContactsResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
-                        }
-                    },
-                    "405": {
-                        "description": "Method Not Allowed",
+                    "422": {
+                        "description": "Unprocessable Entity",
                         "schema": {
                             "$ref": "#/definitions/handlers.ErrorResponse"
                         }
@@ -280,6 +224,162 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/imports/commit": {
+            "post": {
+                "description": "Повторно проверяет черновик и одной транзакцией сохраняет файл, строки, контакты и решения конфликтов.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Imports"
+                ],
+                "summary": "Импортировать подтверждённые контакты",
+                "parameters": [
+                    {
+                        "description": "Черновик и решения всех конфликтов",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.CommitImportRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.ImportCommitResult"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/imports/preview": {
+            "post": {
+                "description": "Возвращает новые, совпадающие и конфликтующие контакты. Операция выполняет только чтение PostgreSQL.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Imports"
+                ],
+                "summary": "Предпросмотр последствий импорта",
+                "parameters": [
+                    {
+                        "description": "Проверенный локальный черновик",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PreviewImportRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.ImportPreviewResult"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/imports/validate": {
+            "post": {
+                "description": "Нормализует строки после редактирования и возвращает новую диагностику. PostgreSQL не изменяется.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Imports"
+                ],
+                "summary": "Повторно проверить локальный черновик",
+                "parameters": [
+                    {
+                        "description": "Локальный черновик",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ValidateImportRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.ImportValidationResult"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "405": {
+                        "description": "Method Not Allowed",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/preview": {
             "post": {
                 "description": "Формирует сообщение для каждого актуального контакта PostgreSQL. Поддерживаются плейсхолдеры {{Телефон}}, {{Имя}}, {{Email}} и {{Скидка}}.",
@@ -332,125 +432,9 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/rows/fix": {
-            "post": {
-                "description": "Повторно нормализует отредактированные пользователем строки файла и сохраняет корректные контакты в PostgreSQL.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Files"
-                ],
-                "summary": "Проверить и сохранить исправленные строки",
-                "parameters": [
-                    {
-                        "description": "Исправленные строки",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/handlers.FixRowsRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/services.FixRowResult"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
-                        }
-                    },
-                    "405": {
-                        "description": "Method Not Allowed",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/search": {
-            "post": {
-                "description": "Ищет подстроку без учёта регистра во всех ячейках ранее загруженного файла. Возвращает полные строки и колонки совпадений для подсветки.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Search"
-                ],
-                "summary": "Найти строки в файле",
-                "parameters": [
-                    {
-                        "description": "Параметры поиска",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/handlers.SearchRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.SearchResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
-                        }
-                    },
-                    "405": {
-                        "description": "Method Not Allowed",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
         "/api/upload": {
             "post": {
-                "description": "Принимает CSV, XLS или XLSX, определяет структуру, нормализует данные и сохраняет все строки в PostgreSQL.",
+                "description": "Принимает CSV, XLS или XLSX, нормализует все строки и возвращает их браузеру. PostgreSQL не изменяется.",
                 "consumes": [
                     "multipart/form-data"
                 ],
@@ -460,7 +444,7 @@ const docTemplate = `{
                 "tags": [
                     "Files"
                 ],
-                "summary": "Загрузить и проверить файл",
+                "summary": "Проверить файл и создать локальный черновик",
                 "parameters": [
                     {
                         "type": "file",
@@ -480,7 +464,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.UploadResponse"
+                            "$ref": "#/definitions/models.ImportValidationResult"
                         }
                     },
                     "400": {
@@ -512,31 +496,26 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "handlers.CommitImportRequest": {
+            "type": "object",
+            "properties": {
+                "decisions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.ImportDecision"
+                    }
+                },
+                "draft": {
+                    "$ref": "#/definitions/models.ImportDraft"
+                }
+            }
+        },
         "handlers.ErrorResponse": {
             "type": "object",
             "properties": {
                 "error": {
                     "type": "string",
                     "example": "Некорректный запрос"
-                }
-            }
-        },
-        "handlers.FixRowsRequest": {
-            "type": "object",
-            "required": [
-                "fileId",
-                "rows"
-            ],
-            "properties": {
-                "fileId": {
-                    "type": "string",
-                    "example": "2f656bc0-6227-49d3-9d09-b2d59bd21c52"
-                },
-                "rows": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/services.FixRowInput"
-                    }
                 }
             }
         },
@@ -581,6 +560,14 @@ const docTemplate = `{
                 }
             }
         },
+        "handlers.PreviewImportRequest": {
+            "type": "object",
+            "properties": {
+                "draft": {
+                    "$ref": "#/definitions/models.ImportDraft"
+                }
+            }
+        },
         "handlers.PreviewRequest": {
             "type": "object",
             "required": [
@@ -608,302 +595,11 @@ const docTemplate = `{
                 }
             }
         },
-        "handlers.ResolveAllResponse": {
+        "handlers.ValidateImportRequest": {
             "type": "object",
             "properties": {
-                "action": {
-                    "enum": [
-                        "skip",
-                        "replace",
-                        "merge"
-                    ],
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/models.ConflictAction"
-                        }
-                    ],
-                    "example": "merge"
-                },
-                "resolved": {
-                    "type": "integer",
-                    "example": 3
-                },
-                "status": {
-                    "type": "string",
-                    "enum": [
-                        "ok"
-                    ],
-                    "example": "ok"
-                }
-            }
-        },
-        "handlers.ResolveResponse": {
-            "type": "object",
-            "properties": {
-                "action": {
-                    "enum": [
-                        "skip",
-                        "replace",
-                        "merge"
-                    ],
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/models.ConflictAction"
-                        }
-                    ],
-                    "example": "merge"
-                },
-                "phone": {
-                    "type": "string",
-                    "example": "+79991234567"
-                },
-                "status": {
-                    "type": "string",
-                    "enum": [
-                        "ok"
-                    ],
-                    "example": "ok"
-                }
-            }
-        },
-        "handlers.SaveContactsRequest": {
-            "type": "object",
-            "required": [
-                "fileId"
-            ],
-            "properties": {
-                "fileId": {
-                    "type": "string",
-                    "example": "2f656bc0-6227-49d3-9d09-b2d59bd21c52"
-                }
-            }
-        },
-        "handlers.SaveContactsResponse": {
-            "type": "object",
-            "properties": {
-                "conflicts": {
-                    "description": "конфликты",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.ConflictInfo"
-                    }
-                },
-                "saved": {
-                    "description": "Сколько сохранено",
-                    "type": "integer"
-                },
-                "skipped": {
-                    "description": "Сколько пропущено",
-                    "type": "integer"
-                }
-            }
-        },
-        "handlers.SearchMatch": {
-            "type": "object",
-            "properties": {
-                "column": {
-                    "type": "string",
-                    "example": "Телефон"
-                },
-                "value": {
-                    "type": "string",
-                    "example": "+79991234567"
-                }
-            }
-        },
-        "handlers.SearchRequest": {
-            "type": "object",
-            "required": [
-                "fileId",
-                "query"
-            ],
-            "properties": {
-                "fileId": {
-                    "type": "string",
-                    "example": "2f656bc0-6227-49d3-9d09-b2d59bd21c52"
-                },
-                "limit": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "example": 100
-                },
-                "query": {
-                    "type": "string",
-                    "example": "+79"
-                }
-            }
-        },
-        "handlers.SearchResponse": {
-            "type": "object",
-            "properties": {
-                "headers": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "limit": {
-                    "type": "integer",
-                    "example": 100
-                },
-                "query": {
-                    "type": "string",
-                    "example": "+79"
-                },
-                "returned": {
-                    "description": "Сколько вернули строк",
-                    "type": "integer",
-                    "example": 17
-                },
-                "rows": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/handlers.SearchRow"
-                    }
-                },
-                "totalMatches": {
-                    "description": "Сколько всего совпадений",
-                    "type": "integer",
-                    "example": 17
-                },
-                "truncated": {
-                    "description": "Обрезали ли количество",
-                    "type": "boolean",
-                    "example": false
-                }
-            }
-        },
-        "handlers.SearchRow": {
-            "type": "object",
-            "properties": {
-                "matches": {
-                    "description": "Массив совпадений (какие колонки совпали у данной строки)",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/handlers.SearchMatch"
-                    }
-                },
-                "row": {
-                    "type": "integer"
-                },
-                "values": {
-                    "description": "Все строка целиком",
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "handlers.UploadResponse": {
-            "type": "object",
-            "properties": {
-                "detectedMimeType": {
-                    "type": "string",
-                    "example": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                },
-                "detectedPhoneColumn": {
-                    "type": "string",
-                    "example": "Телефон"
-                },
-                "encoding": {
-                    "type": "string",
-                    "example": "UTF-8"
-                },
-                "fileId": {
-                    "type": "string",
-                    "example": "2f656bc0-6227-49d3-9d09-b2d59bd21c52"
-                },
-                "format": {
-                    "type": "string",
-                    "enum": [
-                        "csv",
-                        "xls",
-                        "xlsx"
-                    ],
-                    "example": "xlsx"
-                },
-                "headerRow": {
-                    "type": "integer",
-                    "example": 1
-                },
-                "headers": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "invalidRows": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.InvalidRow"
-                    }
-                },
-                "mimeType": {
-                    "type": "string",
-                    "example": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                },
-                "originalFilename": {
-                    "type": "string",
-                    "example": "clients.xlsx"
-                },
-                "previewRows": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "additionalProperties": {
-                            "type": "string"
-                        }
-                    }
-                },
-                "sheetName": {
-                    "type": "string",
-                    "example": "Клиенты"
-                },
-                "sheets": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "size": {
-                    "type": "integer",
-                    "example": 18432
-                },
-                "stats": {
-                    "$ref": "#/definitions/models.ProcessingStats"
-                },
-                "warnings": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.ProcessingWarning"
-                    }
-                }
-            }
-        },
-        "models.BatchResolveRequest": {
-            "type": "object",
-            "required": [
-                "action",
-                "fileId"
-            ],
-            "properties": {
-                "action": {
-                    "enum": [
-                        "skip",
-                        "replace",
-                        "merge"
-                    ],
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/models.ConflictAction"
-                        }
-                    ],
-                    "example": "merge"
-                },
-                "fileId": {
-                    "type": "string",
-                    "example": "2f656bc0-6227-49d3-9d09-b2d59bd21c52"
+                "draft": {
+                    "$ref": "#/definitions/models.ImportDraft"
                 }
             }
         },
@@ -957,6 +653,293 @@ const docTemplate = `{
                 "row": {
                     "type": "integer",
                     "example": 4
+                },
+                "version": {
+                    "type": "string",
+                    "example": "2026-07-16T08:30:00.123456Z"
+                }
+            }
+        },
+        "models.Contact": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "discount": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "uid": {
+                    "description": "UID - публичный UUID контакта, который генерирует PostgreSQL.",
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.ContactPage": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Contact"
+                    }
+                },
+                "page": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "pageSize": {
+                    "type": "integer",
+                    "example": 25
+                },
+                "query": {
+                    "type": "string",
+                    "example": "+7999"
+                },
+                "total": {
+                    "type": "integer",
+                    "example": 106
+                },
+                "totalPages": {
+                    "type": "integer",
+                    "example": 5
+                }
+            }
+        },
+        "models.ContactUpdateRequest": {
+            "type": "object",
+            "properties": {
+                "discount": {
+                    "type": "string",
+                    "example": "10"
+                },
+                "email": {
+                    "type": "string",
+                    "example": "client@example.com"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Иванов Иван"
+                },
+                "phone": {
+                    "type": "string",
+                    "example": "+79991234567"
+                },
+                "version": {
+                    "type": "string",
+                    "example": "2026-07-16T08:30:00.123456Z"
+                }
+            }
+        },
+        "models.ImportCommitResult": {
+            "type": "object",
+            "properties": {
+                "created": {
+                    "type": "integer",
+                    "example": 90
+                },
+                "importId": {
+                    "type": "string"
+                },
+                "matched": {
+                    "type": "integer",
+                    "example": 10
+                },
+                "merged": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "replaced": {
+                    "type": "integer",
+                    "example": 2
+                },
+                "skipped": {
+                    "type": "integer",
+                    "example": 1
+                }
+            }
+        },
+        "models.ImportDecision": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "enum": [
+                        "skip",
+                        "replace",
+                        "merge"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.ConflictAction"
+                        }
+                    ],
+                    "example": "merge"
+                },
+                "phone": {
+                    "type": "string",
+                    "example": "+79991234567"
+                },
+                "version": {
+                    "type": "string",
+                    "example": "2026-07-16T08:30:00.123456Z"
+                }
+            }
+        },
+        "models.ImportDraft": {
+            "type": "object",
+            "properties": {
+                "detectedMimeType": {
+                    "type": "string"
+                },
+                "emptyRowCount": {
+                    "type": "integer"
+                },
+                "encoding": {
+                    "type": "string",
+                    "example": "UTF-8"
+                },
+                "format": {
+                    "type": "string",
+                    "enum": [
+                        "csv",
+                        "xls",
+                        "xlsx"
+                    ],
+                    "example": "xlsx"
+                },
+                "headerRow": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "headers": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "importId": {
+                    "type": "string",
+                    "example": "2f656bc0-6227-49d3-9d09-b2d59bd21c52"
+                },
+                "mimeType": {
+                    "type": "string"
+                },
+                "originalFilename": {
+                    "type": "string",
+                    "example": "clients.xlsx"
+                },
+                "rows": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.ImportRow"
+                    }
+                },
+                "sheetName": {
+                    "type": "string",
+                    "example": "Клиенты"
+                },
+                "sheets": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "size": {
+                    "type": "integer",
+                    "example": 18432
+                },
+                "skippedRowCount": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.ImportPreviewResult": {
+            "type": "object",
+            "properties": {
+                "conflictCount": {
+                    "type": "integer",
+                    "example": 4
+                },
+                "conflicts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.ConflictInfo"
+                    }
+                },
+                "matchedCount": {
+                    "type": "integer",
+                    "example": 10
+                },
+                "newCount": {
+                    "type": "integer",
+                    "example": 90
+                },
+                "skippedCount": {
+                    "type": "integer",
+                    "example": 2
+                }
+            }
+        },
+        "models.ImportRow": {
+            "type": "object",
+            "properties": {
+                "rowNumber": {
+                    "type": "integer",
+                    "example": 2
+                },
+                "values": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "models.ImportValidationResult": {
+            "type": "object",
+            "properties": {
+                "detectedPhoneColumn": {
+                    "type": "string",
+                    "example": "Телефон"
+                },
+                "draft": {
+                    "$ref": "#/definitions/models.ImportDraft"
+                },
+                "invalidRows": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.InvalidRow"
+                    }
+                },
+                "previewRows": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "stats": {
+                    "$ref": "#/definitions/models.ProcessingStats"
+                },
+                "warnings": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.ProcessingWarning"
+                    }
                 }
             }
         },
@@ -1030,95 +1013,6 @@ const docTemplate = `{
                     "example": 4
                 }
             }
-        },
-        "models.ResolveRequest": {
-            "type": "object",
-            "required": [
-                "action",
-                "fileId",
-                "phone"
-            ],
-            "properties": {
-                "action": {
-                    "enum": [
-                        "skip",
-                        "replace",
-                        "merge"
-                    ],
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/models.ConflictAction"
-                        }
-                    ],
-                    "example": "merge"
-                },
-                "fileId": {
-                    "type": "string",
-                    "example": "2f656bc0-6227-49d3-9d09-b2d59bd21c52"
-                },
-                "phone": {
-                    "type": "string",
-                    "example": "+79991234567"
-                }
-            }
-        },
-        "services.FixRowError": {
-            "type": "object",
-            "properties": {
-                "errors": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.ProcessingWarning"
-                    }
-                },
-                "rowNumber": {
-                    "type": "integer",
-                    "example": 4
-                }
-            }
-        },
-        "services.FixRowInput": {
-            "type": "object",
-            "required": [
-                "rowNumber",
-                "values"
-            ],
-            "properties": {
-                "rowNumber": {
-                    "type": "integer",
-                    "example": 4
-                },
-                "values": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "services.FixRowResult": {
-            "type": "object",
-            "properties": {
-                "failed": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/services.FixRowError"
-                    }
-                },
-                "fixed": {
-                    "type": "integer",
-                    "example": 2
-                },
-                "stats": {
-                    "$ref": "#/definitions/models.ProcessingStats"
-                },
-                "warnings": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.ProcessingWarning"
-                    }
-                }
-            }
         }
     },
     "tags": [
@@ -1127,15 +1021,15 @@ const docTemplate = `{
             "name": "Health"
         },
         {
-            "description": "Загрузка, разбор и исправление строк файлов",
+            "description": "Stateless-загрузка и разбор файлов без записи в PostgreSQL",
             "name": "Files"
         },
         {
-            "description": "Поиск по строкам ранее загруженного файла",
-            "name": "Search"
+            "description": "Проверка черновика, предпросмотр конфликтов и атомарный импорт",
+            "name": "Imports"
         },
         {
-            "description": "Сохранение контактов и разрешение конфликтов по телефону",
+            "description": "Поиск, постраничный просмотр и ручное редактирование подтверждённого справочника PostgreSQL",
             "name": "Contacts"
         },
         {
@@ -1152,7 +1046,7 @@ var SwaggerInfo = &swag.Spec{
 	BasePath:         "/",
 	Schemes:          []string{"http", "https"},
 	Title:            "Task1 Client Data API",
-	Description:      "API для загрузки клиентских CSV/XLS/XLSX, проверки и поиска строк, ведения контактов и подготовки рассылок.\nВсе операции с файлами и контактами используют PostgreSQL как единственное хранилище.",
+	Description:      "API для проверки клиентских CSV/XLS/XLSX, подтверждённого импорта контактов и подготовки рассылок.\nЧерновик хранится в браузере; PostgreSQL изменяет финальный атомарный импорт и явное ручное сохранение контакта.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "[[",

@@ -4,7 +4,7 @@
 // POST /api/upload принимает multipart/form-data с файлом (CSV, XLS, XLSX)
 // и опциональным именем листа Excel. Парсит содержимое, определяет
 // заголовки, типы колонок, нормализует телефоны/email/скидки,
-// возвращает JSON с результатами, статистикой и списком ошибок.
+// возвращает полный локальный черновик и не записывает его в PostgreSQL.
 
 package handlers
 
@@ -19,61 +19,37 @@ import (
 
 	"task1/models"
 	"task1/services"
-	"task1/storage"
 	"task1/utils"
 )
 
 // Ограничения по размеру
 const (
 	defaultMaxUploadSize = 20 << 20
-	previewLimit         = 10
 )
 
-// UploadHandler – структура обработчика
-type UploadHandler struct {
-	store storage.FileStore
-}
-
-// UploadResponse – результат загрузки, проверки и сохранения файла.
-type UploadResponse struct {
-	FileID              string                     `json:"fileId" example:"2f656bc0-6227-49d3-9d09-b2d59bd21c52"`
-	OriginalFilename    string                     `json:"originalFilename,omitempty" example:"clients.xlsx"`
-	Size                int64                      `json:"size,omitempty" example:"18432"`
-	MIMEType            string                     `json:"mimeType,omitempty" example:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"`
-	DetectedMIMEType    string                     `json:"detectedMimeType,omitempty" example:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"`
-	Format              string                     `json:"format,omitempty" enums:"csv,xls,xlsx" example:"xlsx"`
-	Encoding            string                     `json:"encoding,omitempty" example:"UTF-8"`
-	SheetName           string                     `json:"sheetName,omitempty" example:"Клиенты"`
-	Sheets              []string                   `json:"sheets,omitempty"`
-	HeaderRow           int                        `json:"headerRow,omitempty" example:"1"`
-	Headers             []string                   `json:"headers"`
-	PreviewRows         []map[string]string        `json:"previewRows"`
-	Stats               models.ProcessingStats     `json:"stats"`
-	Warnings            []models.ProcessingWarning `json:"warnings,omitempty"`
-	InvalidRows         []models.InvalidRow        `json:"invalidRows,omitempty"`
-	DetectedPhoneColumn string                     `json:"detectedPhoneColumn,omitempty" example:"Телефон"`
-}
+// UploadHandler не содержит хранилище: проверка файла должна быть stateless.
+type UploadHandler struct{}
 
 // ErrorResponse – единый JSON-формат ошибки всех API-обработчиков.
 type ErrorResponse struct {
 	Error string `json:"error" example:"Некорректный запрос"`
 }
 
-// RegisterUploadRoutes – регистрация маршрута
-func RegisterUploadRoutes(mux *http.ServeMux, store storage.FileStore) {
-	handler := &UploadHandler{store: store}
+// RegisterUploadRoutes – регистрация stateless-маршрута проверки файла.
+func RegisterUploadRoutes(mux *http.ServeMux) {
+	handler := &UploadHandler{}
 	mux.HandleFunc("/api/upload", handler.Upload)
 }
 
 // Upload – основной метод, обрабатывает POST-запросы с файлами.
-// @Summary Загрузить и проверить файл
-// @Description Принимает CSV, XLS или XLSX, определяет структуру, нормализует данные и сохраняет все строки в PostgreSQL.
+// @Summary Проверить файл и создать локальный черновик
+// @Description Принимает CSV, XLS или XLSX, нормализует все строки и возвращает их браузеру. PostgreSQL не изменяется.
 // @Tags Files
 // @Accept multipart/form-data
 // @Produce json
 // @Param file formData file true "CSV/XLS/XLSX-файл с клиентскими данными"
 // @Param sheet formData string false "Имя листа XLS/XLSX; если не задано, используется первый лист"
-// @Success 200 {object} UploadResponse
+// @Success 200 {object} models.ImportValidationResult
 // @Failure 400 {object} ErrorResponse
 // @Failure 405 {object} ErrorResponse
 // @Failure 413 {object} ErrorResponse
@@ -144,31 +120,13 @@ func (h *UploadHandler) Upload(w http.ResponseWriter, r *http.Request) {
 	data.MIMEType = header.Header.Get("Content-Type")
 	addMIMEWarning(&data)
 
-	fileID, err := h.store.SaveFileData(r.Context(), data)
+	importID, err := utils.GenerateUUID()
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, services.ErrorFileNotSaved)
+		writeJSONError(w, http.StatusInternalServerError, services.ErrorImportIDNotCreated)
 		return
 	}
-	data.ID = fileID
 
-	writeJSON(w, http.StatusOK, UploadResponse{
-		FileID:              fileID,
-		OriginalFilename:    data.OriginalFilename,
-		Size:                data.Size,
-		MIMEType:            data.MIMEType,
-		DetectedMIMEType:    data.DetectedMIMEType,
-		Format:              data.Format,
-		Encoding:            data.Encoding,
-		SheetName:           data.SheetName,
-		Sheets:              data.Sheets,
-		HeaderRow:           data.HeaderRow,
-		Headers:             data.Headers,
-		PreviewRows:         previewRows(data.Rows),
-		Stats:               data.Stats,
-		Warnings:            data.Warnings,
-		InvalidRows:         data.InvalidRows,
-		DetectedPhoneColumn: utils.DetectPhoneColumn(data.Headers),
-	})
+	writeJSON(w, http.StatusOK, services.NewImportValidation(data, importID))
 }
 
 func maxUploadSize() int64 {
@@ -224,15 +182,6 @@ func formatUploadSize(size int64) string {
 	}
 
 	return fmt.Sprintf("%.1f МБ", float64(size)/(1<<20))
-}
-
-func previewRows(rows []map[string]string) []map[string]string {
-	limit := previewLimit
-	if len(rows) < limit {
-		limit = len(rows)
-	}
-
-	return rows[:limit]
 }
 
 // userMessage не отдаёт клиенту неожиданные внутренние ошибки парсера.

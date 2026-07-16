@@ -1,6 +1,6 @@
 // file-view.js - отображение разобранного файла, статистики и ошибок строк.
 
-import { appState } from "./state.js";
+import { appState, currentDraft, updateDraftCell } from "./state.js";
 import { renderIcons } from "./icons.js";
 import { formatBytes, formatWarning, showFilePanel, showWorkspaceView } from "./ui.js";
 
@@ -12,14 +12,42 @@ const warningsBlock = document.getElementById("warningsBlock");
 const invalidRowsTable = document.getElementById("invalidRowsTable");
 const fixRowRow = document.getElementById("fixRowRow");
 const fixStatus = document.getElementById("fixStatus");
+const rowsPageInfo = document.getElementById("rowsPageInfo");
+const draftRowsActions = document.getElementById("draftRowsActions");
+const previousRowsButton = document.getElementById("previousRowsButton");
+const nextRowsButton = document.getElementById("nextRowsButton");
+const validateDraftButton = document.getElementById("validateDraftButton");
+const draftEditStatus = document.getElementById("draftEditStatus");
+
+const rowsPerPage = 50;
+let currentDraftPage = 0;
+
+previousRowsButton.addEventListener("click", () => {
+  currentDraftPage = Math.max(0, currentDraftPage - 1);
+  renderDraftRows(currentDraft(), false);
+});
+nextRowsButton.addEventListener("click", () => {
+  currentDraftPage += 1;
+  renderDraftRows(currentDraft(), false);
+});
 
 export function renderFileResult(payload) {
-  renderFileInfo(payload);
+  renderFileInfo(payload.draft || {});
   renderStats(payload.stats);
-  renderHeaders(appState.currentHeaders);
-  renderPreview(appState.currentHeaders, payload.previewRows || []);
+  renderHeaders(payload.draft?.headers || appState.currentHeaders);
+  renderDraftRows(payload.draft, true);
   renderWarnings(payload.warnings || []);
   renderInvalidRows(payload.invalidRows || []);
+}
+
+// resetFileView удаляет визуальные следы отменённого или завершённого локального черновика.
+export function resetFileView() {
+  fileInfo.textContent = "";
+  renderStats(null);
+  renderHeaders([]);
+  renderDraftRows(null, true);
+  renderWarnings([]);
+  renderEmptyInvalidRows("Ошибочные строки появятся после проверки файла.");
 }
 
 export function renderStats(stats) {
@@ -40,7 +68,7 @@ export function renderStats(stats) {
     },
     {
       label: "Валидных", value: stats.validRowCount, icon: "circle-check-big", tone: "success",
-      view: "contacts", action: "Перейти к сохранению контактов",
+      view: "files", target: "importTitle", action: "Перейти к подтверждению импорта",
     },
     {
       label: "С ошибками", value: stats.invalidRowCount, icon: "triangle-alert", tone: "danger",
@@ -158,8 +186,15 @@ export function renderInvalidRows(rows) {
       const cell = document.createElement("td");
       cell.className = "invalid-value-cell";
       cell.contentEditable = "true";
+      cell.dataset.rowNumber = row.row || "";
       cell.dataset.header = header;
       cell.textContent = (row.values || {})[header] || "";
+      cell.addEventListener("input", () => {
+        updateDraftCell(row.row, header, cell.textContent || "");
+        validateDraftButton.disabled = false;
+        draftEditStatus.textContent = "Есть непроверенные локальные изменения";
+        document.dispatchEvent(new CustomEvent("draft:edited"));
+      });
       tableRow.appendChild(cell);
     });
 
@@ -183,7 +218,10 @@ export function renderEmptyInvalidRows(message) {
 }
 
 function renderFileInfo(payload) {
-  const parts = [`fileId: ${payload.fileId}`];
+  const parts = ["Локальный черновик: данные ещё не сохранены в PostgreSQL"];
+  if (payload.importId) {
+    parts.push(`importId: ${payload.importId}`);
+  }
   if (payload.originalFilename) {
     parts.push(`файл: ${payload.originalFilename}`);
   }
@@ -227,15 +265,27 @@ function renderHeaders(headers) {
   headersBlock.replaceChildren(list);
 }
 
-function renderPreview(headers, rows) {
+function renderDraftRows(draft, resetPage) {
+  const headers = draft?.headers || [];
+  const rows = draft?.rows || [];
+  if (resetPage) {
+    currentDraftPage = 0;
+  }
   if (!headers.length || !rows.length) {
-    renderEmptyTable(previewTable, "Нет строк для preview.");
+    renderEmptyTable(previewTable, "Данные появятся после проверки файла.");
+    rowsPageInfo.textContent = "Данные появятся после проверки файла";
+    draftRowsActions.classList.add("is-hidden");
     return;
   }
 
+  const pageCount = Math.max(1, Math.ceil(rows.length / rowsPerPage));
+  currentDraftPage = Math.min(currentDraftPage, pageCount - 1);
+  const pageStart = currentDraftPage * rowsPerPage;
+  const pageRows = rows.slice(pageStart, pageStart + rowsPerPage);
+
   const thead = document.createElement("thead");
   const headerRow = document.createElement("tr");
-  headers.forEach((header) => {
+  ["№", ...headers].forEach((header) => {
     const cell = document.createElement("th");
     cell.textContent = header;
     headerRow.appendChild(cell);
@@ -243,17 +293,41 @@ function renderPreview(headers, rows) {
   thead.appendChild(headerRow);
 
   const tbody = document.createElement("tbody");
-  rows.forEach((row) => {
+  pageRows.forEach((row) => {
     const tableRow = document.createElement("tr");
+
+    const rowNumberCell = document.createElement("td");
+    rowNumberCell.className = "invalid-row-number";
+    rowNumberCell.textContent = row.rowNumber;
+    tableRow.appendChild(rowNumberCell);
+
     headers.forEach((header) => {
       const cell = document.createElement("td");
-      cell.textContent = row[header] || "";
+      cell.className = "draft-value-cell";
+      cell.contentEditable = "true";
+      cell.dataset.rowNumber = row.rowNumber;
+      cell.dataset.header = header;
+      cell.textContent = row.values?.[header] || "";
+      cell.addEventListener("input", () => {
+        updateDraftCell(row.rowNumber, header, cell.textContent || "");
+        validateDraftButton.disabled = false;
+        draftEditStatus.textContent = "Есть непроверенные локальные изменения";
+        document.dispatchEvent(new CustomEvent("draft:edited"));
+      });
       tableRow.appendChild(cell);
     });
     tbody.appendChild(tableRow);
   });
 
   previewTable.replaceChildren(thead, tbody);
+  draftRowsActions.classList.remove("is-hidden");
+  rowsPageInfo.textContent = `Строки ${pageStart + 1}–${pageStart + pageRows.length} из ${rows.length}`;
+  previousRowsButton.disabled = currentDraftPage === 0;
+  nextRowsButton.disabled = currentDraftPage >= pageCount - 1;
+  validateDraftButton.disabled = !appState.dirty;
+  draftEditStatus.textContent = appState.dirty
+    ? "Есть непроверенные локальные изменения"
+    : "Изменения остаются локальными";
 }
 
 function renderEmptyTable(table, message) {

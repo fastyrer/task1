@@ -15,6 +15,14 @@ function initWorkspaceNavigation() {
   document.querySelectorAll("[data-view-target]").forEach((control) => {
     control.addEventListener("click", () => showWorkspaceView(control.dataset.viewTarget));
   });
+  document.querySelectorAll("[data-scroll-target]").forEach((control) => {
+    control.addEventListener("click", () => {
+      document.getElementById(control.dataset.scrollTarget)?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+  });
 }
 
 export function showWorkspaceView(viewName) {
@@ -40,6 +48,7 @@ export function showWorkspaceView(viewName) {
   });
 
   window.scrollTo({ top: 0, behavior: "smooth" });
+  document.dispatchEvent(new CustomEvent("workspace:view", { detail: { view: viewName } }));
 }
 
 function initFilePanels() {

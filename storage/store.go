@@ -1,5 +1,4 @@
-// Package storage определяет интерфейсы и PostgreSQL-реализацию
-// хранилища файлов, строк и контактов.
+// Package storage определяет минимальные контракты PostgreSQL.
 package storage
 
 import (
@@ -7,39 +6,43 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"task1/models"
 )
 
-// FileStore - операции с метаданными файла, его строками и поиском.
-type FileStore interface {
-	// SaveFileData сохраняет файл и все его строки одной транзакцией.
-	SaveFileData(ctx context.Context, data models.FileData) (string, error)
-	// GetFileData восстанавливает FileData из метаданных и таблицы строк.
-	GetFileData(ctx context.Context, fileID string) (models.FileData, bool, error)
-	// SearchFileRows ищет подстроку внутри строк средствами PostgreSQL.
-	SearchFileRows(ctx context.Context, fileID, query string, limit int) (models.FileSearchResult, bool, error)
+// ContactReader используется рассылкой и не даёт ей методов изменения контактов.
+type ContactReader interface {
+	ListContacts(ctx context.Context) ([]models.Contact, error)
 }
 
-// ContactStore – операции с контактами
-type ContactStore interface {
-	// SaveContact создаёт контакт и возвращает его публичный UID.
-	SaveContact(ctx context.Context, contact models.Contact) (string, error)
+// ContactPageReader читает одну страницу справочника с необязательным поиском.
+type ContactPageReader interface {
+	ListContactsPage(ctx context.Context, query string, limit, offset int) ([]models.Contact, int64, error)
+}
 
-	// ListContacts возвращает все актуальные контакты для общей рассылки.
-	ListContacts(ctx context.Context) ([]models.Contact, error)
+// ContactUpdater изменяет только одну актуальную запись с проверкой её версии.
+type ContactUpdater interface {
+	UpdateContact(ctx context.Context, uid string, expectedUpdatedAt time.Time, contact models.Contact) (models.Contact, error)
+}
 
-	// GetContactByPhone – поиск контакта по телефону (телефон является уникальным ключом)
-	GetContactByPhone(ctx context.Context, phone string) (models.Contact, bool, error)
+// ContactDirectoryStore объединяет операции, разрешённые вкладке «Контакты».
+type ContactDirectoryStore interface {
+	ContactPageReader
+	ContactUpdater
+}
 
-	// RecordContactMatch связывает совпавший контакт с очередным файлом-источником.
-	RecordContactMatch(ctx context.Context, existing, incoming models.Contact) error
-
-	// ResolveConflict – применить действие к конфликту
-	ResolveConflict(ctx context.Context, phone string, action models.ConflictAction, incoming models.Contact) error
-
-	// SaveFixedRow атомарно исправляет строку файла и сохраняет соответствующий контакт.
-	SaveFixedRow(ctx context.Context, fileID string, rowNumber int, values map[string]string, contact models.Contact) error
+// ImportStore разделяет read-only предпросмотр и атомарный подтверждённый импорт.
+type ImportStore interface {
+	// FindContactsByPhones читает только контакты, необходимые для предпросмотра.
+	FindContactsByPhones(ctx context.Context, phones []string) (map[string]models.Contact, error)
+	// CommitImport является единственной операцией, записывающей импорт в PostgreSQL.
+	CommitImport(
+		ctx context.Context,
+		data models.FileData,
+		contacts []models.Contact,
+		decisions map[string]models.ImportDecision,
+	) (models.ImportCommitResult, error)
 }
 
 // HealthStore - минимальный контракт проверки доступности БД для /api/health.
@@ -50,8 +53,9 @@ type HealthStore interface {
 // Store - полный контракт хранилища, который нужен main.go.
 // Единственная runtime-реализация этого интерфейса - PostgresStorage.
 type Store interface {
-	FileStore
-	ContactStore
+	ImportStore
+	ContactReader
+	ContactDirectoryStore
 	HealthStore
 	Close()
 }

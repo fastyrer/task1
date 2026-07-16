@@ -17,9 +17,9 @@ var placeholderRegex = regexp.MustCompile(`\{\{(.+?)\}\}`)
 // ParsePlaceholders находит все уникальные плейсхолдеры в шаблоне.
 
 // ParsePlaceholders:
-	// 1. Ищет все совпадения {{...}} в тексте шаблона
-	// 2. Обрезает пробелы вокруг имени плейсхолдера
-	// 3. Пропускает пустые имена и дубликаты
+// 1. Ищет все совпадения {{...}} в тексте шаблона
+// 2. Обрезает пробелы вокруг имени плейсхолдера
+// 3. Пропускает пустые имена и дубликаты
 func ParsePlaceholders(template string) []string {
 
 	// 1. Ищем все совпадения {{...}} в тексте шаблона
@@ -48,9 +48,9 @@ func ParsePlaceholders(template string) []string {
 // ValidateUnknownPlaceholders проверяет, что все плейсхолдеры присутствуют в заголовках.
 
 // ValidateUnknownPlaceholders:
-	// 1. Преобразует список заголовков в set
-	// 2. Проходит по всем плейсхолдерам и находит неизвестные
-	// 3. Возвращает ошибку с перечислением неизвестных плейсхолдеров
+// 1. Преобразует список заголовков в set
+// 2. Проходит по всем плейсхолдерам и находит неизвестные
+// 3. Возвращает ошибку с перечислением неизвестных плейсхолдеров
 func ValidateUnknownPlaceholders(placeholders, headers []string) error {
 	// 1. Преобразует список заголовков в set
 	headerSet := make(map[string]struct{}, len(headers))
@@ -77,9 +77,9 @@ func ValidateUnknownPlaceholders(placeholders, headers []string) error {
 // GenerateText формирует итоговый текст, подставляя значения из строки в плейсхолдеры.
 
 // GenerateText:
-	// 1. Ищет все плейсхолдеры {{name}} в шаблоне
-	// 2. Берёт значение из row по имени плейсхолдера
-	// 3. Если значение отсутствует — подставляет пустую строку
+// 1. Ищет все плейсхолдеры {{name}} в шаблоне
+// 2. Берёт значение из row по имени плейсхолдера
+// 3. Если значение отсутствует — подставляет пустую строку
 func GenerateText(template string, row map[string]string) string {
 	return placeholderRegex.ReplaceAllStringFunc(template, func(match string) string {
 		// 1. Извлекаем имя плейсхолдера без {{ }}

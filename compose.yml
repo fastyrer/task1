@@ -9,7 +9,6 @@ services:
       # Внутри Compose приложение обращается к PostgreSQL по имени сервиса db.
       DATABASE_URL: "host=db port=5432 user=${POSTGRES_USER:-task1} password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required} dbname=${POSTGRES_DB:-task1} sslmode=disable"
       MAX_UPLOAD_SIZE_MB: "20"
-      SEARCH_RESULT_LIMIT: "1000"
       # Swagger UI удобен локально; в production его можно полностью отключить.
       SWAGGER_ENABLED: "${SWAGGER_ENABLED:-true}"
       # Размер пула и таймауты можно менять без пересборки Docker-образа.
@@ -17,6 +16,7 @@ services:
       DB_MIN_CONNS: "1"
       DB_CONNECT_TIMEOUT_SECONDS: "10"
       DB_QUERY_TIMEOUT_SECONDS: "5"
+      DB_IMPORT_TIMEOUT_SECONDS: "${DB_IMPORT_TIMEOUT_SECONDS:-45}"
       DB_MIGRATION_TIMEOUT_SECONDS: "60"
       DB_MAX_CONN_IDLE_TIME_SECONDS: "1800"
       DB_MAX_CONN_LIFETIME_SECONDS: "3600"

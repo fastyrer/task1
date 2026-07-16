@@ -10,19 +10,36 @@ function apiPath(path) {
 
 export const API = Object.freeze({
   upload: apiPath("/api/upload"),
+  validateImport: apiPath("/api/imports/validate"),
+  previewImport: apiPath("/api/imports/preview"),
+  commitImport: apiPath("/api/imports/commit"),
+  contacts: apiPath("/api/contacts"),
   preview: apiPath("/api/preview"),
   export: apiPath("/api/export"),
-  search: apiPath("/api/search"),
-  resolve: apiPath("/api/contacts/resolve"),
-  resolveAll: apiPath("/api/contacts/resolve-all"),
-  save: apiPath("/api/contacts/save"),
-  fix: apiPath("/api/rows/fix"),
 });
+
+// getJSON выполняет read-only GET для ленивой загрузки справочника.
+export async function getJSON(url) {
+  const response = await fetch(url, { headers: { Accept: "application/json" } });
+  const data = await response.json();
+  return { response, data };
+}
 
 // postJSON выполняет POST и возвращает HTTP-ответ вместе с разобранным JSON.
 export async function postJSON(url, payload) {
   const response = await fetch(url, {
     method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await response.json();
+  return { response, data };
+}
+
+// putJSON изменяет одну существующую сущность и возвращает актуальную версию.
+export async function putJSON(url, payload) {
+  const response = await fetch(url, {
+    method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });

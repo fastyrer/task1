@@ -7,7 +7,7 @@
 //  1. context.Background() – корневой контекст для всего приложения
 //  2. storage.NewFromEnv(ctx) – подключение к уже мигрированной PostgreSQL
 //  3. http.NewServeMux() – мультиплексор маршрутов
-//  4. Register*Routes – регистрация всех обработчиков
+//  4. Register*Routes – регистрация проверки, импорта и рассылки
 //  5. registerFrontend(mux) – раздача встроенной директории frontend
 //  6. http.ListenAndServe(addr, withCORS(mux)) – запуск сервера
 package main
@@ -39,8 +39,8 @@ var frontendFiles embed.FS
 
 // @title Task1 Client Data API
 // @version 1.0.0
-// @description API для загрузки клиентских CSV/XLS/XLSX, проверки и поиска строк, ведения контактов и подготовки рассылок.
-// @description Все операции с файлами и контактами используют PostgreSQL как единственное хранилище.
+// @description API для проверки клиентских CSV/XLS/XLSX, подтверждённого импорта контактов и подготовки рассылок.
+// @description Черновик хранится в браузере; PostgreSQL изменяет финальный атомарный импорт и явное ручное сохранение контакта.
 // @BasePath /
 // @schemes http https
 // @accept json
@@ -48,11 +48,11 @@ var frontendFiles embed.FS
 // @tag.name Health
 // @tag.description Состояние приложения и подключение к PostgreSQL
 // @tag.name Files
-// @tag.description Загрузка, разбор и исправление строк файлов
-// @tag.name Search
-// @tag.description Поиск по строкам ранее загруженного файла
+// @tag.description Stateless-загрузка и разбор файлов без записи в PostgreSQL
+// @tag.name Imports
+// @tag.description Проверка черновика, предпросмотр конфликтов и атомарный импорт
 // @tag.name Contacts
-// @tag.description Сохранение контактов и разрешение конфликтов по телефону
+// @tag.description Поиск, постраничный просмотр и ручное редактирование подтверждённого справочника PostgreSQL
 // @tag.name Notifications
 // @tag.description Предпросмотр и экспорт рассылки по всем контактам PostgreSQL
 func main() {
@@ -94,13 +94,13 @@ func main() {
 	mux := http.NewServeMux()
 
 	// Регистрация всех эндпоинтов
-	handlers.RegisterHealthRoutes(mux, store)         // GET /api/health
-	handlers.RegisterUploadRoutes(mux, store)         // POST /api/upload
-	handlers.RegisterNotificationRoutes(mux, store)   // POST /api/preview, /api/export
-	handlers.RegisterSearchRoutes(mux, store)         // POST /api/search
-	handlers.RegisterContactRoutes(mux, store, store) // POST /api/contacts/*, /api/rows/fix
-	registerSwagger(mux)                              // GET /swagger и /swagger/doc.json
-	if err := registerFrontend(mux); err != nil {     // GET / и статические frontend-ресурсы
+	handlers.RegisterHealthRoutes(mux, store)       // GET /api/health
+	handlers.RegisterUploadRoutes(mux)              // POST /api/upload, без записи в БД
+	handlers.RegisterImportRoutes(mux, store)       // POST /api/imports/*
+	handlers.RegisterContactRoutes(mux, store)      // GET /api/contacts, PUT /api/contacts/{uid}
+	handlers.RegisterNotificationRoutes(mux, store) // POST /api/preview, /api/export
+	registerSwagger(mux)                            // GET /swagger и /swagger/doc.json
+	if err := registerFrontend(mux); err != nil {   // GET / и статические frontend-ресурсы
 		log.Fatal(err)
 	}
 
@@ -196,7 +196,7 @@ func frontendHandler(frontendRoot fs.FS) http.Handler {
 //
 // Разрешает:
 //   - любые источники (Access-Control-Allow-Origin: *)
-//   - методы GET, POST, OPTIONS
+//   - методы GET, POST, PUT, OPTIONS
 //   - заголовок Content-Type
 //
 // OPTIONS-запросы (preflight) сразу завершаются с 204 No Content.
@@ -204,7 +204,7 @@ func frontendHandler(frontendRoot fs.FS) http.Handler {
 func withCORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 
 		if r.Method == http.MethodOptions {

@@ -1,65 +1,50 @@
-// search.js - поиск по строкам текущего файла и подсветка совпадений.
+// search.js - локальный поиск по строкам черновика без обращения к PostgreSQL.
 
-import { API, postJSON } from "./api.js";
-import { setButtonLabel } from "./icons.js";
-import { appState } from "./state.js";
-import { clearError, showError } from "./ui.js";
+import { appState, currentDraft } from "./state.js";
+import { clearError } from "./ui.js";
 
 const searchInput = document.getElementById("searchInput");
 const searchButton = document.getElementById("searchButton");
 const clearSearchButton = document.getElementById("clearSearchButton");
 const searchInfo = document.getElementById("searchInfo");
 const searchTable = document.getElementById("searchTable");
+const localSearchLimit = 1000;
 
 let searchTimer = 0;
-let searchSequence = 0;
 
 export function initSearch() {
   searchButton.addEventListener("click", runSearch);
-
   searchInput.addEventListener("input", () => {
-    clearTimeout(searchTimer);
+    window.clearTimeout(searchTimer);
     if (!searchInput.value.trim()) {
-      searchSequence += 1;
       renderEmptySearch("Введите строку поиска.");
       return;
     }
-    searchTimer = window.setTimeout(runSearch, 300);
+    searchTimer = window.setTimeout(runSearch, 250);
   });
-
   searchInput.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
       event.preventDefault();
-      clearTimeout(searchTimer);
+      window.clearTimeout(searchTimer);
       runSearch();
     }
   });
-
   clearSearchButton.addEventListener("click", () => {
-    clearTimeout(searchTimer);
-    searchSequence += 1;
+    window.clearTimeout(searchTimer);
     searchInput.value = "";
     renderEmptySearch("Введите строку поиска.");
     searchInput.focus();
   });
 
-  return {
-    setEnabled,
-    reset() {
-      searchSequence += 1;
-      searchInput.value = "";
-      setEnabled(Boolean(appState.currentFileId));
-      renderEmptySearch("Введите строку поиска.");
-    },
-  };
+  return { setEnabled, reset };
 }
 
-async function runSearch() {
+function runSearch() {
   clearError();
-
+  const draft = currentDraft();
   const query = searchInput.value.trim();
-  if (!appState.currentFileId) {
-    renderEmptySearch("Сначала загрузите файл.");
+  if (!draft) {
+    renderEmptySearch("Сначала проверьте файл.");
     return;
   }
   if (!query) {
@@ -67,39 +52,23 @@ async function runSearch() {
     return;
   }
 
-  const sequence = searchSequence + 1;
-  searchSequence = sequence;
-  searchButton.disabled = true;
-  setButtonLabel(searchButton, "Поиск...");
-  searchInfo.textContent = "Идет поиск...";
+  const normalizedQuery = query.toLocaleLowerCase();
+  const matchedRows = draft.rows.filter((row) => draft.headers.some((header) => (
+    String(row.values?.[header] || "").toLocaleLowerCase().includes(normalizedQuery)
+  )));
+  const rows = matchedRows.slice(0, localSearchLimit).map((row) => ({
+    row: row.rowNumber,
+    values: row.values,
+  }));
 
-  try {
-    const { response, data } = await postJSON(API.search, {
-      fileId: appState.currentFileId,
-      query,
-    });
-
-    if (sequence !== searchSequence) {
-      return;
-    }
-    if (!response.ok) {
-      showError(data.error || "Не удалось выполнить поиск.");
-      renderEmptySearch("Поиск не выполнен.");
-      return;
-    }
-
-    renderSearchResults(data);
-  } catch (error) {
-    if (sequence === searchSequence) {
-      showError("Не удалось подключиться к серверу.");
-      renderEmptySearch("Поиск не выполнен.");
-    }
-  } finally {
-    if (sequence === searchSequence) {
-      searchButton.disabled = !appState.currentFileId;
-      setButtonLabel(searchButton, "Найти");
-    }
-  }
+  renderSearchResults({
+    query,
+    headers: draft.headers,
+    rows,
+    totalMatches: matchedRows.length,
+    returned: rows.length,
+    truncated: matchedRows.length > rows.length,
+  });
 }
 
 function renderSearchResults(payload) {
@@ -108,15 +77,14 @@ function renderSearchResults(payload) {
   const query = payload.query || searchInput.value.trim();
 
   if (!rows.length) {
-    searchInfo.textContent = "Совпадений не найдено.";
-    renderEmptySearch("Нет строк с таким фрагментом.");
+    renderEmptySearch("Совпадений не найдено.");
     return;
   }
 
-  const total = Number.isFinite(payload.totalMatches) ? payload.totalMatches : rows.length;
-  const returned = Number.isFinite(payload.returned) ? payload.returned : rows.length;
-  const suffix = payload.truncated ? ` Показано ${returned} из ${total}.` : "";
-  searchInfo.textContent = `Найдено строк: ${total}.${suffix}`;
+  const suffix = payload.truncated
+    ? ` Показано ${payload.returned} из ${payload.totalMatches}.`
+    : "";
+  searchInfo.textContent = `Найдено строк: ${payload.totalMatches}.${suffix}`;
 
   const thead = document.createElement("thead");
   const headerRow = document.createElement("tr");
@@ -130,26 +98,21 @@ function renderSearchResults(payload) {
   const tbody = document.createElement("tbody");
   rows.forEach((row) => {
     const tableRow = document.createElement("tr");
-
     const rowNumberCell = document.createElement("td");
     rowNumberCell.textContent = row.row || "";
     tableRow.appendChild(rowNumberCell);
-
     headers.forEach((header) => {
       const cell = document.createElement("td");
-      appendHighlightedText(cell, (row.values || {})[header] || "", query);
+      appendHighlightedText(cell, row.values?.[header] || "", query);
       tableRow.appendChild(cell);
     });
-
     tbody.appendChild(tableRow);
   });
-
   searchTable.replaceChildren(thead, tbody);
 }
 
 function renderEmptySearch(message) {
   searchInfo.textContent = message;
-
   const tbody = document.createElement("tbody");
   const row = document.createElement("tr");
   const cell = document.createElement("td");
@@ -164,28 +127,28 @@ function appendHighlightedText(parent, value, query) {
   const text = String(value || "");
   const needle = String(query || "").toLocaleLowerCase();
   const haystack = text.toLocaleLowerCase();
-  if (!needle) {
-    parent.textContent = text;
-    return;
-  }
-
   let position = 0;
+
   while (position < text.length) {
     const index = haystack.indexOf(needle, position);
     if (index === -1) {
       parent.appendChild(document.createTextNode(text.slice(position)));
       break;
     }
-
     if (index > position) {
       parent.appendChild(document.createTextNode(text.slice(position, index)));
     }
-
     const marker = document.createElement("mark");
     marker.textContent = text.slice(index, index + query.length);
     parent.appendChild(marker);
     position = index + query.length;
   }
+}
+
+function reset() {
+  searchInput.value = "";
+  setEnabled(Boolean(currentDraft()));
+  renderEmptySearch(currentDraft() ? "Введите строку поиска." : "Поиск доступен после проверки файла.");
 }
 
 function setEnabled(enabled) {

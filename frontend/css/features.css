@@ -45,6 +45,31 @@
   white-space: normal;
 }
 
+.draft-value-cell {
+  min-width: 130px;
+  background: var(--surface);
+  cursor: text;
+  white-space: normal;
+}
+
+.draft-value-cell:hover,
+.draft-value-cell:focus {
+  background: var(--accent-soft);
+}
+
+.draft-value-cell:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.draft-rows-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+}
+
 .invalid-value-cell:hover,
 .invalid-value-cell:focus {
   background: var(--warning-soft);
@@ -101,6 +126,146 @@
   gap: 16px;
 }
 
+.import-workspace {
+  margin-top: 24px;
+  border-top: 1px solid var(--border);
+  padding-top: 22px;
+  scroll-margin-top: 18px;
+}
+
+.import-heading {
+  margin-bottom: 0;
+}
+
+.import-heading > button {
+  flex: 0 0 auto;
+}
+
+.directory-toolbar,
+.directory-pagination {
+  display: flex;
+  align-items: center;
+}
+
+.directory-toolbar {
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  background: var(--surface);
+}
+
+.directory-toolbar strong {
+  display: block;
+  font-size: 20px;
+}
+
+.contact-search-toolbar {
+  max-width: 880px;
+}
+
+.directory-table-wrap {
+  min-height: 320px;
+}
+
+.contact-directory-table {
+  min-width: 1160px;
+}
+
+.contact-directory-table .contact-phone,
+.contact-directory-table .contact-date,
+.contact-directory-table .contact-uid {
+  white-space: nowrap;
+}
+
+.contact-actions-cell {
+  position: sticky;
+  z-index: 1;
+  right: 0;
+  width: 96px;
+  background: var(--surface);
+  box-shadow: -1px 0 var(--border);
+  white-space: nowrap;
+}
+
+.contact-directory-table th:last-child {
+  z-index: 3;
+  right: 0;
+  width: 96px;
+  background: var(--surface-strong);
+  box-shadow: -1px 0 var(--border);
+}
+
+.contact-edit-row .contact-actions-cell {
+  background: var(--accent-soft);
+}
+
+.contact-row-actions {
+  flex-wrap: nowrap;
+  gap: 6px;
+}
+
+.contact-row-actions .icon-button {
+  width: 34px;
+  min-width: 34px;
+  min-height: 34px;
+}
+
+.contact-edit-button:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+}
+
+.contact-save-button:hover {
+  border-color: var(--success);
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.contact-edit-row td {
+  background: var(--accent-soft);
+  vertical-align: middle;
+}
+
+.contact-edit-input {
+  min-width: 130px;
+  min-height: 34px !important;
+  padding: 0 8px !important;
+}
+
+.contact-directory-table .contact-phone {
+  color: var(--text);
+  font-weight: 720;
+}
+
+.contact-directory-table .contact-uid {
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+}
+
+.directory-pagination {
+  justify-content: center;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.directory-pagination strong {
+  min-width: 150px;
+  text-align: center;
+}
+
+.conflict-pagination {
+  margin-top: 18px;
+}
+
+.conflict-pagination strong {
+  min-width: 360px;
+}
+
 .save-command-bar {
   justify-content: space-between;
   gap: 18px;
@@ -115,6 +280,27 @@
   display: block;
 }
 
+.commit-command-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  border: 1px solid #b9dec7;
+  border-radius: 8px;
+  padding: 16px 18px;
+  background: var(--success-soft);
+}
+
+.commit-command-bar strong,
+.commit-command-bar .command-label {
+  display: block;
+}
+
+.workflow-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .save-result {
   display: grid;
   gap: 22px;
@@ -122,7 +308,7 @@
 
 .save-stats {
   display: grid;
-  grid-template-columns: repeat(3, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -330,8 +516,31 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .commit-command-bar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
   .placeholder-toolbar {
     display: grid;
+  }
+
+  .draft-rows-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .directory-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .contact-search-toolbar {
+    flex-wrap: wrap;
+  }
+
+  .contact-search-toolbar .search-field {
+    flex-basis: 100%;
   }
 }
 
@@ -339,8 +548,16 @@
   .conflict-actions > button,
   .composer-actions > button,
   .save-command-bar > button,
+  .commit-command-bar > button,
+  .workflow-actions > button,
+  .import-heading > button,
   .workflow-footer > button {
     width: 100%;
+  }
+
+  .conflict-pagination strong {
+    min-width: 0;
+    font-size: 12px;
   }
 
   .action-row {

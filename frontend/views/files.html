@@ -3,7 +3,7 @@
     <div>
       <p class="eyebrow">Рабочая область</p>
       <h1 id="filesTitle">Обработка файла</h1>
-      <p class="view-description">Загрузите таблицу, проверьте строки и подготовьте контакты к сохранению.</p>
+      <p class="view-description">Проверьте таблицу в локальном черновике. До подтверждения данные не записываются в PostgreSQL.</p>
     </div>
   </header>
 
@@ -22,7 +22,7 @@
     </label>
     <button id="uploadButton" type="button" class="btn-primary">
       <span data-icon="upload" aria-hidden="true"></span>
-      <span class="button-label">Загрузить</span>
+      <span class="button-label">Проверить файл</span>
     </button>
   </section>
 
@@ -50,11 +50,27 @@
     </section>
     <section class="content-section" aria-labelledby="previewTitle">
       <div class="section-heading">
-        <div><p class="section-kicker">Предпросмотр</p><h2 id="previewTitle">Первые строки</h2></div>
-        <span class="section-note">Показаны первые 10 строк файла</span>
+        <div><p class="section-kicker">Локальное редактирование</p><h2 id="previewTitle">Строки черновика</h2></div>
+        <span id="rowsPageInfo" class="section-note">Данные появятся после проверки файла</span>
       </div>
       <div class="table-wrap">
         <table id="previewTable"><tbody><tr><td class="empty-state">Данные появятся после загрузки файла.</td></tr></tbody></table>
+      </div>
+      <div id="draftRowsActions" class="draft-rows-actions is-hidden">
+        <div class="action-row">
+          <button id="previousRowsButton" type="button" class="icon-button" title="Предыдущие строки" aria-label="Предыдущие строки">
+            <span data-icon="chevron-left" aria-hidden="true"></span>
+          </button>
+          <button id="nextRowsButton" type="button" class="icon-button" title="Следующие строки" aria-label="Следующие строки">
+            <span data-icon="chevron-right" aria-hidden="true"></span>
+          </button>
+        </div>
+        <div class="action-row">
+          <span id="draftEditStatus" class="meta">Изменения остаются локальными</span>
+          <button id="validateDraftButton" type="button" class="btn-outline merge" disabled>
+            <span data-icon="circle-check-big" aria-hidden="true"></span><span class="button-label">Проверить изменения</span>
+          </button>
+        </div>
       </div>
     </section>
   </div>
@@ -95,7 +111,7 @@
       </div>
       <div id="fixRowRow" class="action-row fix-row-actions is-hidden">
         <button id="fixRowsButton" type="button" class="btn-outline merge">
-          <span data-icon="wrench" aria-hidden="true"></span><span class="button-label">Применить исправления</span>
+          <span data-icon="wrench" aria-hidden="true"></span><span class="button-label">Проверить исправления</span>
         </button>
         <span id="fixStatus" class="meta"></span>
       </div>
@@ -104,9 +120,64 @@
   </div>
 
   <div id="fileWorkflowFooter" class="workflow-footer is-hidden">
-    <div><strong>Файл проверен</strong><span>Перейдите к сохранению валидных контактов.</span></div>
-    <button id="openContactsButton" type="button" class="btn-secondary" data-view-target="contacts">
-      <span data-icon="users" aria-hidden="true"></span>Перейти к контактам
-    </button>
+    <div><strong>Локальный черновик готов</strong><span>Проверьте конфликты перед единственной записью в PostgreSQL.</span></div>
+    <div class="action-row workflow-actions">
+      <button id="discardDraftButton" type="button" class="btn-outline replace" data-discard-draft>
+        <span data-icon="x" aria-hidden="true"></span>Отменить импорт
+      </button>
+      <button id="openImportButton" type="button" class="btn-secondary" data-scroll-target="importTitle">
+        <span data-icon="users" aria-hidden="true"></span>Перейти к импорту
+      </button>
+    </div>
   </div>
+
+  <section class="save-workspace import-workspace is-hidden" id="saveSection" aria-labelledby="importTitle">
+    <header class="section-heading import-heading">
+      <div>
+        <p class="section-kicker">Финальный этап</p>
+        <h2 id="importTitle">Импорт в PostgreSQL</h2>
+        <p class="section-note">Сначала проверьте последствия, затем решите конфликты и подтвердите единственную запись.</p>
+      </div>
+      <button id="discardImportButton" type="button" class="btn-outline replace" data-discard-draft>
+        <span data-icon="x" aria-hidden="true"></span>Отменить импорт
+      </button>
+    </header>
+    <div class="save-command-bar">
+      <div><span class="command-label">Локальный черновик</span><strong id="saveStatus">Готов к проверке конфликтов</strong></div>
+      <button id="saveButton" type="button" class="btn-primary btn-lg">
+        <span data-icon="eye" aria-hidden="true"></span><span class="button-label">Проверить конфликты</span>
+      </button>
+    </div>
+    <div id="saveError" class="error" role="alert"></div>
+
+    <div id="saveResult" class="save-result is-hidden">
+      <div id="saveStats" class="save-stats"></div>
+      <div id="conflictsSection" class="is-hidden">
+        <div class="conflicts-header">
+          <div><p class="section-kicker">Совпадение телефона</p><h2 class="conflicts-title">Конфликты данных</h2></div>
+          <div class="action-row is-hidden" id="batchResolveRow">
+            <button id="resolveAllSkip" type="button" class="btn-outline skip">Пропустить все</button>
+            <button id="resolveAllReplace" type="button" class="btn-outline replace">Заменить все</button>
+            <button id="resolveAllMerge" type="button" class="btn-outline merge">Объединить все</button>
+          </div>
+        </div>
+        <div id="conflictsBlock" class="conflicts-grid"></div>
+        <nav id="conflictPagination" class="directory-pagination conflict-pagination is-hidden" aria-label="Страницы конфликтов">
+          <button id="previousConflictPage" type="button" class="icon-button" title="Предыдущие конфликты" aria-label="Предыдущие конфликты" disabled>
+            <span data-icon="chevron-left" aria-hidden="true"></span>
+          </button>
+          <strong id="conflictPageInfo">Страница 1</strong>
+          <button id="nextConflictPage" type="button" class="icon-button" title="Следующие конфликты" aria-label="Следующие конфликты" disabled>
+            <span data-icon="chevron-right" aria-hidden="true"></span>
+          </button>
+        </nav>
+      </div>
+      <div id="commitRow" class="commit-command-bar is-hidden">
+        <div><span class="command-label">Финальное действие</span><strong id="commitStatus">Подтвердите запись проверенных данных</strong></div>
+        <button id="commitButton" type="button" class="btn-primary btn-lg">
+          <span data-icon="database" aria-hidden="true"></span><span class="button-label">Импортировать контакты</span>
+        </button>
+      </div>
+    </div>
+  </section>
 </section>

@@ -21,9 +21,9 @@ import (
 // parseExcelContent – определяет формат Excel (XLSX или XLS) и делегирует разбор.
 //
 // parseExcelContent:
-	// 1. Проверяет, является ли контент XLSX и вызывает parseXLSX
-	// 2. Проверяет, является ли контент XLS и вызывает parseXLS
-	// 3. Возвращает ErrInvalidExcel при неопознанном формате
+// 1. Проверяет, является ли контент XLSX и вызывает parseXLSX
+// 2. Проверяет, является ли контент XLS и вызывает parseXLS
+// 3. Возвращает ErrInvalidExcel при неопознанном формате
 func parseExcelContent(content []byte, options ParseOptions) (models.FileData, error) {
 
 	// 1. Проверяет, является ли контент XLSX и вызывает parseXLSX
@@ -43,10 +43,10 @@ func parseExcelContent(content []byte, options ParseOptions) (models.FileData, e
 // parseXLSX – открывает XLSX-рабочую книгу и выбирает лист для парсинга.
 
 // parseXLSX:
-	// 1. Открывает книгу через excelize.OpenReader
-	// 2. Получает список листов и проверяет наличие листов
-	// 3. Если задан options.SheetName, находит индекс и парсит соответствующий лист
-	// 4. Иначе пытает парсить листы по очереди, возвращая первый успешный результат
+// 1. Открывает книгу через excelize.OpenReader
+// 2. Получает список листов и проверяет наличие листов
+// 3. Если задан options.SheetName, находит индекс и парсит соответствующий лист
+// 4. Иначе пытает парсить листы по очереди, возвращая первый успешный результат
 func parseXLSX(reader io.Reader, options ParseOptions) (models.FileData, error) {
 
 	// 1. Открывает книгу через excelize.OpenReader
@@ -94,10 +94,10 @@ func parseXLSX(reader io.Reader, options ParseOptions) (models.FileData, error) 
 // и преобразует результат в models.FileData.
 
 // parseXLSXSheet:
-	// 1. Получение всех строк листа через workbook.GetRows
-	// 2. Заполнение объединенных ячеек через utils.FillMergedCells
-	// 3. Преобразование строк в models.FileData через rowsToFileData
-	// 4. Заполнение метаданных (SheetName, Sheets) и добавление предупреждений при мерджах
+// 1. Получение всех строк листа через workbook.GetRows
+// 2. Заполнение объединенных ячеек через utils.FillMergedCells
+// 3. Преобразование строк в models.FileData через rowsToFileData
+// 4. Заполнение метаданных (SheetName, Sheets) и добавление предупреждений при мерджах
 func parseXLSXSheet(workbook *excelize.File, sheetName string, sheets []string) (models.FileData, error) {
 
 	// 1. Получение всех строк листа через workbook.GetRows
@@ -134,10 +134,10 @@ func parseXLSXSheet(workbook *excelize.File, sheetName string, sheets []string) 
 // parseXLS – открывает старый формат XLS и подготавливает имена листов для парсинга.
 
 // parseXLS:
-	// 1. Открывает книгу через xls.OpenReader
-	// 2. Формирует список имен листов
-	// 3. Если задан options.SheetName, находит индекс и парсит соответствующий лист
-	// 4. Иначе пытает парсить листы по очереди, возвращая первый успешный результат
+// 1. Открывает книгу через xls.OpenReader
+// 2. Формирует список имен листов
+// 3. Если задан options.SheetName, находит индекс и парсит соответствующий лист
+// 4. Иначе пытает парсить листы по очереди, возвращая первый успешный результат
 func parseXLS(reader io.ReadSeeker, options ParseOptions) (models.FileData, error) {
 
 	// 1. Открывает книгу через xls.OpenReader
@@ -185,10 +185,10 @@ func parseXLS(reader io.ReadSeeker, options ParseOptions) (models.FileData, erro
 // parseXLSSheet – извлекает значения ячеек из xls.WorkSheet, очищает их и преобразует в models.FileData.
 
 // parseXLSSheet:
-	// 1. Проверка на пустой лист
-	// 2. Итерация по всем строкам и столбцам, очистка значений через utils.CleanCell
-	// 3. Сбор всех строк в [][]string и преобразование через rowsToFileData
-	// 4. Установка метаданных (SheetName, Sheets)
+// 1. Проверка на пустой лист
+// 2. Итерация по всем строкам и столбцам, очистка значений через utils.CleanCell
+// 3. Сбор всех строк в [][]string и преобразование через rowsToFileData
+// 4. Установка метаданных (SheetName, Sheets)
 func parseXLSSheet(sheet *xls.WorkSheet, sheetName string, sheets []string) (models.FileData, error) {
 
 	// 1. Проверка на пустой лист
@@ -218,7 +218,7 @@ func parseXLSSheet(sheet *xls.WorkSheet, sheetName string, sheets []string) (mod
 	if err != nil {
 		return models.FileData{}, err
 	}
-	
+
 	// 4. Установка метаданных (SheetName, Sheets)
 	data.SheetName = sheetName
 	data.Sheets = sheets

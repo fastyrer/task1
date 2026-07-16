@@ -27,8 +27,9 @@ async function loadWorkspaceViews() {
 async function bootstrap() {
   await loadWorkspaceViews();
 
-  const [contacts, notifications, search, templateEditor, ui, upload] = await Promise.all([
+  const [contacts, importWorkflow, notifications, search, templateEditor, ui, upload] = await Promise.all([
     import("./contacts.js"),
+    import("./import-workflow.js"),
     import("./notifications.js"),
     import("./search.js"),
     import("./template-editor.js"),
@@ -41,8 +42,9 @@ async function bootstrap() {
   notifications.initNotifications();
 
   const searchController = search.initSearch();
-  const contactsController = contacts.initContacts();
-  upload.initUpload({ searchController, contactsController });
+  const importController = importWorkflow.initImportWorkflow();
+  contacts.initContacts();
+  await upload.initUpload({ searchController, importController });
 }
 
 bootstrap().catch(() => {

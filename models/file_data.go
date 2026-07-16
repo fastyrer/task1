@@ -48,16 +48,3 @@ type InvalidRow struct {
 	Values map[string]string   `json:"values"`
 	Errors []ProcessingWarning `json:"errors"`
 }
-
-// StoredFileRow - строка, найденная PostgreSQL-поиском внутри загруженного файла.
-type StoredFileRow struct {
-	Row    int               `json:"row"`    // Номер строки в исходном CSV/XLS/XLSX.
-	Values map[string]string `json:"values"` // Полный набор ячеек найденной строки.
-}
-
-// FileSearchResult - внутренний результат поиска: заголовки, найденные строки и их полное количество.
-type FileSearchResult struct {
-	Headers []string        // Заголовки нужны обработчику для поиска совпавших ячеек.
-	Rows    []StoredFileRow // Результаты, уже ограниченные переданным LIMIT.
-	Total   int             // Полное число совпадений до LIMIT.
-}

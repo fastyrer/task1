@@ -17,7 +17,7 @@ type Contact struct {
 	Email    string `json:"email,omitempty"`
 	Name     string `json:"name,omitempty"`
 	Discount string `json:"discount,omitempty"`
-	FileID   string `json:"fileId"`
+	FileID   string `json:"-"`
 	// SourceRow хранит номер строки для связи контакта с файлом-источником.
 	SourceRow int       `json:"-"`
 	CreatedAt time.Time `json:"createdAt"`
@@ -34,7 +34,6 @@ const (
 	ContactSourceSkipped  ContactSourceAction = "skipped"
 	ContactSourceReplaced ContactSourceAction = "replaced"
 	ContactSourceMerged   ContactSourceAction = "merged"
-	ContactSourceFixed    ContactSourceAction = "fixed"
 )
 
 // ConflictAction - действие пользователя при несовпадении данных одного телефона.
@@ -51,23 +50,29 @@ const (
 type ConflictInfo struct {
 	Row         int               `json:"row" example:"4"`
 	Phone       string            `json:"phone" example:"+79991234567"`
+	Version     string            `json:"version" example:"2026-07-16T08:30:00.123456Z"`
 	Existing    map[string]string `json:"existing"`    // То, что уже лежит в базе
 	Incoming    map[string]string `json:"incoming"`    // То, что прислал фронт
 	Differences []string          `json:"differences"` // Отличные поля
 	Actions     []ConflictAction  `json:"actions"`
 }
 
-// Запросы на разрешение
-
-// ResolveRequest разрешает конфликт для одного телефона
-type ResolveRequest struct {
-	FileID string         `json:"fileId" validate:"required" example:"2f656bc0-6227-49d3-9d09-b2d59bd21c52"`
-	Phone  string         `json:"phone" validate:"required" example:"+79991234567"`
-	Action ConflictAction `json:"action" validate:"required" enums:"skip,replace,merge" example:"merge"`
+// ContactPage содержит одну страницу подтверждённого справочника PostgreSQL.
+type ContactPage struct {
+	Items      []Contact `json:"items"`
+	Page       int       `json:"page" example:"1"`
+	PageSize   int       `json:"pageSize" example:"25"`
+	Total      int64     `json:"total" example:"106"`
+	TotalPages int       `json:"totalPages" example:"5"`
+	Query      string    `json:"query,omitempty" example:"+7999"`
 }
 
-// BatchResolveRequest разрешает все конфликты в одном файле за один раз
-type BatchResolveRequest struct {
-	FileID string         `json:"fileId" validate:"required" example:"2f656bc0-6227-49d3-9d09-b2d59bd21c52"`
-	Action ConflictAction `json:"action" validate:"required" enums:"skip,replace,merge" example:"merge"`
+// ContactUpdateRequest содержит только изменяемые поля справочника.
+// Version соответствует updatedAt, который пользователь видел перед редактированием.
+type ContactUpdateRequest struct {
+	Phone    string `json:"phone" example:"+79991234567"`
+	Email    string `json:"email" example:"client@example.com"`
+	Name     string `json:"name" example:"Иванов Иван"`
+	Discount string `json:"discount" example:"10"`
+	Version  string `json:"version" example:"2026-07-16T08:30:00.123456Z"`
 }

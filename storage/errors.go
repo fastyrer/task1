@@ -4,10 +4,12 @@ package storage
 import "errors"
 
 var (
-	// ErrContactAlreadyExists означает, что UNIQUE-ограничение телефона не дало создать дубликат.
-	ErrContactAlreadyExists = errors.New("Контакт с таким телефоном уже есть")
-	// ErrContactNotFound возвращается, когда UPDATE или разрешение конфликта не нашли контакт.
-	ErrContactNotFound = errors.New("Контакт не найден")
-	// ErrFileRowNotFixable защищает endpoint исправления от изменения отсутствующей или уже валидной строки.
-	ErrFileRowNotFixable = errors.New("Строка не найдена или уже является валидной")
+	// ErrImportAlreadyCommitted защищает от повторной отправки одного локального черновика.
+	ErrImportAlreadyCommitted = errors.New("Этот импорт уже был сохранён")
+	// ErrImportChanged требует повторного preview, если контакты изменились перед commit.
+	ErrImportChanged = errors.New("Контакты изменились после проверки конфликтов; выполните проверку ещё раз")
+	// ErrContactChanged защищает ручное редактирование от потери параллельных изменений.
+	ErrContactChanged = errors.New("Контакт уже изменился; обновите список и повторите редактирование")
+	// ErrContactPhoneExists сообщает о нарушении уникальности рабочего номера телефона.
+	ErrContactPhoneExists = errors.New("Контакт с таким номером телефона уже существует")
 )

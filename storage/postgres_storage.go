@@ -4,8 +4,6 @@ package storage
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"fmt"
 	"os"
 	"strconv"
@@ -16,10 +14,12 @@ import (
 )
 
 // PostgresStorage - единственная runtime-реализация Store.
-// pool переиспользует соединения, queryTimeout ограничивает CRUD-операции.
+// pool переиспользует соединения, а отдельный importTimeout даёт атомарному
+// импорту больше времени, чем коротким повседневным запросам.
 type PostgresStorage struct {
-	pool         *pgxpool.Pool
-	queryTimeout time.Duration
+	pool          *pgxpool.Pool
+	queryTimeout  time.Duration
+	importTimeout time.Duration
 }
 
 // NewPostgresStorage - создаёт готовое PostgreSQL-хранилище.
@@ -54,8 +54,9 @@ func NewPostgresStorage(ctx context.Context, databaseURL string) (*PostgresStora
 	}
 
 	store := &PostgresStorage{
-		pool:         pool,
-		queryTimeout: envDuration("DB_QUERY_TIMEOUT_SECONDS", 5*time.Second),
+		pool:          pool,
+		queryTimeout:  envDuration("DB_QUERY_TIMEOUT_SECONDS", 5*time.Second),
+		importTimeout: envDuration("DB_IMPORT_TIMEOUT_SECONDS", 45*time.Second),
 	}
 	if err := store.Ping(connectCtx); err != nil {
 		pool.Close()
@@ -164,6 +165,14 @@ func (s *PostgresStorage) withTimeout(ctx context.Context) (context.Context, con
 	return context.WithTimeout(ctx, s.queryTimeout)
 }
 
+// withImportTimeout ограничивает тяжёлый preview/commit независимо от коротких CRUD-запросов.
+func (s *PostgresStorage) withImportTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
+	if s.importTimeout <= 0 {
+		return context.WithCancel(ctx)
+	}
+	return context.WithTimeout(ctx, s.importTimeout)
+}
+
 // applyPoolEnv - применяет к пулу лимиты соединений и времени из env.
 func applyPoolEnv(config *pgxpool.Config) {
 	config.MaxConns = int32(envPositiveInt("DB_MAX_CONNS", 10))
@@ -211,17 +220,4 @@ func envDuration(name string, fallback time.Duration) time.Duration {
 		return fallback
 	}
 	return time.Duration(parsed) * time.Second
-}
-
-// generateID - генерирует криптографически случайный UUID v4 без внешней библиотеки.
-func generateID() (string, error) {
-	buffer := make([]byte, 16)
-	if _, err := rand.Read(buffer); err != nil {
-		return "", fmt.Errorf("generate id: %w", err)
-	}
-
-	buffer[6] = (buffer[6] & 0x0f) | 0x40
-	buffer[8] = (buffer[8] & 0x3f) | 0x80
-	encoded := hex.EncodeToString(buffer)
-	return encoded[0:8] + "-" + encoded[8:12] + "-" + encoded[12:16] + "-" + encoded[16:20] + "-" + encoded[20:32], nil
 }
