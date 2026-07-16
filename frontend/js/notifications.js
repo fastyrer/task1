@@ -1,6 +1,7 @@
 // notifications.js - предпросмотр и CSV-экспорт рассылки по всем контактам БД.
 
 import { API, postDownload, postJSON } from "./api.js";
+import { setButtonLabel } from "./icons.js";
 import { getTemplate } from "./template-editor.js";
 
 const previewButton = document.getElementById("previewButton");
@@ -25,7 +26,7 @@ async function handlePreview() {
   }
 
   previewButton.disabled = true;
-  previewButton.textContent = "Загрузка...";
+  setButtonLabel(previewButton, "Загрузка...");
 
   try {
     const { response, data } = await postJSON(API.preview, { template });
@@ -39,7 +40,7 @@ async function handlePreview() {
     showNotificationError("Не удалось подключиться к серверу.");
   } finally {
     previewButton.disabled = false;
-    previewButton.textContent = "Предпросмотр";
+    setButtonLabel(previewButton, "Предпросмотр");
   }
 }
 
@@ -96,7 +97,7 @@ async function handleExport() {
   }
 
   exportButton.disabled = true;
-  exportButton.textContent = "Скачивание...";
+  setButtonLabel(exportButton, "Скачивание...");
 
   try {
     const response = await postDownload(API.export, { template });
@@ -119,7 +120,7 @@ async function handleExport() {
     showNotificationError("Не удалось подключиться к серверу.");
   } finally {
     exportButton.disabled = false;
-    exportButton.textContent = "Скачать CSV";
+    setButtonLabel(exportButton, "Скачать CSV");
   }
 }
 

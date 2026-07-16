@@ -1,6 +1,7 @@
 // search.js - поиск по строкам текущего файла и подсветка совпадений.
 
 import { API, postJSON } from "./api.js";
+import { setButtonLabel } from "./icons.js";
 import { appState } from "./state.js";
 import { clearError, showError } from "./ui.js";
 
@@ -69,7 +70,7 @@ async function runSearch() {
   const sequence = searchSequence + 1;
   searchSequence = sequence;
   searchButton.disabled = true;
-  searchButton.textContent = "Поиск...";
+  setButtonLabel(searchButton, "Поиск...");
   searchInfo.textContent = "Идет поиск...";
 
   try {
@@ -96,7 +97,7 @@ async function runSearch() {
   } finally {
     if (sequence === searchSequence) {
       searchButton.disabled = !appState.currentFileId;
-      searchButton.textContent = "Найти";
+      setButtonLabel(searchButton, "Найти");
     }
   }
 }

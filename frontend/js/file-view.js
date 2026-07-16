@@ -1,6 +1,7 @@
 // file-view.js - отображение разобранного файла, статистики и ошибок строк.
 
 import { appState } from "./state.js";
+import { renderIcons } from "./icons.js";
 import { formatBytes, formatWarning } from "./ui.js";
 
 const headersBlock = document.getElementById("headersBlock");
@@ -29,19 +30,24 @@ export function renderStats(stats) {
   }
 
   const metrics = [
-    ["Строк", stats.rowCount],
-    ["Колонок", stats.columnCount],
-    ["Валидных", stats.validRowCount],
-    ["С ошибками", stats.invalidRowCount],
-    ["Пустых", stats.emptyRowCount],
-    ["Предупреждений", stats.warningCount],
+    ["Строк", stats.rowCount, "file-spreadsheet", "neutral"],
+    ["Колонок", stats.columnCount, "columns-3", "blue"],
+    ["Валидных", stats.validRowCount, "circle-check-big", "success"],
+    ["С ошибками", stats.invalidRowCount, "triangle-alert", "danger"],
+    ["Пустых", stats.emptyRowCount, "list-checks", "neutral"],
+    ["Предупреждений", stats.warningCount, "triangle-alert", "warning"],
   ];
 
   const grid = document.createElement("div");
   grid.className = "summary-grid";
-  metrics.forEach(([label, value]) => {
+  metrics.forEach(([label, value, iconName, tone]) => {
     const item = document.createElement("div");
     item.className = "metric";
+    item.dataset.tone = tone;
+
+    const icon = document.createElement("span");
+    icon.className = "metric-icon";
+    icon.dataset.icon = iconName;
 
     const caption = document.createElement("p");
     caption.className = "metric-label";
@@ -51,12 +57,13 @@ export function renderStats(stats) {
     number.className = "metric-value";
     number.textContent = Number.isFinite(value) ? value : 0;
 
-    item.append(caption, number);
+    item.append(icon, caption, number);
     grid.appendChild(item);
   });
 
   statsBlock.className = "";
   statsBlock.replaceChildren(grid);
+  renderIcons(statsBlock);
 }
 
 export function renderWarnings(warnings) {

@@ -1,0 +1,112 @@
+<section class="workspace-view is-active" data-view="files" aria-labelledby="filesTitle">
+  <header class="view-header">
+    <div>
+      <p class="eyebrow">Рабочая область</p>
+      <h1 id="filesTitle">Обработка файла</h1>
+      <p class="view-description">Загрузите таблицу, проверьте строки и подготовьте контакты к сохранению.</p>
+    </div>
+  </header>
+
+  <section class="upload-toolbar" aria-label="Загрузка файла">
+    <label class="file-picker" for="fileInput">
+      <span class="file-picker-icon" data-icon="file-spreadsheet" aria-hidden="true"></span>
+      <span class="file-picker-copy">
+        <strong id="filePickerLabel">Выберите CSV, XLS или XLSX</strong>
+        <small>До 20 МБ</small>
+      </span>
+      <input type="file" id="fileInput" accept=".csv,.xls,.xlsx">
+    </label>
+    <label class="field-group sheet-field" for="sheetInput">
+      <span>Лист Excel</span>
+      <input type="text" id="sheetInput" placeholder="Первый подходящий">
+    </label>
+    <button id="uploadButton" type="button" class="btn-primary">
+      <span data-icon="upload" aria-hidden="true"></span>
+      <span class="button-label">Загрузить</span>
+    </button>
+  </section>
+
+  <div id="fileInfo" class="file-context meta"></div>
+  <div id="statsBlock" class="metrics-strip empty-state">Сводка появится после загрузки файла.</div>
+
+  <div class="workspace-tabs" role="tablist" aria-label="Представления файла">
+    <button class="workspace-tab is-active" type="button" role="tab" aria-selected="true" data-panel-target="preview">
+      <span data-icon="columns-3" aria-hidden="true"></span>Данные
+    </button>
+    <button class="workspace-tab" type="button" role="tab" aria-selected="false" data-panel-target="search">
+      <span data-icon="search" aria-hidden="true"></span>Поиск
+    </button>
+    <button class="workspace-tab" type="button" role="tab" aria-selected="false" data-panel-target="issues">
+      <span data-icon="list-checks" aria-hidden="true"></span>Проверка
+    </button>
+  </div>
+
+  <div class="workspace-panel is-active" data-panel="preview" role="tabpanel">
+    <section class="content-section compact-section" aria-labelledby="headersTitle">
+      <div class="section-heading inline-heading">
+        <div><p class="section-kicker">Структура</p><h2 id="headersTitle">Колонки файла</h2></div>
+        <div id="headersBlock" class="empty-state">Файл ещё не загружен.</div>
+      </div>
+    </section>
+    <section class="content-section" aria-labelledby="previewTitle">
+      <div class="section-heading">
+        <div><p class="section-kicker">Предпросмотр</p><h2 id="previewTitle">Первые строки</h2></div>
+        <span class="section-note">Показаны первые 10 строк файла</span>
+      </div>
+      <div class="table-wrap">
+        <table id="previewTable"><tbody><tr><td class="empty-state">Данные появятся после загрузки файла.</td></tr></tbody></table>
+      </div>
+    </section>
+  </div>
+
+  <div class="workspace-panel" data-panel="search" role="tabpanel" hidden>
+    <section class="content-section" aria-labelledby="searchTitle">
+      <div class="section-heading">
+        <div><p class="section-kicker">По всему файлу</p><h2 id="searchTitle">Поиск по строкам</h2></div>
+        <div id="searchInfo" class="section-note">Поиск доступен после загрузки файла.</div>
+      </div>
+      <div class="search-toolbar">
+        <label class="search-field" for="searchInput">
+          <span data-icon="search" aria-hidden="true"></span>
+          <input type="text" id="searchInput" placeholder="Телефон, имя, email или значение" disabled>
+        </label>
+        <button id="searchButton" type="button" disabled>
+          <span data-icon="search" aria-hidden="true"></span><span class="button-label">Найти</span>
+        </button>
+        <button id="clearSearchButton" class="icon-button" type="button" disabled title="Очистить поиск" aria-label="Очистить поиск">
+          <span data-icon="x" aria-hidden="true"></span>
+        </button>
+      </div>
+      <div class="table-wrap search-results-wrap">
+        <table id="searchTable"><tbody><tr><td class="empty-state">Результаты появятся после поиска.</td></tr></tbody></table>
+      </div>
+    </section>
+  </div>
+
+  <div class="workspace-panel" data-panel="issues" role="tabpanel" hidden>
+    <section class="content-section" aria-labelledby="warningsTitle">
+      <div class="section-heading"><div><p class="section-kicker">Диагностика</p><h2 id="warningsTitle">Предупреждения</h2></div></div>
+      <div id="warningsBlock" class="empty-state">Предупреждений пока нет.</div>
+    </section>
+    <section class="content-section" aria-labelledby="invalidTitle">
+      <div class="section-heading"><div><p class="section-kicker">Ручная проверка</p><h2 id="invalidTitle">Строки с ошибками</h2></div></div>
+      <div class="table-wrap">
+        <table id="invalidRowsTable"><tbody><tr><td class="empty-state">Ошибочные строки появятся после проверки файла.</td></tr></tbody></table>
+      </div>
+      <div id="fixRowRow" class="action-row fix-row-actions is-hidden">
+        <button id="fixRowsButton" type="button" class="btn-outline merge">
+          <span data-icon="wrench" aria-hidden="true"></span><span class="button-label">Применить исправления</span>
+        </button>
+        <span id="fixStatus" class="meta"></span>
+      </div>
+      <div id="fixError" class="error spaced-error" role="alert"></div>
+    </section>
+  </div>
+
+  <div id="fileWorkflowFooter" class="workflow-footer is-hidden">
+    <div><strong>Файл проверен</strong><span>Перейдите к сохранению валидных контактов.</span></div>
+    <button id="openContactsButton" type="button" class="btn-secondary" data-view-target="contacts">
+      <span data-icon="users" aria-hidden="true"></span>Перейти к контактам
+    </button>
+  </div>
+</section>

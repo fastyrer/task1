@@ -1,0 +1,43 @@
+<section class="workspace-view" data-view="notifications" aria-labelledby="notificationsTitle" hidden>
+  <header class="view-header">
+    <div>
+      <p class="eyebrow">Все сохранённые контакты</p>
+      <h1 id="notificationsTitle">Конструктор рассылки</h1>
+      <p class="view-description">Соберите персональное сообщение, проверьте результат и экспортируйте CSV.</p>
+    </div>
+  </header>
+
+  <section id="constructorSection" class="constructor-workspace" aria-label="Конструктор уведомлений">
+    <div class="message-composer">
+      <div class="composer-header">
+        <div><p class="section-kicker">Шаблон</p><h2>Текст сообщения</h2></div>
+        <div id="placeholderHint" class="section-note"></div>
+      </div>
+      <div class="form-row">
+        <label for="templateInput">Сообщение</label>
+        <div id="templateInput" contenteditable="true" class="template-editor" data-placeholder="Например: Здравствуйте, {{Имя}}! Ваша скидка — {{Скидка}}."></div>
+      </div>
+      <div class="placeholder-toolbar">
+        <span>Добавить поле:</span>
+        <ul id="constructorHeaders" class="headers-list"></ul>
+      </div>
+      <div class="action-row composer-actions">
+        <button id="previewButton" type="button">
+          <span data-icon="eye" aria-hidden="true"></span><span class="button-label">Предпросмотр</span>
+        </button>
+        <button id="exportButton" class="btn-secondary is-hidden" type="button">
+          <span data-icon="download" aria-hidden="true"></span><span class="button-label">Скачать CSV</span>
+        </button>
+      </div>
+      <div id="notificationError" class="error" role="alert"></div>
+    </div>
+
+    <div id="notificationResults" class="notification-results is-hidden">
+      <div class="section-heading">
+        <div><p class="section-kicker">Результат</p><h2>Сформированные уведомления</h2></div>
+        <div id="resultSummary" class="result-summary"></div>
+      </div>
+      <div class="table-wrap"><table id="notificationTable"></table></div>
+    </div>
+  </section>
+</section>

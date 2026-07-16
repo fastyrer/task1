@@ -1,0 +1,43 @@
+<section class="workspace-view" data-view="contacts" aria-labelledby="contactsTitle" hidden>
+  <header class="view-header">
+    <div>
+      <p class="eyebrow">Справочник PostgreSQL</p>
+      <h1 id="contactsTitle">Сохранение контактов</h1>
+      <p class="view-description">Перенесите валидные строки в общий справочник и разберите совпадения телефонов.</p>
+    </div>
+  </header>
+
+  <div id="contactsEmptyState" class="empty-workspace">
+    <span data-icon="users" aria-hidden="true"></span>
+    <h2>Сначала загрузите файл</h2>
+    <p>После проверки здесь появится команда сохранения и список конфликтов.</p>
+    <button type="button" class="btn-secondary" data-view-target="files">
+      <span data-icon="upload" aria-hidden="true"></span>Перейти к загрузке
+    </button>
+  </div>
+
+  <section class="save-workspace is-hidden" id="saveSection" aria-label="Сохранение контактов">
+    <div class="save-command-bar">
+      <div><span class="command-label">Текущий файл</span><strong id="saveStatus">Готов к сохранению</strong></div>
+      <button id="saveButton" type="button" class="btn-primary btn-lg">
+        <span data-icon="save" aria-hidden="true"></span><span class="button-label">Сохранить контакты в БД</span>
+      </button>
+    </div>
+    <div id="saveError" class="error" role="alert"></div>
+
+    <div id="saveResult" class="save-result is-hidden">
+      <div id="saveStats" class="save-stats"></div>
+      <div id="conflictsSection" class="is-hidden">
+        <div class="conflicts-header">
+          <div><p class="section-kicker">Совпадение телефона</p><h2 class="conflicts-title">Конфликты данных</h2></div>
+          <div class="action-row is-hidden" id="batchResolveRow">
+            <button id="resolveAllSkip" type="button" class="btn-outline skip">Пропустить все</button>
+            <button id="resolveAllReplace" type="button" class="btn-outline replace">Заменить все</button>
+            <button id="resolveAllMerge" type="button" class="btn-outline merge">Объединить все</button>
+          </div>
+        </div>
+        <div id="conflictsBlock" class="conflicts-grid"></div>
+      </div>
+    </div>
+  </section>
+</section>

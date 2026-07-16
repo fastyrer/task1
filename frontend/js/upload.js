@@ -2,14 +2,20 @@
 
 import { API, postForm } from "./api.js";
 import { renderFileResult } from "./file-view.js";
+import { setButtonLabel } from "./icons.js";
 import { appState, updateFileState } from "./state.js";
-import { clearError, showError } from "./ui.js";
+import { clearError, showError, showFilePanel } from "./ui.js";
 
 const fileInput = document.getElementById("fileInput");
 const sheetInput = document.getElementById("sheetInput");
 const uploadButton = document.getElementById("uploadButton");
+const filePickerLabel = document.getElementById("filePickerLabel");
 
 export function initUpload({ searchController, contactsController }) {
+  fileInput.addEventListener("change", () => {
+    filePickerLabel.textContent = fileInput.files[0]?.name || "Выберите CSV, XLS или XLSX";
+  });
+
   uploadButton.addEventListener("click", async () => {
     clearError();
     searchController.setEnabled(false);
@@ -28,7 +34,7 @@ export function initUpload({ searchController, contactsController }) {
     }
 
     uploadButton.disabled = true;
-    uploadButton.textContent = "Загрузка...";
+    setButtonLabel(uploadButton, "Загрузка...");
 
     try {
       const { response, data } = await postForm(API.upload, formData);
@@ -41,13 +47,14 @@ export function initUpload({ searchController, contactsController }) {
       updateFileState(data);
       searchController.reset();
       renderFileResult(data);
-      contactsController.showSavePanel();
+      contactsController.showSavePanel(data);
+      showFilePanel("preview");
     } catch (error) {
       showError("Не удалось подключиться к серверу.");
       searchController.setEnabled(Boolean(appState.currentFileId));
     } finally {
       uploadButton.disabled = false;
-      uploadButton.textContent = "Загрузить файл";
+      setButtonLabel(uploadButton, "Загрузить");
     }
   });
 }

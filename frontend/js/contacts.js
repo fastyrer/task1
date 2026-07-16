@@ -1,6 +1,7 @@
 // contacts.js - сохранение контактов, разрешение конфликтов и исправление строк.
 
 import { API, postJSON } from "./api.js";
+import { setButtonLabel } from "./icons.js";
 import {
   renderEmptyInvalidRows,
   renderInvalidRows,
@@ -28,6 +29,9 @@ const batchResolveRow = document.getElementById("batchResolveRow");
 const resolveAllSkip = document.getElementById("resolveAllSkip");
 const resolveAllReplace = document.getElementById("resolveAllReplace");
 const resolveAllMerge = document.getElementById("resolveAllMerge");
+const contactsEmptyState = document.getElementById("contactsEmptyState");
+const contactsNavBadge = document.getElementById("contactsNavBadge");
+const fileWorkflowFooter = document.getElementById("fileWorkflowFooter");
 
 export function initContacts() {
   saveButton.addEventListener("click", saveContacts);
@@ -39,19 +43,26 @@ export function initContacts() {
   return { showSavePanel };
 }
 
-function showSavePanel() {
+function showSavePanel(fileData = {}) {
   saveSection.classList.remove("is-hidden");
+  contactsEmptyState.classList.add("is-hidden");
+  fileWorkflowFooter.classList.remove("is-hidden");
   saveResult.classList.add("is-hidden");
   saveError.textContent = "";
-  saveStatus.textContent = "Нажмите, чтобы сохранить валидные данные в базу";
+  const validCount = fileData.stats?.validRowCount;
+  saveStatus.textContent = fileData.originalFilename
+    ? `${fileData.originalFilename}${Number.isFinite(validCount) ? ` · валидных строк: ${validCount}` : ""}`
+    : "Готов к сохранению";
   saveButton.disabled = false;
-  saveButton.textContent = "💾 Сохранить данные в БД";
+  setButtonLabel(saveButton, "Сохранить контакты в БД");
+  contactsNavBadge.textContent = Number.isFinite(validCount) ? validCount : "!";
+  contactsNavBadge.classList.remove("is-hidden");
 }
 
 async function saveContacts() {
   saveError.textContent = "";
   saveButton.disabled = true;
-  saveButton.textContent = "Сохранение...";
+  setButtonLabel(saveButton, "Сохранение...");
   saveStatus.textContent = "Идет сохранение...";
 
   try {
@@ -66,10 +77,10 @@ async function saveContacts() {
 
     saveResult.classList.remove("is-hidden");
     saveStats.replaceChildren();
-    appendSaveStat("ok", `✓ Сохранено: ${data.saved || 0}`);
+    appendSaveStat("ok", `Сохранено: ${data.saved || 0}`);
     appendSaveStat(
       data.skipped > 0 ? "warn" : "ok",
-      data.skipped > 0 ? `⚠ Пропущено: ${data.skipped}` : "✓ Пропущено: 0",
+      `Пропущено: ${data.skipped || 0}`,
     );
 
     const conflicts = data.conflicts || [];
@@ -77,9 +88,10 @@ async function saveContacts() {
       appendSaveStat("danger", `! Конфликтов: ${conflicts.length}`);
     }
 
-    saveButton.textContent = "💾 Сохранено";
+    setButtonLabel(saveButton, "Контакты сохранены");
     saveButton.disabled = true;
     saveStatus.textContent = "Данные сохранены";
+    contactsNavBadge.textContent = conflicts.length > 0 ? conflicts.length : "✓";
     renderConflicts(conflicts);
   } catch (error) {
     saveError.textContent = "Не удалось подключиться к серверу.";
@@ -96,7 +108,7 @@ function appendSaveStat(status, text) {
 
 function resetSaveButton() {
   saveButton.disabled = false;
-  saveButton.textContent = "💾 Сохранить данные в БД";
+  setButtonLabel(saveButton, "Сохранить контакты в БД");
   saveStatus.textContent = "";
 }
 
@@ -275,7 +287,7 @@ async function fixInvalidRows() {
   }
 
   fixButton.disabled = true;
-  fixButton.textContent = "Сохранение...";
+  setButtonLabel(fixButton, "Сохранение...");
   fixStatus.textContent = "Идет проверка...";
 
   try {
@@ -300,7 +312,7 @@ async function fixInvalidRows() {
     const fixed = data.fixed || 0;
     const failed = data.failed || [];
     if (fixed > 0) {
-      fixStatus.textContent = `✓ Исправлено: ${fixed}. ${failed.length > 0 ? `Ошибок: ${failed.length}` : ""}`;
+      fixStatus.textContent = `Исправлено: ${fixed}. ${failed.length > 0 ? `Ошибок: ${failed.length}` : ""}`;
       fixStatus.style.color = "#0f766e";
 
       const remainingRows = tableRows.flatMap((row) => {
@@ -319,7 +331,7 @@ async function fixInvalidRows() {
       if (remainingRows.length > 0) {
         renderInvalidRows(remainingRows);
       } else {
-        renderEmptyInvalidRows("Все строки исправлены ✓");
+        renderEmptyInvalidRows("Все строки исправлены.");
       }
     }
 
@@ -354,7 +366,7 @@ function renderFailedRowsMessage(failedRows) {
 
 function resetFixButton(clearStatus = true) {
   fixButton.disabled = false;
-  fixButton.textContent = "✎ Применить исправления";
+  setButtonLabel(fixButton, "Применить исправления");
   if (clearStatus) {
     fixStatus.textContent = "";
   }
