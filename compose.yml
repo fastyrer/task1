@@ -6,11 +6,17 @@ services:
     restart: unless-stopped
     environment:
       PORT: "8080"
+      APP_ENV: "${APP_ENV:-development}"
+      AUTH_USERNAME: "${AUTH_USERNAME:-}"
+      AUTH_PASSWORD: "${AUTH_PASSWORD:-}"
+      CORS_ALLOWED_ORIGINS: "${CORS_ALLOWED_ORIGINS:-}"
       # Внутри Compose приложение обращается к PostgreSQL по имени сервиса db.
       DATABASE_URL: "host=db port=5432 user=${POSTGRES_USER:-task1} password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required} dbname=${POSTGRES_DB:-task1} sslmode=disable"
       MAX_UPLOAD_SIZE_MB: "20"
       # Swagger UI удобен локально; в production его можно полностью отключить.
       SWAGGER_ENABLED: "${SWAGGER_ENABLED:-true}"
+      # UI показывает ограниченный preview; CSV-экспорт включает весь справочник.
+      NOTIFICATION_PREVIEW_LIMIT: "${NOTIFICATION_PREVIEW_LIMIT:-500}"
       # Размер пула и таймауты можно менять без пересборки Docker-образа.
       DB_MAX_CONNS: "10"
       DB_MIN_CONNS: "1"
@@ -23,7 +29,7 @@ services:
       DB_HEALTH_CHECK_SECONDS: "30"
     ports:
       # HOST_PORT меняет только внешний порт; внутри контейнера сервер всегда слушает 8080.
-      - "${HOST_PORT:-8080}:8080"
+      - "${HOST_BIND_ADDRESS:-127.0.0.1}:${HOST_PORT:-8080}:8080"
     depends_on:
       db:
         condition: service_healthy
@@ -55,12 +61,12 @@ services:
     security_opt:
       - no-new-privileges:true
 
-  # db хранит данные в именованном volume; порт PostgreSQL на хост не публикуется.
+  # db хранит данные в именованном volume; порт доступен только на loopback хоста.
   db:
     image: postgres:16-alpine
     restart: unless-stopped
     ports:
-    - "127.0.0.1:5432:5432"
+      - "${DB_HOST_BIND_ADDRESS:-127.0.0.1}:${DB_HOST_PORT:-5432}:5432"
     environment:
       # Пароль не имеет слабого значения по умолчанию и обязан прийти из .env/окружения.
       POSTGRES_DB: ${POSTGRES_DB:-task1}

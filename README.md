@@ -1,6 +1,8 @@
-# Загрузка клиентских данных
+# Task1 — импорт клиентских данных
 
-Go-приложение для локальной подготовки CSV/XLS/XLSX, проверки строк,
+[![CI](https://github.com/fastyrer/task1/actions/workflows/ci.yml/badge.svg)](https://github.com/fastyrer/task1/actions/workflows/ci.yml)
+
+Go 1.26-приложение для локальной подготовки CSV/XLS/XLSX, проверки строк,
 подтверждённого импорта контактов и генерации уведомлений по шаблону.
 
 PostgreSQL является обязательным хранилищем. In-memory режима нет.
@@ -9,38 +11,47 @@ PostgreSQL является обязательным хранилищем. In-me
 
 ```text
 .
-├── main.go                         # запуск HTTP-сервера и режим migrate
-├── swagger.go                      # Swagger UI и настройка его доступности
-├── docs/                           # сгенерированные Swagger 2.0-файлы
-├── frontend/                       # встроенный frontend без этапа сборки
-│   ├── index.html                  # только HTML-разметка
-│   ├── css/                        # базовые, компонентные и feature-стили
-│   └── js/                         # ES-модули, IndexedDB, UI-сценарии
-├── handlers/                       # HTTP-обработчики
-├── models/                         # общие структуры данных
-├── services/                       # парсинг и бизнес-логика
-├── storage/
-│   ├── store.go                    # интерфейсы хранилища
-│   ├── postgres_storage.go         # соединение и пул PostgreSQL
-│   ├── postgres_imports.go         # атомарная транзакция импорта
-│   ├── postgres_file_rows.go       # подготовка подтверждённых строк
-│   ├── postgres_contacts.go        # поиск и безопасное изменение контактов
-│   ├── migrations.go               # запуск версионированных миграций
-│   └── migrations/                 # парные SQL up/down-миграции
-├── utils/                          # чистые вспомогательные функции
-├── Dockerfile
-└── compose.yml
+├── .github/                        # CI и автоматические обновления зависимостей
+├── cmd/server/                     # точка входа приложения
+│   ├── main.go                     # HTTP-сервер и режим migrate
+│   ├── middleware.go               # auth, CORS/CSRF и security headers
+│   └── swagger.go                  # Swagger UI
+├── internal/                       # непубличная реализация приложения
+│   ├── handlers/                   # HTTP-контракт и обработчики
+│   ├── models/                     # структуры предметной области
+│   ├── services/                   # парсинг и бизнес-правила
+│   ├── storage/                    # PostgreSQL, интерфейсы и миграции
+│   ├── contactdata/                # распознавание и нормализация полей
+│   ├── identity/                   # генерация и проверка UUID
+│   ├── tabular/                    # чистые CSV/Excel и row-функции
+│   └── web/
+│       ├── embed.go                # встраивание frontend в Go-бинарник
+│       └── assets/                 # HTML, CSS и ES-модули
+├── docs/                           # Swagger и описание процесса импорта
+├── examples/import/                # синтетические XLSX для ручной проверки
+├── Dockerfile                      # multi-stage production image
+├── compose.yml                     # PostgreSQL, миграции и приложение
+└── Taskfile.yml                    # единые команды разработки
 ```
 
 SQL-запросы CRUD объявляются локальными константами в начале соответствующих
 методов repository. При чтении функции сразу виден полный запрос и его параметры.
 DDL не хранится строкой в Go: схема вынесена в SQL-миграции.
 
-Frontend не требует npm или отдельного этапа сборки. `frontend/index.html`
-содержит каркас, представления лежат в `frontend/views`, CSS разделён по
-назначению, а JavaScript использует нативные ES-модули. Локальный черновик хранит
-`frontend/js/draft-store.js` в IndexedDB браузера. `import-workflow.js` управляет
-импортом на первой вкладке, а `contacts.js` независимо загружает справочник БД.
+Frontend не требует npm или отдельного этапа сборки. Файлы в
+`internal/web/assets` встраиваются пакетом `internal/web`: `index.html` содержит
+каркас, представления лежат в `views`, CSS разделён по назначению, а JavaScript
+использует нативные ES-модули. `js/draft-store.js` хранит локальный черновик в
+IndexedDB браузера. `import-workflow.js` управляет импортом на первой вкладке, а
+`contacts.js` независимо загружает справочник БД.
+
+Парсер отклоняет неоднозначные контактные колонки: в одном файле может быть не
+больше одной колонки телефона, ФИО, email и скидки. Контакты дедуплицируются по
+телефону; одинаковый email у разных телефонов разрешён.
+
+Готовые синтетические книги для полного ручного прогона находятся в
+[`examples/import`](examples/import). Сначала импортируется базовая книга, затем
+книга с совпадениями, конфликтами и ошибочными структурами листов.
 
 ## Запуск через Docker Compose
 
@@ -74,6 +85,12 @@ http://localhost:8080/swagger
 HOST_PORT=18082 docker compose up --build
 ```
 
+Порт PostgreSQL также публикуется только на loopback и настраивается отдельно:
+
+```bash
+DB_HOST_PORT=15432 docker compose up --build
+```
+
 Compose запускает три сервиса:
 
 - `db` — PostgreSQL 16 с постоянным volume;
@@ -100,14 +117,14 @@ docker compose down -v
 
 ```bash
 DATABASE_URL='postgres://user:password@localhost:5432/task1?sslmode=disable' \
-  go run . migrate
+  go run ./cmd/server migrate
 ```
 
 После этого запускается сервер:
 
 ```bash
 DATABASE_URL='postgres://user:password@localhost:5432/task1?sslmode=disable' \
-  go run .
+  go run ./cmd/server
 ```
 
 Без `DATABASE_URL` приложение завершится с ошибкой.
@@ -116,7 +133,7 @@ DATABASE_URL='postgres://user:password@localhost:5432/task1?sslmode=disable' \
 
 ```bash
 DATABASE_URL='postgres://user:password@localhost:5432/task1?sslmode=disable' \
-  go run . migrate down
+  go run ./cmd/server migrate down
 ```
 
 Команда `down` может удалить таблицы и данные. Перед её запуском приложение нужно
@@ -176,23 +193,25 @@ DATABASE_URL='postgres://user:password@localhost:5432/task1?sslmode=disable' \
 7. После успешного commit локальный черновик удаляется. При отмене он удаляется
    без SQL-запросов.
 8. Вкладка «Контакты» вызывает `GET /api/contacts?page=N&q=...`. Backend ищет
-   подстроку по телефону, ФИО, email, скидке и UID, выполняет `COUNT(*)` и
-   загружает только 25 совпадений через `LIMIT/OFFSET`.
+   подстроку по индексируемому нормализованному полю телефона, ФИО, email, скидки
+   и UID, выполняет `COUNT(*)` и загружает только 25 совпадений через
+   `LIMIT/OFFSET`.
 9. Ручное сохранение отправляет `PUT /api/contacts/{uid}`. Backend повторно
    нормализует поля и обновляет строку только при совпадении версии `updatedAt`.
    Уникальность телефона и advisory lock защищают от конфликтов с импортом.
-10. Предпросмотр и экспорт рассылки читают все актуальные строки `contacts`, а не
-   текущий черновик и не один выбранный файл.
+10. Предпросмотр рассылки читает только настроенный лимит актуальных контактов и
+    сообщает полный размер выборки. CSV-экспорт обходит весь справочник
+    потоково, не загружая его целиком в память.
 
 Подробное обоснование экранов, функций и сценариев находится в
 [`docs/IMPORT_WORKFLOW.md`](docs/IMPORT_WORKFLOW.md).
 
 ## Миграции
 
-Миграции находятся в `storage/migrations`, хранятся парами `up/down` и встраиваются
-в бинарник через `go:embed`. Начальная миграция сразу создаёт актуальную схему без
-legacy-колонок и переходных типов. Следующие изменения схемы добавляются новыми
-пронумерованными парами файлов.
+Миграции находятся в `internal/storage/migrations`, хранятся парами `up/down` и
+встраиваются в бинарник через `go:embed`. Начальная миграция сразу создаёт
+актуальную схему без legacy-колонок и переходных типов. Следующие изменения схемы
+добавляются новыми пронумерованными парами файлов.
 
 Перед выполнением используется PostgreSQL advisory lock: два одновременно
 запущенных мигратора не смогут изменять схему параллельно. Каждая серия миграций
@@ -217,11 +236,19 @@ legacy-колонок и переходных типов. Следующие и�
 | Переменная | По умолчанию | Назначение |
 | --- | --- | --- |
 | `DATABASE_URL` | нет | Обязательная строка подключения PostgreSQL |
+| `APP_ENV` | `development` | В `production` требует настроенную HTTP-аутентификацию |
+| `AUTH_USERNAME` | нет | Пользователь HTTP Basic Auth |
+| `AUTH_PASSWORD` | нет | Пароль HTTP Basic Auth; обязателен вместе с username |
+| `CORS_ALLOWED_ORIGINS` | нет | Дополнительные разрешённые origins через запятую |
+| `HOST_BIND_ADDRESS` | `127.0.0.1` | Интерфейс хоста для публикации приложения |
 | `HOST_PORT` | `8080` | Порт приложения на хосте в Compose |
+| `DB_HOST_BIND_ADDRESS` | `127.0.0.1` | Интерфейс хоста для публикации PostgreSQL |
+| `DB_HOST_PORT` | `5432` | Порт PostgreSQL на хосте в Compose |
 | `PORT` | `8080` | Порт HTTP-сервера внутри контейнера |
 | `MAX_UPLOAD_SIZE_MB` | `20` | Максимальный размер файла |
 | `MAX_UPLOAD_SIZE_BYTES` | нет | Точный лимит, имеет приоритет над MB |
 | `SWAGGER_ENABLED` | `true` | Включает Swagger UI и JSON-спецификацию |
+| `NOTIFICATION_PREVIEW_LIMIT` | `500` | Число сообщений в UI-предпросмотре, максимум `5000` |
 | `DB_MAX_CONNS` | `10` | Максимум соединений пула |
 | `DB_MIN_CONNS` | `0` | Минимум соединений пула |
 | `DB_CONNECT_TIMEOUT_SECONDS` | `10` | Таймаут подключения |
@@ -247,10 +274,11 @@ Swagger 2.0-спецификация доступна по `/swagger/doc.json`.
 | `POST` | `/api/imports/commit` | Атомарный подтверждённый импорт |
 | `GET` | `/api/contacts?page=N&q=...` | Поиск и страница из 25 подтверждённых контактов |
 | `PUT` | `/api/contacts/{uid}` | Сохранение проверенных полей одного контакта |
-| `POST` | `/api/preview` | Предпросмотр уведомлений |
-| `POST` | `/api/export` | Экспорт уведомлений в CSV |
+| `POST` | `/api/preview` | Ограниченный предпросмотр уведомлений |
+| `POST` | `/api/export` | Потоковый экспорт всех уведомлений в CSV |
 
-Аннотации находятся рядом с соответствующими обработчиками в `handlers`.
+Аннотации находятся рядом с соответствующими обработчиками в
+`internal/handlers`.
 После изменения API документация пересобирается закреплённой версией Swag:
 
 ```bash
@@ -263,13 +291,13 @@ go generate ./...
 docker run --rm \
   -v "$PWD":/src \
   -w /src \
-  golang:1.22-alpine \
+  golang:1.26.5-alpine3.24 \
   go generate ./...
 ```
 
 Команда обновляет `docs/docs.go`, `docs/swagger.json` и `docs/swagger.yaml`.
-Эти файлы входят в репозиторий и Docker-образ, поэтому для запуска приложения
-CLI `swag` не нужен.
+Все три файла входят в репозиторий; в Docker-образ попадает необходимый серверу
+`docs.go`, поэтому для запуска приложения CLI `swag` не нужен.
 
 ## Проверка
 
@@ -279,12 +307,73 @@ CLI `swag` не нужен.
 go test ./...
 ```
 
-Тесты `services/import_service_test.go` проверяют нормализацию, запрет импорта
-невалидного черновика, классификацию контактов и версии конфликтов.
-`handlers/import_test.go` отдельно доказывает, что preview не вызывает commit.
+Статический анализ через закреплённую версию `golangci-lint`:
+
+```powershell
+docker run --rm -v "${PWD}:/app" -w /app `
+  golangci/golangci-lint:v2.12.2-alpine golangci-lint run
+```
+
+Конфигурация находится в `.golangci.yml`. Версия образа и версия в CI должны
+обновляться вместе, чтобы локальная проверка и GitHub Actions давали одинаковый
+результат.
+
+Для повседневной работы эти длинные команды собраны в `Taskfile.yml`. Установить
+Task на Windows можно через WinGet, после чего посмотреть все доступные задачи:
+
+```powershell
+winget install Task.Task
+task --list
+```
+
+Основные команды:
+
+```powershell
+task fmt          # gofmt + goimports
+task lint         # статический анализ
+task test         # все Go-тесты
+task check        # полный набор локальных проверок перед PR
+task docker:up    # сборка и запуск приложения
+```
+
+На каждый push в `main` и pull request workflow `.github/workflows/ci.yml`
+запускает `golangci-lint`, проверяет `gofmt`, актуальность Swagger, выполняет
+`go vet`, `govulncheck`, тесты с race detector и сохраняет отчёт покрытия как
+artifact. Отдельный job поднимает PostgreSQL 16 и проверяет миграции,
+индексированный поиск и потоковый обход.
+Локально рекомендуется выполнить тот же базовый набор:
+
+```bash
+task check
+```
+
+Или выполнить проверки вручную:
+
+```bash
+golangci-lint fmt
+golangci-lint run
+go vet ./...
+go test -race ./...
+```
+
+Тесты `internal/services/import_service_test.go` проверяют нормализацию, запрет
+импорта невалидного черновика, классификацию контактов и версии конфликтов.
+`internal/handlers/import_test.go` отдельно доказывает, что preview не вызывает
+commit. `internal/handlers/notification_test.go` проверяет строгий JSON, лимиты
+предпросмотра и полноту CSV-экспорта. `cmd/server/middleware_test.go` покрывает
+production-конфигурацию, а `internal/storage/postgres_integration_test.go`
+запускается при наличии
+`TEST_DATABASE_URL` и отказывается очищать БД, в имени которой нет `test`.
 
 ## Production
 
+- Используйте `.env.production.example` как список обязательных настроек, но
+  храните реальные секреты вне Git.
+- `APP_ENV=production` не позволит серверу запуститься без `AUTH_USERNAME` и
+  `AUTH_PASSWORD`, а wildcard/`null` в CORS будут отклонены.
+- По умолчанию Compose публикует приложение только на `127.0.0.1`. Для внешнего
+  доступа ставьте перед ним TLS reverse proxy; открывайте `0.0.0.0` только при
+  наличии сетевого firewall.
 - Используйте длинный уникальный пароль без значения по умолчанию.
 - Для внешней PostgreSQL включайте TLS (`sslmode=verify-full`).
 - Не публикуйте порт PostgreSQL в интернет.

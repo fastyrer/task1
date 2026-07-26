@@ -124,6 +124,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/handlers.ErrorResponse"
                         }
                     },
+                    "413": {
+                        "description": "Request Entity Too Large",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
                     "422": {
                         "description": "Unprocessable Entity",
                         "schema": {
@@ -179,6 +185,12 @@ const docTemplate = `{
                     },
                     "405": {
                         "description": "Method Not Allowed",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "413": {
+                        "description": "Request Entity Too Large",
                         "schema": {
                             "$ref": "#/definitions/handlers.ErrorResponse"
                         }
@@ -267,6 +279,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/handlers.ErrorResponse"
                         }
                     },
+                    "413": {
+                        "description": "Request Entity Too Large",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
                     "422": {
                         "description": "Unprocessable Entity",
                         "schema": {
@@ -315,6 +333,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "413": {
+                        "description": "Request Entity Too Large",
                         "schema": {
                             "$ref": "#/definitions/handlers.ErrorResponse"
                         }
@@ -376,13 +400,19 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/handlers.ErrorResponse"
                         }
+                    },
+                    "413": {
+                        "description": "Request Entity Too Large",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
                     }
                 }
             }
         },
         "/api/preview": {
             "post": {
-                "description": "Формирует сообщение для каждого актуального контакта PostgreSQL. Поддерживаются плейсхолдеры {{Телефон}}, {{Имя}}, {{Email}} и {{Скидка}}.",
+                "description": "Формирует ограниченный предпросмотр сообщений по актуальным контактам PostgreSQL. CSV-экспорт всегда включает весь справочник. Поддерживаются плейсхолдеры {{Телефон}}, {{Имя}}, {{Email}} и {{Скидка}}.",
                 "consumes": [
                     "application/json"
                 ],
@@ -419,6 +449,12 @@ const docTemplate = `{
                     },
                     "405": {
                         "description": "Method Not Allowed",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "413": {
+                        "description": "Request Entity Too Large",
                         "schema": {
                             "$ref": "#/definitions/handlers.ErrorResponse"
                         }
@@ -589,9 +625,21 @@ const docTemplate = `{
                         "$ref": "#/definitions/handlers.NotificationItem"
                     }
                 },
+                "returned": {
+                    "type": "integer",
+                    "example": 500
+                },
                 "skipped": {
                     "type": "integer",
                     "example": 0
+                },
+                "total": {
+                    "type": "integer",
+                    "example": 1200
+                },
+                "truncated": {
+                    "type": "boolean",
+                    "example": true
                 }
             }
         },

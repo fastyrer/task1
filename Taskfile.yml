@@ -1,0 +1,69 @@
+version: "3.35.1"
+
+vars:
+  GO_IMAGE: golang:1.26.5-alpine3.24
+  LINT_IMAGE: golangci/golangci-lint:v2.12.2-alpine
+
+tasks:
+  default:
+    desc: Показать доступные команды
+    cmds:
+      - task --list
+
+  check:
+    desc: Выполнить локальные проверки перед pull request
+    cmds:
+      - task: fmt-check
+      - task: lint
+      - task: test
+      - task: docker:config
+
+  fmt:
+    desc: Отформатировать Go-код и упорядочить импорты
+    cmds:
+      - docker run --rm -v "{{.TASKFILE_DIR}}:/app" -w /app {{.LINT_IMAGE}} golangci-lint fmt
+
+  fmt-check:
+    desc: Проверить форматирование без изменения файлов
+    cmds:
+      - docker run --rm -v "{{.TASKFILE_DIR}}:/app" -w /app {{.LINT_IMAGE}} golangci-lint fmt --diff
+
+  lint:
+    desc: Запустить статический анализ Go-кода
+    cmds:
+      - docker run --rm -v "{{.TASKFILE_DIR}}:/app" -w /app {{.LINT_IMAGE}} golangci-lint run
+
+  test:
+    desc: Запустить все Go-тесты
+    cmds:
+      - docker run --rm -v "{{.TASKFILE_DIR}}:/src" -w /src {{.GO_IMAGE}} go test ./...
+
+  generate:
+    desc: Обновить Swagger-документацию
+    cmds:
+      - docker run --rm -v "{{.TASKFILE_DIR}}:/src" -w /src {{.GO_IMAGE}} go generate ./...
+
+  docker:config:
+    desc: Проверить итоговую конфигурацию Docker Compose
+    cmds:
+      - docker compose config --quiet
+
+  docker:build:
+    desc: Собрать образ приложения
+    cmds:
+      - docker compose build app
+
+  docker:up:
+    desc: Собрать и запустить приложение в фоне
+    cmds:
+      - docker compose up --build -d
+
+  docker:down:
+    desc: Остановить приложение без удаления данных PostgreSQL
+    cmds:
+      - docker compose down
+
+  docker:logs:
+    desc: Следить за логами приложения
+    cmds:
+      - docker compose logs -f app

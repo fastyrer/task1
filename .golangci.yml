@@ -1,0 +1,59 @@
+version: "2"
+
+run:
+  timeout: 5m
+  tests: true
+  modules-download-mode: readonly
+
+# standard уже включает errcheck, govet, ineffassign, staticcheck и unused.
+# Дополнительные правила здесь ловят только практические ошибки и проблемы
+# сопровождения; экспериментальные и субъективные ограничения не включены.
+linters:
+  default: standard
+  enable:
+    - bodyclose
+    - errorlint
+    - gocritic
+    - gosec
+    - misspell
+    - nilerr
+    - noctx
+    - nolintlint
+    - predeclared
+    - revive
+    - rowserrcheck
+    - sqlclosecheck
+    - unconvert
+    - wastedassign
+  settings:
+    staticcheck:
+      # Ошибки этого проекта одновременно являются русскими сообщениями API,
+      # поэтому ST1005 (строчная буква и отсутствие точки) здесь неприменим.
+      checks:
+        - all
+        - -ST1000
+        - -ST1003
+        - -ST1005
+        - -ST1016
+        - -ST1020
+        - -ST1021
+        - -ST1022
+    revive:
+      # Тексты доменных ошибок напрямую отображаются в русскоязычном UI и
+      # намеренно оформлены как полноценные предложения.
+      rules:
+        - name: error-strings
+          disabled: true
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - task1

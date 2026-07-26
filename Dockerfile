@@ -1,5 +1,5 @@
 # Первый этап собирает Go-бинарник и не попадает в финальный образ.
-FROM golang:1.22-alpine AS builder
+FROM golang:1.26.5-alpine3.24 AS builder
 
 WORKDIR /src
 
@@ -7,21 +7,16 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 
-# В сборку попадают только файлы, нужные приложению.
-COPY main.go swagger.go ./
-COPY docs ./docs
-COPY frontend ./frontend
-COPY handlers ./handlers
-COPY models ./models
-COPY services ./services
-COPY storage ./storage
-COPY utils ./utils
+# Копируются только исходники, необходимые для сборки серверного бинарника.
+COPY cmd ./cmd
+COPY internal ./internal
+COPY docs/docs.go ./docs/docs.go
 
 # CGO отключён для статического Linux-бинарника; -s -w уменьшают его размер.
-RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/server .
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/server ./cmd/server
 
 # Второй этап содержит только runtime-файлы, поэтому финальный образ меньше.
-FROM alpine:3.20
+FROM alpine:3.24.1
 
 WORKDIR /app
 
@@ -34,7 +29,10 @@ COPY --from=builder /out/server ./server
 
 RUN chown app:app /app/server
 
-ENV PORT=8080
+# x/tools, используемый Swagger runtime, инициализирует индекс в user cache.
+# В read-only контейнере cache направляется в уже разрешённый tmpfs /tmp.
+ENV PORT=8080 \
+	XDG_CACHE_HOME=/tmp/.cache
 EXPOSE 8080
 
 USER app

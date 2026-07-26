@@ -65,9 +65,18 @@ definitions:
         items:
           $ref: '#/definitions/handlers.NotificationItem'
         type: array
+      returned:
+        example: 500
+        type: integer
       skipped:
         example: 0
         type: integer
+      total:
+        example: 1200
+        type: integer
+      truncated:
+        example: true
+        type: boolean
     type: object
   handlers.ValidateImportRequest:
     properties:
@@ -438,6 +447,10 @@ paths:
           description: Conflict
           schema:
             $ref: '#/definitions/handlers.ErrorResponse'
+        "413":
+          description: Request Entity Too Large
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
         "422":
           description: Unprocessable Entity
           schema:
@@ -476,6 +489,10 @@ paths:
             $ref: '#/definitions/handlers.ErrorResponse'
         "405":
           description: Method Not Allowed
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "413":
+          description: Request Entity Too Large
           schema:
             $ref: '#/definitions/handlers.ErrorResponse'
         "500":
@@ -534,6 +551,10 @@ paths:
           description: Conflict
           schema:
             $ref: '#/definitions/handlers.ErrorResponse'
+        "413":
+          description: Request Entity Too Large
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
         "422":
           description: Unprocessable Entity
           schema:
@@ -567,6 +588,10 @@ paths:
             $ref: '#/definitions/models.ImportPreviewResult'
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "413":
+          description: Request Entity Too Large
           schema:
             $ref: '#/definitions/handlers.ErrorResponse'
         "422":
@@ -608,6 +633,10 @@ paths:
           description: Method Not Allowed
           schema:
             $ref: '#/definitions/handlers.ErrorResponse'
+        "413":
+          description: Request Entity Too Large
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
       summary: Повторно проверить локальный черновик
       tags:
       - Imports
@@ -615,8 +644,9 @@ paths:
     post:
       consumes:
       - application/json
-      description: Формирует сообщение для каждого актуального контакта PostgreSQL.
-        Поддерживаются плейсхолдеры {{Телефон}}, {{Имя}}, {{Email}} и {{Скидка}}.
+      description: Формирует ограниченный предпросмотр сообщений по актуальным контактам
+        PostgreSQL. CSV-экспорт всегда включает весь справочник. Поддерживаются плейсхолдеры
+        {{Телефон}}, {{Имя}}, {{Email}} и {{Скидка}}.
       parameters:
       - description: Шаблон сообщения
         in: body
@@ -637,6 +667,10 @@ paths:
             $ref: '#/definitions/handlers.ErrorResponse'
         "405":
           description: Method Not Allowed
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "413":
+          description: Request Entity Too Large
           schema:
             $ref: '#/definitions/handlers.ErrorResponse'
         "500":

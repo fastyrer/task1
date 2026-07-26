@@ -1,0 +1,132 @@
+// upload.js - stateless-проверка файла и управление локальным черновиком.
+
+import { API, postForm } from "./api.js";
+import { loadActiveDraft, removeActiveDraft, saveActiveDraft } from "./draft-store.js";
+import { renderFileResult, resetFileView } from "./file-view.js";
+import { setButtonLabel } from "./icons.js";
+import { appState, clearDraftState, currentDraft, setDraftState } from "./state.js";
+import { clearError, showError, showFilePanel, showWorkspaceView } from "./ui.js";
+
+const fileInput = document.getElementById("fileInput");
+const sheetInput = document.getElementById("sheetInput");
+const uploadButton = document.getElementById("uploadButton");
+const filePickerLabel = document.getElementById("filePickerLabel");
+const discardDraftButtons = document.querySelectorAll("[data-discard-draft]");
+let draftSaveTimer = 0;
+
+export async function initUpload({ searchController, importController }) {
+  fileInput.addEventListener("change", () => {
+    filePickerLabel.textContent = fileInput.files[0]?.name || "Выберите CSV, XLS или XLSX";
+  });
+
+  uploadButton.addEventListener("click", async () => {
+    clearError();
+    const file = fileInput.files[0];
+    if (!file) {
+      showError("Выберите CSV, XLS или XLSX-файл.");
+      return;
+    }
+    if (currentDraft() && !window.confirm("Заменить текущий локальный черновик новым файлом?")) {
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+    if (sheetInput.value.trim()) {
+      formData.append("sheet", sheetInput.value.trim());
+    }
+
+    uploadButton.disabled = true;
+    setButtonLabel(uploadButton, "Проверка...");
+    try {
+      const { response, data } = await postForm(API.upload, formData);
+      if (!response.ok) {
+        showError(data.error || "Не удалось проверить файл.");
+        return;
+      }
+
+      await saveActiveDraft(data, false);
+      activateDraft(data, searchController, importController);
+    } catch (error) {
+      showError("Не удалось проверить или сохранить локальный черновик.");
+    } finally {
+      uploadButton.disabled = false;
+      setButtonLabel(uploadButton, "Проверить файл");
+    }
+  });
+
+  // Отмена финального этапа очищает весь локальный сценарий импорта.
+  discardDraftButtons.forEach((button) => {
+    button.addEventListener("click", async () => {
+      if (!currentDraft() || !window.confirm("Удалить локальный черновик? PostgreSQL не изменится.")) {
+        return;
+      }
+      try {
+        await resetImportWorkspace(searchController, importController);
+      } catch (error) {
+        showError("Интерфейс очищен, но черновик не удалось удалить из хранилища браузера.");
+      }
+    });
+  });
+
+  // После commit приложение возвращается к тому же состоянию, что и при первом открытии страницы.
+  document.addEventListener("import:committed", () => {
+    resetImportWorkspace(searchController, importController).catch(() => {
+      showError("Импорт завершён, но черновик не удалось удалить из хранилища браузера.");
+    });
+  });
+
+  // Редактирование не обращается к серверу: изменения с небольшой задержкой остаются в IndexedDB.
+  document.addEventListener("draft:edited", () => {
+    window.clearTimeout(draftSaveTimer);
+    draftSaveTimer = window.setTimeout(() => {
+      if (appState.validation) {
+        saveActiveDraft(appState.validation, true).catch(() => {
+          showError("Не удалось сохранить локальные изменения в браузере.");
+        });
+      }
+    }, 300);
+  });
+
+  try {
+    const restored = await loadActiveDraft();
+    if (restored?.validation) {
+      activateDraft(restored.validation, searchController, importController, restored.dirty);
+    }
+  } catch (error) {
+    showError("Локальный черновик недоступен. Проверьте настройки хранилища браузера.");
+  }
+}
+
+function activateDraft(validation, searchController, importController, dirty = false) {
+  setDraftState(validation, dirty);
+  renderFileResult(validation);
+  searchController.reset();
+  importController.showImportPanel(validation);
+  showFilePanel("preview");
+}
+
+async function resetImportWorkspace(searchController, importController) {
+  window.clearTimeout(draftSaveTimer);
+  let removalError = null;
+  try {
+    await removeActiveDraft();
+  } catch (error) {
+    removalError = error;
+  }
+
+  clearDraftState();
+  resetFileView();
+  searchController.reset();
+  importController.reset();
+  fileInput.value = "";
+  sheetInput.value = "";
+  filePickerLabel.textContent = "Выберите CSV, XLS или XLSX";
+  clearError();
+  showWorkspaceView("files");
+  showFilePanel("preview");
+
+  if (removalError) {
+    throw removalError;
+  }
+}
