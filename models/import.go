@@ -31,6 +31,7 @@ type ImportValidationResult struct {
 	Draft               ImportDraft         `json:"draft"`
 	PreviewRows         []map[string]string `json:"previewRows"`
 	Stats               ProcessingStats     `json:"stats"`
+	TableError          string              `json:"tableError,omitempty" example:"В таблице нет ни одной записи, готовой к импорту. Исправьте строки с ошибками."`
 	Warnings            []ProcessingWarning `json:"warnings,omitempty"`
 	InvalidRows         []InvalidRow        `json:"invalidRows,omitempty"`
 	DetectedPhoneColumn string              `json:"detectedPhoneColumn,omitempty" example:"Телефон"`

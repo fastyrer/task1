@@ -55,6 +55,9 @@ func ValidateImportDraft(draft models.ImportDraft) (models.FileData, error) {
 	if err != nil {
 		return models.FileData{}, err
 	}
+	if err := validateRequiredContactColumns(headers); err != nil {
+		return models.FileData{}, err
+	}
 	if len(draft.Rows) == 0 {
 		return models.FileData{}, ErrNoDataRows
 	}
@@ -243,6 +246,7 @@ func validationResult(data models.FileData) models.ImportValidationResult {
 		Draft:               draft,
 		PreviewRows:         previewRows,
 		Stats:               data.Stats,
+		TableError:          tableValidationError(data.Stats),
 		Warnings:            append([]models.ProcessingWarning(nil), data.Warnings...),
 		InvalidRows:         append([]models.InvalidRow(nil), data.InvalidRows...),
 		DetectedPhoneColumn: utils.DetectPhoneColumn(data.Headers),

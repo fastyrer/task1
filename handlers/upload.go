@@ -43,7 +43,7 @@ func RegisterUploadRoutes(mux *http.ServeMux) {
 
 // Upload – основной метод, обрабатывает POST-запросы с файлами.
 // @Summary Проверить файл и создать локальный черновик
-// @Description Принимает CSV, XLS или XLSX, нормализует все строки и возвращает их браузеру. PostgreSQL не изменяется.
+// @Description Принимает CSV, XLS или XLSX с колонками Телефон, ФИО, Email и Скидка, нормализует все строки и возвращает их браузеру. PostgreSQL не изменяется.
 // @Tags Files
 // @Accept multipart/form-data
 // @Produce json
@@ -191,6 +191,7 @@ func userMessage(err error) string {
 		errors.Is(err, services.ErrEmptyFile),
 		errors.Is(err, services.ErrNoHeaders),
 		errors.Is(err, services.ErrNoDataRows),
+		errors.Is(err, services.ErrMissingRequiredColumns),
 		errors.Is(err, services.ErrInvalidCSV),
 		errors.Is(err, services.ErrInvalidExcel),
 		errors.Is(err, services.ErrReadFile),

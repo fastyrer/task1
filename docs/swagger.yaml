@@ -306,6 +306,10 @@ definitions:
         type: array
       stats:
         $ref: '#/definitions/models.ProcessingStats'
+      tableError:
+        example: В таблице нет ни одной записи, готовой к импорту. Исправьте строки
+          с ошибками.
+        type: string
       warnings:
         items:
           $ref: '#/definitions/models.ProcessingWarning'
@@ -584,8 +588,9 @@ paths:
     post:
       consumes:
       - application/json
-      description: Нормализует строки после редактирования и возвращает новую диагностику.
-        PostgreSQL не изменяется.
+      description: Проверяет обязательные колонки Телефон, ФИО, Email и Скидка, нормализует
+        строки после редактирования и возвращает новую диагностику. PostgreSQL не
+        изменяется.
       parameters:
       - description: Локальный черновик
         in: body
@@ -650,8 +655,8 @@ paths:
     post:
       consumes:
       - multipart/form-data
-      description: Принимает CSV, XLS или XLSX, нормализует все строки и возвращает
-        их браузеру. PostgreSQL не изменяется.
+      description: Принимает CSV, XLS или XLSX с колонками Телефон, ФИО, Email и Скидка,
+        нормализует все строки и возвращает их браузеру. PostgreSQL не изменяется.
       parameters:
       - description: CSV/XLS/XLSX-файл с клиентскими данными
         in: formData

@@ -202,6 +202,9 @@ func recordsToFileData(records []parsedRecord) (models.FileData, error) {
 	if err != nil {
 		return models.FileData{}, err
 	}
+	if err := validateRequiredContactColumns(headers); err != nil {
+		return models.FileData{}, err
+	}
 
 	// Предупреждения о пропущенных строках до заголовков
 	warnings := make([]models.ProcessingWarning, 0)

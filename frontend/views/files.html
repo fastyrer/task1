@@ -27,6 +27,7 @@
   </section>
 
   <div id="fileInfo" class="file-context meta"></div>
+  <div id="tableValidationError" class="error file-validation-error" role="alert"></div>
   <div id="statsBlock" class="metrics-strip empty-state">Сводка появится после загрузки файла.</div>
 
   <div class="workspace-tabs" role="tablist" aria-label="Представления файла">
@@ -117,18 +118,6 @@
       </div>
       <div id="fixError" class="error spaced-error" role="alert"></div>
     </section>
-  </div>
-
-  <div id="fileWorkflowFooter" class="workflow-footer is-hidden">
-    <div><strong>Локальный черновик готов</strong><span>Проверьте конфликты перед единственной записью в PostgreSQL.</span></div>
-    <div class="action-row workflow-actions">
-      <button id="discardDraftButton" type="button" class="btn-outline replace" data-discard-draft>
-        <span data-icon="x" aria-hidden="true"></span>Отменить импорт
-      </button>
-      <button id="openImportButton" type="button" class="btn-secondary" data-scroll-target="importTitle">
-        <span data-icon="users" aria-hidden="true"></span>Перейти к импорту
-      </button>
-    </div>
   </div>
 
   <section class="save-workspace import-workspace is-hidden" id="saveSection" aria-labelledby="importTitle">

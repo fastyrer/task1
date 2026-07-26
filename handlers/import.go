@@ -44,7 +44,7 @@ func RegisterImportRoutes(mux *http.ServeMux, store storage.ImportStore) {
 
 // Validate повторно нормализует отредактированный черновик без обращения к БД.
 // @Summary Повторно проверить локальный черновик
-// @Description Нормализует строки после редактирования и возвращает новую диагностику. PostgreSQL не изменяется.
+// @Description Проверяет обязательные колонки Телефон, ФИО, Email и Скидка, нормализует строки после редактирования и возвращает новую диагностику. PostgreSQL не изменяется.
 // @Tags Imports
 // @Accept json
 // @Produce json

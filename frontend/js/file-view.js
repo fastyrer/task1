@@ -7,6 +7,7 @@ import { formatBytes, formatWarning, showFilePanel, showWorkspaceView } from "./
 const headersBlock = document.getElementById("headersBlock");
 const previewTable = document.getElementById("previewTable");
 const fileInfo = document.getElementById("fileInfo");
+const tableValidationError = document.getElementById("tableValidationError");
 const statsBlock = document.getElementById("statsBlock");
 const warningsBlock = document.getElementById("warningsBlock");
 const invalidRowsTable = document.getElementById("invalidRowsTable");
@@ -33,6 +34,7 @@ nextRowsButton.addEventListener("click", () => {
 
 export function renderFileResult(payload) {
   renderFileInfo(payload.draft || {});
+  tableValidationError.textContent = payload.tableError || "";
   renderStats(payload.stats);
   renderHeaders(payload.draft?.headers || appState.currentHeaders);
   renderDraftRows(payload.draft, true);
@@ -43,6 +45,7 @@ export function renderFileResult(payload) {
 // resetFileView удаляет визуальные следы отменённого или завершённого локального черновика.
 export function resetFileView() {
   fileInfo.textContent = "";
+  tableValidationError.textContent = "";
   renderStats(null);
   renderHeaders([]);
   renderDraftRows(null, true);

@@ -296,11 +296,6 @@
   display: block;
 }
 
-.workflow-actions {
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
 .save-result {
   display: grid;
   gap: 22px;
@@ -549,9 +544,7 @@
   .composer-actions > button,
   .save-command-bar > button,
   .commit-command-bar > button,
-  .workflow-actions > button,
-  .import-heading > button,
-  .workflow-footer > button {
+  .import-heading > button {
     width: 100%;
   }
 

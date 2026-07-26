@@ -25,12 +25,20 @@ func validateRows(headers []string, rows []parsedDataRow) ([]models.InvalidRow, 
 	for _, header := range headers {
 		kinds[header] = utils.ClassifyHeader(header)
 	}
+	requiredHeaders := requiredValueHeaders(headers)
 
 	seenValues := make(map[string]map[string]int)
 	invalidRows := make([]models.InvalidRow, 0)
 	warnings := make([]models.ProcessingWarning, 0)
 	for _, row := range rows {
 		rowErrors := make([]models.ProcessingWarning, 0)
+		for _, header := range requiredHeaders {
+			value := utils.CleanCell(row.Values[header])
+			row.Values[header] = value
+			if value == "" {
+				rowErrors = append(rowErrors, fieldWarning(row.Number, header, "Обязательное поле не заполнено."))
+			}
+		}
 		for _, header := range headers {
 
 			// Очистка значения

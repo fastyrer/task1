@@ -336,7 +336,7 @@ const docTemplate = `{
         },
         "/api/imports/validate": {
             "post": {
-                "description": "Нормализует строки после редактирования и возвращает новую диагностику. PostgreSQL не изменяется.",
+                "description": "Проверяет обязательные колонки Телефон, ФИО, Email и Скидка, нормализует строки после редактирования и возвращает новую диагностику. PostgreSQL не изменяется.",
                 "consumes": [
                     "application/json"
                 ],
@@ -434,7 +434,7 @@ const docTemplate = `{
         },
         "/api/upload": {
             "post": {
-                "description": "Принимает CSV, XLS или XLSX, нормализует все строки и возвращает их браузеру. PostgreSQL не изменяется.",
+                "description": "Принимает CSV, XLS или XLSX с колонками Телефон, ФИО, Email и Скидка, нормализует все строки и возвращает их браузеру. PostgreSQL не изменяется.",
                 "consumes": [
                     "multipart/form-data"
                 ],
@@ -934,6 +934,10 @@ const docTemplate = `{
                 },
                 "stats": {
                     "$ref": "#/definitions/models.ProcessingStats"
+                },
+                "tableError": {
+                    "type": "string",
+                    "example": "В таблице нет ни одной записи, готовой к импорту. Исправьте строки с ошибками."
                 },
                 "warnings": {
                     "type": "array",

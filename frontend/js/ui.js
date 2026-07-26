@@ -15,14 +15,6 @@ function initWorkspaceNavigation() {
   document.querySelectorAll("[data-view-target]").forEach((control) => {
     control.addEventListener("click", () => showWorkspaceView(control.dataset.viewTarget));
   });
-  document.querySelectorAll("[data-scroll-target]").forEach((control) => {
-    control.addEventListener("click", () => {
-      document.getElementById(control.dataset.scrollTarget)?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-    });
-  });
 }
 
 export function showWorkspaceView(viewName) {

@@ -12,7 +12,6 @@ const sheetInput = document.getElementById("sheetInput");
 const uploadButton = document.getElementById("uploadButton");
 const filePickerLabel = document.getElementById("filePickerLabel");
 const discardDraftButtons = document.querySelectorAll("[data-discard-draft]");
-const fileWorkflowFooter = document.getElementById("fileWorkflowFooter");
 let draftSaveTimer = 0;
 
 export async function initUpload({ searchController, importController }) {
@@ -56,7 +55,7 @@ export async function initUpload({ searchController, importController }) {
     }
   });
 
-  // Кнопки в сводке и финальном этапе отменяют один и тот же локальный черновик.
+  // Кнопка финального этапа отменяет локальный черновик без обращения к PostgreSQL.
   discardDraftButtons.forEach((button) => {
     button.addEventListener("click", async () => {
       if (!currentDraft() || !window.confirm("Удалить локальный черновик? PostgreSQL не изменится.")) {
@@ -100,7 +99,6 @@ function activateDraft(validation, searchController, importController, dirty = f
   renderFileResult(validation);
   searchController.reset();
   importController.showImportPanel(validation);
-  fileWorkflowFooter.classList.remove("is-hidden");
   showFilePanel("preview");
 }
 
@@ -110,7 +108,6 @@ async function clearLocalDraft(searchController, importController, resetImport) 
   clearDraftState();
   resetFileView();
   searchController.reset();
-  fileWorkflowFooter.classList.add("is-hidden");
   fileInput.value = "";
   sheetInput.value = "";
   filePickerLabel.textContent = "Выберите CSV, XLS или XLSX";

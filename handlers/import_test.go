@@ -39,10 +39,12 @@ func TestPreviewDoesNotCommitImport(t *testing.T) {
 		OriginalFilename: "contacts.csv",
 		Format:           "csv",
 		HeaderRow:        1,
-		Headers:          []string{"Телефон", "ФИО"},
+		Headers:          []string{"Телефон", "ФИО", "Email", "Скидка"},
 		Rows: []models.ImportRow{{
 			RowNumber: 2,
-			Values:    map[string]string{"Телефон": "+79991234567", "ФИО": "Иван Иванов"},
+			Values: map[string]string{
+				"Телефон": "+79991234567", "ФИО": "Иван Иванов", "Email": "", "Скидка": "",
+			},
 		}},
 	}})
 	if err != nil {

@@ -47,12 +47,14 @@ func TestPreviewImportRejectsInvalidDraft(t *testing.T) {
 		OriginalFilename: "invalid.csv",
 		Format:           "csv",
 		HeaderRow:        1,
-		Headers:          []string{"Телефон", "Email"},
+		Headers:          []string{"Телефон", "ФИО", "Email", "Скидка"},
 		Rows: []models.ImportRow{{
 			RowNumber: 2,
 			Values: map[string]string{
 				"Телефон": "+79991234567",
+				"ФИО":     "Иван Иванов",
 				"Email":   "not-an-email",
+				"Скидка":  "",
 			},
 		}},
 	})
@@ -147,13 +149,14 @@ func validDraft() models.ImportDraft {
 		Format:           "csv",
 		Encoding:         "UTF-8",
 		HeaderRow:        1,
-		Headers:          []string{"Телефон", "ФИО", "Email"},
+		Headers:          []string{"Телефон", "ФИО", "Email", "Скидка"},
 		Rows: []models.ImportRow{{
 			RowNumber: 2,
 			Values: map[string]string{
 				"Телефон": "+79991234567",
 				"ФИО":     "Иван Иванов",
 				"Email":   "user@example.com",
+				"Скидка":  "",
 			},
 		}},
 	}

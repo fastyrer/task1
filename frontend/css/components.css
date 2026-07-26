@@ -13,7 +13,6 @@
 .search-toolbar,
 .search-field,
 .action-row,
-.workflow-footer,
 .save-command-bar,
 .conflicts-header,
 .composer-header,
@@ -396,6 +395,10 @@ button:disabled {
   display: none;
 }
 
+.file-validation-error {
+  margin-top: 12px;
+}
+
 .meta,
 .result-summary,
 .section-note {
@@ -717,31 +720,6 @@ mark {
   color: var(--muted);
 }
 
-.workflow-footer {
-  justify-content: space-between;
-  gap: 18px;
-  margin-top: 16px;
-  border: 1px solid #b9dec7;
-  border-radius: 8px;
-  padding: 14px 16px;
-  background: var(--success-soft);
-}
-
-.workflow-footer strong,
-.workflow-footer span {
-  display: block;
-}
-
-.workflow-footer strong {
-  color: var(--success);
-}
-
-.workflow-footer span {
-  margin-top: 2px;
-  color: #3e6950;
-  font-size: 13px;
-}
-
 .empty-workspace {
   display: grid;
   min-height: 360px;
@@ -832,7 +810,6 @@ mark {
 
   .section-heading,
   .inline-heading,
-  .workflow-footer,
   .save-command-bar,
   .conflicts-header,
   .composer-header {
