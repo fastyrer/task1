@@ -4,7 +4,7 @@ go 1.26.0
 
 require (
 	github.com/extrame/xls v0.0.1
-	github.com/jackc/pgx/v5 v5.9.2
+	github.com/jackc/pgx/v5 v5.11.0
 	github.com/swaggo/http-swagger/v2 v2.0.2
 	github.com/swaggo/swag v1.16.6
 	github.com/xuri/excelize/v2 v2.8.1
