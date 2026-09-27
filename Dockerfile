@@ -16,7 +16,7 @@ COPY docs/docs.go ./docs/docs.go
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/server ./cmd/server
 
 # Второй этап содержит только runtime-файлы, поэтому финальный образ меньше.
-FROM alpine:3.24.1
+FROM alpine:3.24.2
 
 WORKDIR /app
 
