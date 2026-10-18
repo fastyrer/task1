@@ -1,5 +1,5 @@
 # Первый этап собирает Go-бинарник и не попадает в финальный образ.
-FROM golang:1.26.5-alpine3.24 AS builder
+FROM golang:1.27.2-alpine3.24 AS builder
 
 WORKDIR /src
 
